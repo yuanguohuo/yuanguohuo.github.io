@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="本文介绍qemu(version 7.2.12)的QOM (Qemu Object Model)，以及基于QOM实现的Accelerator和MachineClass，为VM的创建和初始化做准备。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="虚拟化入门笔记--Qemu Object Model">
+<meta property="og:url" content="http://yoursite.com/2024/07/21/virtualization-2-qemu-object-model/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="本文介绍qemu(version 7.2.12)的QOM (Qemu Object Model)，以及基于QOM实现的Accelerator和MachineClass，为VM的创建和初始化做准备。">
+<meta property="og:locale">
+<meta property="og:image" content="http://yoursite.com/2024/07/21/virtualization-2-qemu-object-model/qom-accelerators.png">
+<meta property="og:image" content="http://yoursite.com/2024/07/21/virtualization-2-qemu-object-model/q35.png">
+<meta property="og:image" content="http://yoursite.com/2024/07/21/virtualization-2-qemu-object-model/qom-machine-class.png">
+<meta property="article:published_time" content="2024-07-21T14:52:08.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.550Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="virtualization">
+<meta property="article:tag" content="qemu">
+<meta property="article:tag" content="kvm">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2024/07/21/virtualization-2-qemu-object-model/qom-accelerators.png">
+
+<link rel="canonical" href="http://yoursite.com/2024/07/21/virtualization-2-qemu-object-model/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>虚拟化入门笔记--Qemu Object Model | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2024/07/21/virtualization-2-qemu-object-model/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          虚拟化入门笔记--Qemu Object Model
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2024-07-21 14:52:08" itemprop="dateCreated datePublished" datetime="2024-07-21T14:52:08+00:00">2024-07-21</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/kvm/" itemprop="url" rel="index"><span itemprop="name">kvm</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2024/07/21/virtualization-2-qemu-object-model/" class="post-meta-item leancloud_visitors" data-flag-title="虚拟化入门笔记--Qemu Object Model" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/07/21/virtualization-2-qemu-object-model/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/07/21/virtualization-2-qemu-object-model/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>本文介绍qemu(version 7.2.12)的QOM (Qemu Object Model)，以及基于QOM实现的Accelerator和MachineClass，为VM的创建和初始化做准备。</p>
+<a id="more"></a>
+
+<h1 id="Qemu对象模型QOM-1"><a href="#Qemu对象模型QOM-1" class="headerlink" title="Qemu对象模型QOM (1)"></a>Qemu对象模型QOM (1)</h1><p>Qemu是C语言编写的，所以手动实现了类似于C++的面向对象机制，也就是QOM (QEMU Object Model)。有了它，开发者可以注册class，然后创建class的实例。简单地说，QOM是这样实现的：</p>
+<ul>
+<li>一切皆对象，有点类似于python；</li>
+<li>也就是说class本身也是一个对象，即class-object；其中保存着父类的实例(通过组合实现继承), class的name, 以及class的函数指针(相当于成员函数)。</li>
+<li><code>TypeImpl</code>描述一个class，包括:<ul>
+<li>父类指针<code>TypeImpl *parent_type</code>;</li>
+<li>class-object的size (<code>class_size</code>)，以及初始化class-object的函数指针(<code>class_init</code>)；有了这两者就可以创建并初始化class-object；若没设置则继承父类<code>parent_type</code>的；</li>
+<li>object的size (<code>instance_size</code>)，以及初始化object的函数指针(<code>instance_init</code>)；有了这两者就可以创建并初始化object(相当于object的构造函数)；若没设置则继承父类<code>parent_type</code>的；</li>
+<li>本class的singleton的class-object(<code>ObjectClass *class</code>)；</li>
+</ul>
+</li>
+<li>所以<code>TypeImpl</code>相当于class的meta；注册class时会创建一个<code>TypeImpl</code>实例并保存到全局表<code>type_table</code>中。但这个时候singleton的class-object没有创建(<code>ObjectClass *class</code>为<code>NULL</code>)，更别提任何object了；</li>
+<li>class-object是lazily created的：创建函数是<code>type_initialize()</code>。若TypeImpl实例(meta)的<code>ObjectClass *class</code>为<code>NULL</code>，则分配一个class-object，size为<code>class_size</code>，然后调用<code>class_init</code>来初始化它；</li>
+<li>创建object：大小为<code>instance_size</code>，初始化函数为<code>instance_init</code>。有多个函数可以选择：<ul>
+<li><code>object_initialize(..., const char* typename)</code>: 输入字符串类型的typename。根据typename从全局表<code>type_table</code>查找meta (TypeImpl实例)，调用<code>type_initialize()</code>来lazily create class-object，然后初始化object。</li>
+<li><code>object_new_with_type()</code>: 输入meta (TypeImpl实例)。调用<code>type_initialize()</code>来lazily create class-object，然后分配并初始化object。</li>
+</ul>
+</li>
+</ul>
+<p>如何使用QOM见<a target="_blank" rel="noopener" href="https://qemu-project.gitlab.io/qemu/devel/qom.html">The QEMU Object Model</a>。</p>
+<h1 id="Accelerators-2"><a href="#Accelerators-2" class="headerlink" title="Accelerators (2)"></a>Accelerators (2)</h1><p>Qemu支持不同类型的accelerators: KVM, TCG等；它们都是QOM中的类，有各自的class-object，可以创建多个object。被创建的object是KVMState实例, TCGState实例。这些实例是VM (Virtual Machine)的被加速的组件。对于KVM来说，被加速的组件是CPU和内存，是VM的主机，其它都是外围设备(peripheral devices)。所以从这个角度说，KVMState就是VM本身，至少KVM语义中是这么认为的：<code>KVMState.vmfd = kvm_ioctl(s, KVM_CREATE_VM, type)</code>；也就是说，在KVM语义中，<code>KVM_CREATE_VM</code>返回就是一个vmfd。而这个vmfd就是KVMState的最重要字段。当然，在qemu的语义中，VM还是包括外设的，由MachineClass描述，姑且称之为整机，见下一节。</p>
+<p><img src="qom-accelerators.png" alt="figure1"></p>
+<div style="text-align: center;"><em>Accelerators Object Model</em></div>
+
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* accel/kvm/kvm-all.c */</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">kvm_accel_instance_init</span><span class="params">(Object *obj)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    KVMState *s = KVM_STATE(obj);</span><br><span class="line"></span><br><span class="line">    s-&gt;fd = <span class="number">-1</span>;</span><br><span class="line">    s-&gt;vmfd = <span class="number">-1</span>;</span><br><span class="line">    s-&gt;kvm_shadow_mem = <span class="number">-1</span>;</span><br><span class="line">    s-&gt;kernel_irqchip_allowed = <span class="literal">true</span>;</span><br><span class="line">    s-&gt;kernel_irqchip_split = ON_OFF_AUTO_AUTO;</span><br><span class="line">    <span class="comment">/* KVM dirty ring is by default off */</span></span><br><span class="line">    s-&gt;kvm_dirty_ring_size = <span class="number">0</span>;</span><br><span class="line">    s-&gt;notify_vmexit = NOTIFY_VMEXIT_OPTION_RUN;</span><br><span class="line">    s-&gt;notify_window = <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">kvm_accel_class_init</span><span class="params">(ObjectClass *oc, <span class="keyword">void</span> *data)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    AccelClass *ac = ACCEL_CLASS(oc);</span><br><span class="line">    ac-&gt;name = <span class="string">&quot;KVM&quot;</span>;</span><br><span class="line">    ac-&gt;init_machine = kvm_init;</span><br><span class="line">    ac-&gt;has_memory = kvm_accel_has_memory;</span><br><span class="line">    ac-&gt;allowed = &amp;kvm_allowed;</span><br><span class="line">    ac-&gt;gdbstub_supported_sstep_flags = kvm_gdbstub_sstep_flags;</span><br><span class="line"></span><br><span class="line">    object_class_property_add(oc, <span class="string">&quot;kernel-irqchip&quot;</span>, <span class="string">&quot;on|off|split&quot;</span>,</span><br><span class="line">        <span class="literal">NULL</span>, kvm_set_kernel_irqchip,</span><br><span class="line">        <span class="literal">NULL</span>, <span class="literal">NULL</span>);</span><br><span class="line">    object_class_property_set_description(oc, <span class="string">&quot;kernel-irqchip&quot;</span>,</span><br><span class="line">        <span class="string">&quot;Configure KVM in-kernel irqchip&quot;</span>);</span><br><span class="line"></span><br><span class="line">    object_class_property_add(oc, <span class="string">&quot;kvm-shadow-mem&quot;</span>, <span class="string">&quot;int&quot;</span>,</span><br><span class="line">        kvm_get_kvm_shadow_mem, kvm_set_kvm_shadow_mem,</span><br><span class="line">        <span class="literal">NULL</span>, <span class="literal">NULL</span>);</span><br><span class="line">    object_class_property_set_description(oc, <span class="string">&quot;kvm-shadow-mem&quot;</span>,</span><br><span class="line">        <span class="string">&quot;KVM shadow MMU size&quot;</span>);</span><br><span class="line"></span><br><span class="line">    object_class_property_add(oc, <span class="string">&quot;dirty-ring-size&quot;</span>, <span class="string">&quot;uint32&quot;</span>,</span><br><span class="line">        kvm_get_dirty_ring_size, kvm_set_dirty_ring_size,</span><br><span class="line">        <span class="literal">NULL</span>, <span class="literal">NULL</span>);</span><br><span class="line">    object_class_property_set_description(oc, <span class="string">&quot;dirty-ring-size&quot;</span>,</span><br><span class="line">        <span class="string">&quot;Size of KVM dirty page ring buffer (default: 0, i.e. use bitmap)&quot;</span>);</span><br><span class="line"></span><br><span class="line">    kvm_arch_accel_class_init(oc);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * class_size没有设置，继承父类的class_size。其实，这个类根本没有定义一个class，使用的就是父类AccelClass.</span></span><br><span class="line"><span class="comment"> * 对于使用者而言，TYPE_KVM_ACCEL和TYPE_TCG_ACCEL是两个不同的类：它们有不同的class-object，不同的class_init, instance_init;</span></span><br><span class="line"><span class="comment"> * 只不过class-object通过同一个数据结构表示。</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">const</span> TypeInfo kvm_accel_type = &#123;</span><br><span class="line">    .name = TYPE_KVM_ACCEL,</span><br><span class="line">    .parent = TYPE_ACCEL,</span><br><span class="line">    .instance_init = kvm_accel_instance_init,</span><br><span class="line">    .class_init = kvm_accel_class_init,</span><br><span class="line">    .instance_size = <span class="keyword">sizeof</span>(KVMState),</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">kvm_type_init</span><span class="params">(<span class="keyword">void</span>)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    type_register_static(&amp;kvm_accel_type);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">type_init(kvm_type_init);</span><br></pre></td></tr></table></figure>
+
+
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* accel/tcg/tcg-all.c */</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">tcg_accel_instance_init</span><span class="params">(Object *obj)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    TCGState *s = TCG_STATE(obj);</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">tcg_accel_class_init</span><span class="params">(ObjectClass *oc, <span class="keyword">void</span> *data)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    AccelClass *ac = ACCEL_CLASS(oc);</span><br><span class="line">    ac-&gt;name = <span class="string">&quot;tcg&quot;</span>;</span><br><span class="line">    ac-&gt;init_machine = tcg_init_machine;</span><br><span class="line">    ac-&gt;allowed = &amp;tcg_allowed;</span><br><span class="line">    ac-&gt;gdbstub_supported_sstep_flags = tcg_gdbstub_supported_sstep_flags;</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * class_size没有设置，继承父类的class_size。其实，这个类根本没有定义一个class，使用的就是父类AccelClass.</span></span><br><span class="line"><span class="comment"> * 对于使用者而言，TYPE_KVM_ACCEL和TYPE_TCG_ACCEL是两个不同的类：它们有不同的class-object，不同的class_init, instance_init;</span></span><br><span class="line"><span class="comment"> * 只不过class-object通过同一个数据结构表示。</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">const</span> TypeInfo tcg_accel_type = &#123;</span><br><span class="line">    .name = TYPE_TCG_ACCEL,</span><br><span class="line">    .parent = TYPE_ACCEL,</span><br><span class="line">    .instance_init = tcg_accel_instance_init,</span><br><span class="line">    .class_init = tcg_accel_class_init,</span><br><span class="line">    .instance_size = <span class="keyword">sizeof</span>(TCGState),</span><br><span class="line">&#125;;</span><br><span class="line">module_obj(TYPE_TCG_ACCEL);</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">register_accel_types</span><span class="params">(<span class="keyword">void</span>)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    type_register_static(&amp;tcg_accel_type);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">type_init(register_accel_types);</span><br></pre></td></tr></table></figure>
+
+<h1 id="MachineClass-3"><a href="#MachineClass-3" class="headerlink" title="MachineClass (3)"></a>MachineClass (3)</h1><p>前面说过KVMState可以代表VM的主机(CPU和内存)；除了主机之外，一个完整的VM机器还包括外设。外设通过主板上的芯片组(chipset)和主机相连：In a computer system, a chipset is a set of electronic components on one or more integrated circuits that manages the data flow between the processor, memory and peripherals. The chipset is usually found on the motherboard of computers. Chipsets are usually designed to work with a specific family of microprocessors. 总之，chipset定义了计算机的包括拓扑、总线、支持的外设等，像是机型(qemu通过<code>-machine</code>来指定)。</p>
+<p>主机加外设姑且称之为VM整机，由machine class描述。由于主机(CPU和内存)区别不大，所以qemu里machine class使用芯片组(chipset)来命名机型，如I440FX/PIIX4和Q35。</p>
+<p>I440FX/PIIX4和Q35是Intel的两个芯片组家族，前者很古老，后者较新。最明显的区别是，I440FX使用PCI，而Q35使用PCIe，支持PCIe extended configuration space。并且，Q35有IOMMU。Q35的North Bridge是MCH，South Bridge是ICH9，系统拓扑如下图：</p>
+<p><img src="q35.png" alt="figure1"></p>
+<div style="text-align: center;"><em>Q35拓扑结构</em></div>
+
+<p>Qemu模拟了很多芯片组，包括I440FX/PIIX4和Q35家族。若创建VM时没有指定<code>-machine</code>选项，qemu-7.2.12默认machine class是pc-i440fx-7.2-machine。为了更深入地理解QOM，这里把I440FX/PIIX4和Q35两种chipset的定义都摘出来：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* include/hw/i386/pc.h */</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DEFINE_PC_MACHINE(suffix, namestr, initfn, optsfn) \</span></span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">void</span> pc_machine_#<span class="meta">#suffix##_class_init(ObjectClass *oc, void *data) \</span></span><br><span class="line">    &#123; \</span><br><span class="line">        MachineClass *mc = MACHINE_CLASS(oc); \</span><br><span class="line">        optsfn(mc); \</span><br><span class="line">        mc-&gt;init = initfn; \</span><br><span class="line">    &#125; \</span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">const</span> TypeInfo pc_machine_type_#<span class="meta">#suffix = &#123; \</span></span><br><span class="line">        .name       = namestr TYPE_MACHINE_SUFFIX, \</span><br><span class="line">        .parent     = TYPE_PC_MACHINE, \</span><br><span class="line">        .class_init = pc_machine_##suffix##_class_init, \</span><br><span class="line">    &#125;; \</span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">void</span> pc_machine_init_#<span class="meta">#suffix(void) \</span></span><br><span class="line">    &#123; \</span><br><span class="line">        type_register(&amp;pc_machine_type_##suffix); \</span><br><span class="line">    &#125; \</span><br><span class="line">    type_init(pc_machine_init_##suffix)</span><br></pre></td></tr></table></figure>
+
+<p><strong>pc-i440fx-7.2-machine的定义</strong>：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* hw/i386/pc_piix.c */</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DEFINE_I440FX_MACHINE(suffix, name, compatfn, optionfn) \</span></span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">void</span> pc_init_#<span class="meta">#suffix(MachineState *machine) \</span></span><br><span class="line">    &#123; \</span><br><span class="line">        <span class="keyword">void</span> (*compat)(MachineState *m) = (compatfn); \</span><br><span class="line">        <span class="keyword">if</span> (compat) &#123; \</span><br><span class="line">            compat(machine); \</span><br><span class="line">        &#125; \</span><br><span class="line">        pc_init1(machine, TYPE_I440FX_PCI_HOST_BRIDGE, \</span><br><span class="line">                 TYPE_I440FX_PCI_DEVICE); \</span><br><span class="line">    &#125; \</span><br><span class="line">    DEFINE_PC_MACHINE(suffix, name, pc_init_##suffix, optionfn)</span><br><span class="line"></span><br><span class="line">DEFINE_I440FX_MACHINE(v7_2, <span class="string">&quot;pc-i440fx-7.2&quot;</span>, <span class="literal">NULL</span>,</span><br><span class="line">                      pc_i440fx_7_2_machine_options);</span><br></pre></td></tr></table></figure>
+
+<p><strong>pc-i440fx-7.2-machine的展开</strong>：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* PC hardware initialisation */</span></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">pc_init1</span><span class="params">(MachineState *machine,</span></span></span><br><span class="line"><span class="function"><span class="params">                     <span class="keyword">const</span> <span class="keyword">char</span> *host_type, <span class="keyword">const</span> <span class="keyword">char</span> *pci_type)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    PCMachineState *pcms = PC_MACHINE(machine);</span><br><span class="line">    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);</span><br><span class="line">    X86MachineState *x86ms = X86_MACHINE(machine);</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">pc_i440fx_machine_options</span><span class="params">(MachineClass *m)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);</span><br><span class="line">    pcmc-&gt;default_nic_model = <span class="string">&quot;e1000&quot;</span>;</span><br><span class="line">    pcmc-&gt;pci_root_uid = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    m-&gt;family = <span class="string">&quot;pc_piix&quot;</span>;</span><br><span class="line">    m-&gt;desc = <span class="string">&quot;Standard PC (i440FX + PIIX, 1996)&quot;</span>;</span><br><span class="line">    m-&gt;default_machine_opts = <span class="string">&quot;firmware=bios-256k.bin&quot;</span>;</span><br><span class="line">    m-&gt;default_display = <span class="string">&quot;std&quot;</span>;</span><br><span class="line">    machine_class_allow_dynamic_sysbus_dev(m, TYPE_RAMFB_DEVICE);</span><br><span class="line">    machine_class_allow_dynamic_sysbus_dev(m, TYPE_VMBUS_BRIDGE);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">pc_i440fx_7_2_machine_options</span><span class="params">(MachineClass *m)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);</span><br><span class="line">    pc_i440fx_machine_options(m);</span><br><span class="line">    m-&gt;alias = <span class="string">&quot;pc&quot;</span>;</span><br><span class="line">    m-&gt;is_default = <span class="literal">true</span>;</span><br><span class="line">    pcmc-&gt;default_cpu_version = <span class="number">1</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">pc_init_v7_2</span><span class="params">(MachineState *machine)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">void</span> (*compat)(MachineState *m) = <span class="literal">NULL</span>;</span><br><span class="line">    <span class="keyword">if</span> (compat) &#123;</span><br><span class="line">        compat(machine);</span><br><span class="line">    &#125;</span><br><span class="line">    pc_init1(machine, <span class="string">&quot;i440FX-pcihost&quot;</span>,</span><br><span class="line">             <span class="string">&quot;i440FX&quot;</span>);</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">pc_machine_v7_2_class_init</span><span class="params">(ObjectClass *oc, <span class="keyword">void</span> *data)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    MachineClass *mc = MACHINE_CLASS(oc);</span><br><span class="line">    pc_i440fx_7_2_machine_options(mc);</span><br><span class="line">    mc-&gt;init = pc_init_v7_2;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">const</span> TypeInfo pc_machine_type_v7_2 = &#123;</span><br><span class="line">    .name       = <span class="string">&quot;pc-i440fx-7.2-machine&quot;</span>,</span><br><span class="line">    .parent     = <span class="string">&quot;generic-pc-machine&quot;</span>,</span><br><span class="line">    .class_init = pc_machine_v7_2_class_init,</span><br><span class="line">&#125;;</span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">pc_machine_init_v7_2</span><span class="params">(<span class="keyword">void</span>)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="comment">/*生成TypeImpl并插入到全局表type_table中*/</span></span><br><span class="line">    type_register(&amp;pc_machine_type_v7_2);</span><br><span class="line">&#125;</span><br><span class="line">type_init(pc_machine_init_v7_2);</span><br></pre></td></tr></table></figure>
+
+<p><strong>pc-q35-7.2-machine的定义</strong>:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DEFINE_Q35_MACHINE(suffix, name, compatfn, optionfn) \</span></span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">void</span> pc_init_#<span class="meta">#suffix(MachineState *machine) \</span></span><br><span class="line">    &#123; \</span><br><span class="line">        <span class="keyword">void</span> (*compat)(MachineState *m) = (compatfn); \</span><br><span class="line">        <span class="keyword">if</span> (compat) &#123; \</span><br><span class="line">            compat(machine); \</span><br><span class="line">        &#125; \</span><br><span class="line">        pc_q35_init(machine); \</span><br><span class="line">    &#125; \</span><br><span class="line">    DEFINE_PC_MACHINE(suffix, name, pc_init_##suffix, optionfn)</span><br><span class="line"></span><br><span class="line">DEFINE_Q35_MACHINE(v7_2, <span class="string">&quot;pc-q35-7.2&quot;</span>, <span class="literal">NULL</span>,</span><br><span class="line">                   pc_q35_7_2_machine_options);</span><br></pre></td></tr></table></figure>
+
+<p><strong>pc-q35-7.2-machine的展开</strong>:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* PC hardware initialisation */</span></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">pc_q35_init</span><span class="params">(MachineState *machine)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    PCMachineState *pcms = PC_MACHINE(machine);</span><br><span class="line">    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);</span><br><span class="line">    X86MachineState *x86ms = X86_MACHINE(machine);</span><br><span class="line">    ....</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">pc_q35_machine_options</span><span class="params">(MachineClass *m)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);</span><br><span class="line">    pcmc-&gt;default_nic_model = <span class="string">&quot;e1000e&quot;</span>;</span><br><span class="line">    pcmc-&gt;pci_root_uid = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    m-&gt;family = <span class="string">&quot;pc_q35&quot;</span>;</span><br><span class="line">    m-&gt;desc = <span class="string">&quot;Standard PC (Q35 + ICH9, 2009)&quot;</span>;</span><br><span class="line">    m-&gt;units_per_default_bus = <span class="number">1</span>;</span><br><span class="line">    m-&gt;default_machine_opts = <span class="string">&quot;firmware=bios-256k.bin&quot;</span>;</span><br><span class="line">    m-&gt;default_display = <span class="string">&quot;std&quot;</span>;</span><br><span class="line">    m-&gt;default_kernel_irqchip_split = <span class="literal">false</span>;</span><br><span class="line">    m-&gt;no_floppy = <span class="number">1</span>;</span><br><span class="line">    machine_class_allow_dynamic_sysbus_dev(m, TYPE_AMD_IOMMU_DEVICE);</span><br><span class="line">    machine_class_allow_dynamic_sysbus_dev(m, TYPE_INTEL_IOMMU_DEVICE);</span><br><span class="line">    machine_class_allow_dynamic_sysbus_dev(m, TYPE_RAMFB_DEVICE);</span><br><span class="line">    machine_class_allow_dynamic_sysbus_dev(m, TYPE_VMBUS_BRIDGE);</span><br><span class="line">    m-&gt;max_cpus = <span class="number">288</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">pc_q35_7_2_machine_options</span><span class="params">(MachineClass *m)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);</span><br><span class="line">    pc_q35_machine_options(m);</span><br><span class="line">    m-&gt;alias = <span class="string">&quot;q35&quot;</span>;</span><br><span class="line">    pcmc-&gt;default_cpu_version = <span class="number">1</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">pc_init_v7_2</span><span class="params">(MachineState *machine)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">void</span> (*compat)(MachineState *m) = <span class="literal">NULL</span>;</span><br><span class="line">    <span class="keyword">if</span> (compat) &#123;</span><br><span class="line">        compat(machine);</span><br><span class="line">    &#125;</span><br><span class="line">    pc_q35_init(machine);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">pc_machine_v7_2_class_init</span><span class="params">(ObjectClass *oc, <span class="keyword">void</span> *data)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    MachineClass *mc = MACHINE_CLASS(oc);</span><br><span class="line">    pc_q35_7_2_machine_options(mc);</span><br><span class="line">    mc-&gt;init = pc_init_v7_2;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">static</span> <span class="keyword">const</span> TypeInfo pc_machine_type_v7_2 = &#123;</span><br><span class="line">    .name       = <span class="string">&quot;pc-q35-7.2-machine&quot;</span>,</span><br><span class="line">    .parent     = <span class="string">&quot;generic-pc-machine&quot;</span>,</span><br><span class="line">    .class_init = pc_machine_v7_2_class_init,</span><br><span class="line">&#125;;</span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">pc_machine_init_v7_2</span><span class="params">(<span class="keyword">void</span>)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="comment">/*生成TypeImpl并插入到全局表type_table中*/</span></span><br><span class="line">    type_register(&amp;pc_machine_type_v7_2);</span><br><span class="line">&#125;</span><br><span class="line">type_init(pc_machine_init_v7_2);</span><br></pre></td></tr></table></figure>
+
+<p>看两种class的TypeInfo，里面都没有<code>class_size</code>, <code>instance_size</code>和<code>instance_init</code>。如第1节所述，缺失的字段从父类继承。父类就是”generic-pc-machine”，看它的描述：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">pc_machine_initfn</span><span class="params">(Object *obj)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    PCMachineState *pcms = PC_MACHINE(obj);</span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> CONFIG_VMPORT</span></span><br><span class="line">    pcms-&gt;vmport = ON_OFF_AUTO_AUTO;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">else</span></span></span><br><span class="line">    pcms-&gt;vmport = ON_OFF_AUTO_OFF;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span> <span class="comment">/* CONFIG_VMPORT */</span></span></span><br><span class="line">    pcms-&gt;max_ram_below_4g = <span class="number">0</span>; <span class="comment">/* use default */</span></span><br><span class="line">    pcms-&gt;smbios_entry_point_type = SMBIOS_ENTRY_POINT_TYPE_32;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* acpi build is enabled by default if machine supports it */</span></span><br><span class="line">    pcms-&gt;acpi_build_enabled = PC_MACHINE_GET_CLASS(pcms)-&gt;has_acpi_build;</span><br><span class="line">    pcms-&gt;smbus_enabled = <span class="literal">true</span>;</span><br><span class="line">    pcms-&gt;sata_enabled = <span class="literal">true</span>;</span><br><span class="line">    pcms-&gt;i8042_enabled = <span class="literal">true</span>;</span><br><span class="line">    pcms-&gt;max_fw_size = <span class="number">8</span> * MiB;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> CONFIG_HPET</span></span><br><span class="line">    pcms-&gt;hpet_enabled = <span class="literal">true</span>;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line">    pcms-&gt;default_bus_bypass_iommu = <span class="literal">false</span>;</span><br><span class="line"></span><br><span class="line">    pc_system_flash_create(pcms);</span><br><span class="line">    pcms-&gt;pcspk = isa_new(TYPE_PC_SPEAKER);</span><br><span class="line">    object_property_add_alias(OBJECT(pcms), <span class="string">&quot;pcspk-audiodev&quot;</span>,</span><br><span class="line">                              OBJECT(pcms-&gt;pcspk), <span class="string">&quot;audiodev&quot;</span>);</span><br><span class="line">    cxl_machine_init(obj, &amp;pcms-&gt;cxl_devices_state);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">const</span> TypeInfo pc_machine_info = &#123;</span><br><span class="line">    .name = <span class="string">&quot;generic-pc-machine&quot;</span>,</span><br><span class="line">    .parent = <span class="string">&quot;x86-machine&quot;</span>,</span><br><span class="line">    .abstract = <span class="literal">true</span>,</span><br><span class="line">    .instance_size = <span class="keyword">sizeof</span>(PCMachineState),</span><br><span class="line">    .instance_init = pc_machine_initfn,</span><br><span class="line">    .class_size = <span class="keyword">sizeof</span>(PCMachineClass),</span><br><span class="line">    .class_init = pc_machine_class_init,   <span class="comment">/*被覆盖*/</span></span><br><span class="line">    .interfaces = (InterfaceInfo[]) &#123;</span><br><span class="line">         &#123; TYPE_HOTPLUG_HANDLER &#125;,</span><br><span class="line">         &#123; &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">pc_machine_register_types</span><span class="params">(<span class="keyword">void</span>)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    type_register_static(&amp;pc_machine_info);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">type_init(pc_machine_register_types);</span><br></pre></td></tr></table></figure>
+
+<p>所以<code>pc-i440fx-7.2-machine</code>和<code>pc-q35-7.2-machine</code>的class-object是PCMachineClass实例。注意：它们是两个不同的类型，只不过class-object使用同一种数据结构表示而已，它们有独立的class-object，class-object中的成员函数不同，将来生成的object也不同，虽然描述object的数据结构都是<code>PCMachineState</code>。</p>
+<p><img src="qom-machine-class.png" alt="figure1"></p>
+<div style="text-align: center;"><em>MachineClass Object Model</em></div>
+
+<h2 id="MachineClass-class-object的创建-3-1"><a href="#MachineClass-class-object的创建-3-1" class="headerlink" title="MachineClass class-object的创建 (3.1)"></a>MachineClass class-object的创建 (3.1)</h2><p>如前所述，<code>type_register()</code>只创建了meta，并没有创建class-object. 那么class-object是什么时候创建的呢？答案还是lazily created.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*softmmu/vl.c*/</span></span><br><span class="line"></span><br><span class="line">qemu_init(<span class="keyword">int</span> argc, <span class="keyword">char</span> **argv) --&gt;</span><br><span class="line">qemu_create_machine() --&gt;</span><br><span class="line">select_machine() --&gt;</span><br><span class="line">object_class_get_list()</span><br></pre></td></tr></table></figure>
+
+<p>函数<code>object_class_get_list()</code>看起来只是get，其实它还负责创建:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*qom/object.c*/</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/*把class-object klass插入列表*/</span></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">object_class_get_list_tramp</span><span class="params">(ObjectClass *klass, <span class="keyword">void</span> *opaque)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    GSList **<span class="built_in">list</span> = opaque;</span><br><span class="line"></span><br><span class="line">    *<span class="built_in">list</span> = g_slist_prepend(*<span class="built_in">list</span>, klass);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/*生成并返回列表*/</span></span><br><span class="line"><span class="function">GSList *<span class="title">object_class_get_list</span><span class="params">(<span class="keyword">const</span> <span class="keyword">char</span> *implements_type,</span></span></span><br><span class="line"><span class="function"><span class="params">                              <span class="keyword">bool</span> include_abstract)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    GSList *<span class="built_in">list</span> = <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">    object_class_foreach(object_class_get_list_tramp,</span><br><span class="line">                         implements_type, include_abstract, &amp;<span class="built_in">list</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">list</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">object_class_foreach_tramp</span><span class="params">(gpointer key, gpointer value,</span></span></span><br><span class="line"><span class="function"><span class="params">                                       gpointer opaque)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    OCFData *data = opaque;</span><br><span class="line">    TypeImpl *type = value;</span><br><span class="line">    ObjectClass *k;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/*创建object-class*/</span></span><br><span class="line">    type_initialize(type);</span><br><span class="line">    k = type-&gt;class;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!data-&gt;include_abstract &amp;&amp; type-&gt;abstract) &#123;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (data-&gt;implements_type &amp;&amp;</span><br><span class="line">        !object_class_dynamic_cast(k, data-&gt;implements_type)) &#123;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/*调用object_class_get_list_tramp, 把class-object插入列表*/</span></span><br><span class="line">    data-&gt;fn(k, data-&gt;opaque);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">object_class_foreach</span><span class="params">(<span class="keyword">void</span> (*fn)(ObjectClass *klass, <span class="keyword">void</span> *opaque),</span></span></span><br><span class="line"><span class="function"><span class="params">                          <span class="keyword">const</span> <span class="keyword">char</span> *implements_type, <span class="keyword">bool</span> include_abstract,</span></span></span><br><span class="line"><span class="function"><span class="params">                          <span class="keyword">void</span> *opaque)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    OCFData data = &#123; fn, implements_type, include_abstract, opaque &#125;;</span><br><span class="line"></span><br><span class="line">    enumerating_types = <span class="literal">true</span>;</span><br><span class="line">    g_hash_table_foreach(type_table_get(), object_class_foreach_tramp, &amp;data);</span><br><span class="line">    enumerating_types = <span class="literal">false</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>从class-object列表(即MachineClass列表)中，可以找到当前VM的class-object(若不指定<code>-machine</code>，则选择默认的pc-i440fx-7.2-machine)，下一步就是创建VM本身。VM本身属于object.</p>
+<h2 id="MachineClass-object的创建-3-2"><a href="#MachineClass-object的创建-3-2" class="headerlink" title="MachineClass object的创建 (3.2)"></a>MachineClass object的创建 (3.2)</h2><p>一个qemu进程是一个VM，所以只有一个MachineState实例，即<code>MachineState *current_machine</code>；它的创建在</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*softmmu/vl.c*/</span></span><br><span class="line"></span><br><span class="line">qemu_init(<span class="keyword">int</span> argc, <span class="keyword">char</span> **argv) --&gt;</span><br><span class="line">qemu_create_machine() --&gt;</span><br><span class="line">object_new_with_class() --&gt;</span><br><span class="line">object_new_with_type()</span><br></pre></td></tr></table></figure>
+
+<p>这就回到第一节提到的<code>object_new_with_type()</code>函数。</p>
+<h1 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h1><ul>
+<li>Qemu中使用QOM (Qemu Object Model)来实现面向对象编程；</li>
+<li>AccelClass可以理解为VM主机(CPU和内存)的类型：有”KVM”，”tcg”等class-object实现，对应object是VM主机实例(KVMState、TCGState对象)；</li>
+<li>MachineClass可以理解为VM整机(主机加外设)的类型：有”pc-i440fx-7.2-machine”，”pc-q35-7.2-machine”等class-object实现，对应object是VM整机实例(PCMachineState对象);</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/virtualization/" rel="tag"># virtualization</a>
+              <a href="/tags/qemu/" rel="tag"># qemu</a>
+              <a href="/tags/kvm/" rel="tag"># kvm</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2024/07/21/virtualization-1-qemu-and-kvm/" rel="prev" title="虚拟化入门笔记--Qemu和KVM">
+      <i class="fa fa-chevron-left"></i> 虚拟化入门笔记--Qemu和KVM
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/07/22/virtualization-3-kvmtool-playaround/" rel="next" title="虚拟化入门笔记--kvmtool playaround">
+      虚拟化入门笔记--kvmtool playaround <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Qemu%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8BQOM-1"><span class="nav-number">1.</span> <span class="nav-text">Qemu对象模型QOM (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Accelerators-2"><span class="nav-number">2.</span> <span class="nav-text">Accelerators (2)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#MachineClass-3"><span class="nav-number">3.</span> <span class="nav-text">MachineClass (3)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#MachineClass-class-object%E7%9A%84%E5%88%9B%E5%BB%BA-3-1"><span class="nav-number">3.1.</span> <span class="nav-text">MachineClass class-object的创建 (3.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#MachineClass-object%E7%9A%84%E5%88%9B%E5%BB%BA-3-2"><span class="nav-number">3.2.</span> <span class="nav-text">MachineClass object的创建 (3.2)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93"><span class="nav-number">4.</span> <span class="nav-text">小结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

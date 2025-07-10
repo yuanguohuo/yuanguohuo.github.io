@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="通用引用在语法上很容易和右值引用混淆，所以本文介绍了构成通用引用条件。然后，着重介绍类型推导和引用折叠(reference collapsing)是如何演绎出通用引用的。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="C++11中的通用引用">
+<meta property="og:url" content="http://yoursite.com/2018/05/25/cpp11-universal-ref/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="通用引用在语法上很容易和右值引用混淆，所以本文介绍了构成通用引用条件。然后，着重介绍类型推导和引用折叠(reference collapsing)是如何演绎出通用引用的。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2018-05-25T12:03:23.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.489Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="通用引用">
+<meta property="article:tag" content="universal reference">
+<meta property="article:tag" content="引用折叠">
+<meta property="article:tag" content="reference collapsing">
+<meta property="article:tag" content="引用剥除">
+<meta property="article:tag" content="reference stripping">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2018/05/25/cpp11-universal-ref/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>C++11中的通用引用 | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/25/cpp11-universal-ref/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          C++11中的通用引用
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2018-05-25 12:03:23" itemprop="dateCreated datePublished" datetime="2018-05-25T12:03:23+00:00">2018-05-25</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/c/" itemprop="url" rel="index"><span itemprop="name">c++</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2018/05/25/cpp11-universal-ref/" class="post-meta-item leancloud_visitors" data-flag-title="C++11中的通用引用" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2018/05/25/cpp11-universal-ref/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2018/05/25/cpp11-universal-ref/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p><em>通用引用</em>在语法上很容易和右值引用混淆，所以本文介绍了构成通用引用条件。然后，着重介绍类型推导和引用折叠(reference collapsing)是如何演绎出<em>通用引用</em>的。</p>
+<a id="more"></a>
+
+<h1 id="左值右值都可引用-1"><a href="#左值右值都可引用-1" class="headerlink" title="左值右值都可引用 (1)"></a>左值右值都可引用 (1)</h1><p>熟悉右值引用的话，就会知道它是通过<code>&amp;&amp;</code>来声明的。可能看见<code>&amp;&amp;</code>的第一反应就是右值引用。可惜，有些情况下竟然不是。在<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2018/05/25/cpp11-rvalue-ref/">C++11中的右值引用</a>一篇中，我们看到了<code>std::move</code>的源代码：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line"><span class="keyword">typename</span> remove_reference&lt;T&gt;::<span class="function">type&amp;&amp; <span class="title">move</span><span class="params">(T&amp;&amp; t)</span> <span class="keyword">noexcept</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">static_cast</span>&lt;<span class="keyword">typename</span> remove_reference&lt;T&gt;::type&amp;&amp;&gt;(t);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里<code>std::move</code>的参数<code>t</code>，就不是右值引用。若是右值引用的话，你怎么能传一个左值给它当参数呢？它的作用可是把左值转换成右值啊。所以，<code>t</code>必须能匹配左值。另一方面，这样的代码也不会出错：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Foo <span class="title">f</span><span class="params">(<span class="string">&quot;123&quot;</span>)</span></span>;</span><br><span class="line">Foo&amp;&amp; r1 = <span class="built_in">std</span>::move(<span class="built_in">std</span>::move(f));</span><br><span class="line"></span><br><span class="line">Foo&amp;&amp; r2 = <span class="built_in">std</span>::move(Foo(<span class="string">&quot;456&quot;</span>));</span><br></pre></td></tr></table></figure>
+
+<p>也就是说，<code>t</code>也能够匹配右值。实际上，参数<code>t</code>就是一个<strong>通用引用</strong>。<strong>通用引用，可以使用左值表达式初始化，也可以使用右值表达式初始化。匹配左值表达式时，它表现的像一个左值引用；匹配右值表达式时，它表现的像一个右值引用</strong>。</p>
+<h1 id="构成通用引用的条件-2"><a href="#构成通用引用的条件-2" class="headerlink" title="构成通用引用的条件 (2)"></a>构成通用引用的条件 (2)</h1><p>出现<code>&amp;&amp;</code>的时候，如何判断它是右值引用，还是通用引用呢？通用引用有两个条件：</p>
+<ol>
+<li>形如<code>T&amp;&amp;</code>；</li>
+<li>T的类型需要推导；</li>
+</ol>
+<p>先看一些例子：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">int</span> lvalue = <span class="number">3</span>;</span><br><span class="line"><span class="keyword">auto</span>&amp;&amp; r1 = lvalue;</span><br><span class="line"></span><br><span class="line"><span class="keyword">auto</span>&amp;&amp; r2 = <span class="number">4</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">int</span>&amp;&amp; r3 = <span class="number">5</span>;</span><br><span class="line"><span class="keyword">auto</span>&amp;&amp; r4 = r3; <span class="comment">//等价于int&amp; r4 = r3;</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">std</span>::<span class="built_in">vector</span>&lt;<span class="keyword">int</span>&gt; vect;</span><br><span class="line"><span class="keyword">auto</span>&amp;&amp; r5 = vect[<span class="number">0</span>];</span><br><span class="line"></span><br><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">func</span><span class="params">(T&amp;&amp; p)</span></span>;</span><br><span class="line"></span><br><span class="line">func(lvalue);</span><br><span class="line">func(<span class="number">10</span>);</span><br></pre></td></tr></table></figure>
+
+<p>这里<code>r3</code>是右值引用，因为没有类型推导；相反，<code>r1, r2, r4, r5</code>和<code>p</code>都是通用引用：</p>
+<ul>
+<li><code>r1</code><strong>等价于</strong>左值引用；</li>
+<li><code>r2</code><strong>等价于</strong>右值引用；</li>
+<li><code>r4</code><strong>等价于</strong>左值引用；没错，是左值引用，因为r3是左值(虽然它是右值引用类型的变量)；</li>
+<li><code>r5</code><strong>等价于</strong>左值引用；因为<code>std::vector&lt;int&gt;::operator[]</code>返回左值引用(左值引用是左值)；</li>
+<li><code>func(lvalue)</code>中，<code>p</code><strong>等价于</strong>左值引用；</li>
+<li><code>func(10)</code>中，<code>p</code><strong>等价于</strong>右值引用；</li>
+</ul>
+<p>也就是说，形如<code>T&amp;&amp;</code>的类型中，若<code>T</code>是已知类型，则是右值引用；若<code>T</code>需要推导，则是通用引用。这两个条件看起来不难，但实际上还是比看起来要苛刻：</p>
+<p><strong>例1：必须形如<code>T&amp;&amp;</code></strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">int</span> lvalue = <span class="number">3</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> <span class="keyword">auto</span>&amp;&amp; r = lvalue; <span class="comment">//错误：r不是通用引用，而是右值引用，故不能通过左值初始化！</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">func</span><span class="params">(<span class="keyword">const</span> T&amp;&amp; p)</span></span>;</span><br><span class="line"></span><br><span class="line">func(lvalue);            <span class="comment">//错误：p不是通用引用，而是右值引用，故不能通过左值初始化！</span></span><br></pre></td></tr></table></figure>
+
+<p>注：必须是<code>T&amp;&amp;</code>，<code>const T&amp;&amp;</code>都不行。当然，<code>T</code>可以是<code>auto</code>或者别的类型参数名；</p>
+<p><strong>例2：必须存在类型推导</strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Bar</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">  <span class="keyword">private</span>:</span><br><span class="line">    T _m;</span><br><span class="line">  <span class="keyword">public</span>:</span><br><span class="line">    Bar(Bar&amp;&amp; other); <span class="comment">//不是通用引用，而是右值引用</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>虽然是类模板，但没有类型推导，<code>other</code>的类型就是<code>Bar&amp;&amp;</code>，所以也不是通用引用。甚至下面的也不是：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Bar</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">  <span class="keyword">private</span>:</span><br><span class="line">    T _m;</span><br><span class="line">  <span class="keyword">public</span>:</span><br><span class="line">    Bar(T&amp;&amp; t); <span class="comment">//不是通用引用，而是右值引用</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">template</span> &lt;<span class="class"><span class="keyword">class</span> <span class="title">T</span>, <span class="title">class</span> <span class="title">Allocator</span> = <span class="title">allocator</span>&lt;T&gt; &gt;</span></span><br><span class="line"><span class="class"><span class="title">class</span> <span class="title">vector</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">push_back</span><span class="params">(T&amp;&amp; x)</span></span>; <span class="comment">//不是通用引用，而是右值引用 </span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>这里也不存在类型推导：<code>Bar()</code>和<code>push_back()</code>不可能脱离它们的class而独立存在，然而，当它们的class产生的时候(也即是，类模板的实例化的时候)，类型参数已经确定了。所以，调用<code>Bar()</code>和<code>push_back()</code>的时候，不存在类型推导。</p>
+<p>而下面这种情况，却是通用引用，因为调用<code>Bar()</code>和<code>emplace_back()</code>的时候，需要推导类型：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Bar</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">  <span class="keyword">private</span>:</span><br><span class="line">    T _m;</span><br><span class="line">  <span class="keyword">public</span>:</span><br><span class="line">    <span class="keyword">template</span>&lt;<span class="keyword">typename</span> S&gt;</span><br><span class="line">    Bar(S&amp;&amp; s);   <span class="comment">// s是通用引用</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">template</span> &lt;<span class="class"><span class="keyword">class</span> <span class="title">T</span>, <span class="title">class</span> <span class="title">Allocator</span> = <span class="title">allocator</span>&lt;T&gt; &gt;</span></span><br><span class="line"><span class="class"><span class="title">class</span> <span class="title">vector</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="keyword">template</span> &lt;class... Args&gt;</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">emplace_back</span><span class="params">(Args&amp;&amp;... args)</span></span>;  <span class="comment">// args中的每一个参数都是是通用引用</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p><strong>例3：推导的必须是<code>T&amp;&amp;</code>中的T的类型</strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> S&gt;</span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">func</span><span class="params">(<span class="built_in">std</span>::<span class="built_in">vector</span>&lt;S&gt;&amp;&amp; p)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<p>虽然这里存在类型推导，但推导是std::vector的类型参数，而不是<code>T&amp;&amp;</code>中的<code>T</code>(实际上，p的类型是已知的<code>std::vector</code>)，所以，<code>p</code>也不是通用引用。</p>
+<h1 id="通用引用类型的变量-3"><a href="#通用引用类型的变量-3" class="headerlink" title="通用引用类型的变量 (3)"></a>通用引用类型的变量 (3)</h1><p>一个通用引用类型的变量，<strong>不管它是通过左值初始化的，还是通过右值初始化的，它本身是一个左值</strong>。这类似于**右值引用类型的变量是左值(因为有名字)**，见<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2018/05/25/cpp11-rvalue-ref/">C++11中的右值引用</a>。</p>
+<p>如果它引用的是左值(通过左值初始化的)，我们当然想把它当作左值处理；相反，如果它引用的是右值(通过右值初始化的)，我们又想保留它右值的特征(例如，能作为移动拷贝的参数)。你拿到一个通用引用类型的左值，它引用的可能是左值，也可能是右值，你不清楚(例如，你在写一个摸板函数，它的参数是通用引用，你当然不知道调用者传进左值还是右值)，但你还想保留它原有特征(左值或右值)，怎么办呢？<code>std::forward</code>可以帮你，见<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2018/05/25/cpp11-perfect-forward/">C++11中的完美转发</a>。</p>
+<h1 id="类型推导和引用折叠-4"><a href="#类型推导和引用折叠-4" class="headerlink" title="类型推导和引用折叠 (4)"></a>类型推导和引用折叠 (4)</h1><p>前面我们看到，通用引用在引用左值时变成左值引用，在引用右值时变成右值引用。这种奇特的效果是如何产生的呢？</p>
+<ol>
+<li>编译器允许它匹配左值和右值；</li>
+<li>类型推导和引用折叠(reference collapsing)最终让它变成左值引用或者右值引用；</li>
+</ol>
+<h2 id="类型推导规则-4-1"><a href="#类型推导规则-4-1" class="headerlink" title="类型推导规则 (4.1)"></a>类型推导规则 (4.1)</h2><p>首先，通用引用<code>auto&amp;&amp;</code>和<code>T&amp;&amp;</code>中的类型推导规则是这样的：</p>
+<ul>
+<li>若匹配的是左值lv，<code>auto</code>或<code>T</code>被推导成lv的引用类型；例如匹配<code>i</code>时(<code>int i=3;</code>)，推导结果是<code>int&amp;</code>；</li>
+<li>若匹配的是右值rv，<code>auto</code>或<code>T</code>被推导成rv的类型；例如匹配3时，推导结果是<code>int</code>；</li>
+</ul>
+<h2 id="引用的引用是非法的-4-2"><a href="#引用的引用是非法的-4-2" class="headerlink" title="引用的引用是非法的 (4.2)"></a>引用的引用是非法的 (4.2)</h2><p>其次，必须说明，<em>引用的引用</em>是非法的，例如：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">int</span> f = <span class="number">3</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">int</span> &amp; &amp; r1 = f;   <span class="comment">//error: cannot declare reference to ‘int&amp;’, which is not a typedef or a template type argument</span></span><br><span class="line"><span class="keyword">int</span> &amp; &amp;&amp; r2 = f;  <span class="comment">//error: cannot declare reference to ‘int&amp;’, which is not a typedef or a template type argument</span></span><br><span class="line"><span class="keyword">int</span> &amp;&amp; &amp; r3 = f;  <span class="comment">//error: cannot declare reference to ‘int&amp;&amp;’, which is not a typedef or a template type argument</span></span><br><span class="line"><span class="keyword">int</span> &amp;&amp; &amp;&amp; r4 = f; <span class="comment">//error: cannot declare reference to ‘int&amp;&amp;’, which is not a typedef or a template type argument</span></span><br></pre></td></tr></table></figure>
+
+<p>编译错误指出，不能声明<code>int&amp;</code>或者<code>int&amp;&amp;</code>的引用(即<em>引用的引用</em>)。</p>
+<h2 id="编译过程中产生引用的引用-4-3"><a href="#编译过程中产生引用的引用-4-3" class="headerlink" title="编译过程中产生引用的引用 (4.3)"></a>编译过程中产生<em>引用的引用</em> (4.3)</h2><p>虽然我们不能在源代码里写<em>引用的引用</em>(如4.2节所示)，但是由于第4.1节的类型推导规则(下面例1和例2)，模板类型参数实例化(下面例3)和typedef展开(下面例4)等原因，<strong>在编译的过程中</strong>，可能产生<em>引用的引用</em>这种情况：</p>
+<p><strong>例1：</strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">func</span><span class="params">(T&amp;&amp; p)</span></span>;</span><br><span class="line"></span><br><span class="line">func(<span class="number">3</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">int</span> i=<span class="number">3</span>;</span><br><span class="line">func(i);</span><br></pre></td></tr></table></figure>
+
+<p>根据类型推导规则：</p>
+<ul>
+<li>对于<code>func(3)</code>，<code>T</code>的推导结果是<code>int</code>，模板实例化的结果是<code>void func(int&amp;&amp; p)</code>；</li>
+<li>对于<code>func(i)</code>，<code>T</code>的推导结果是<code>int&amp;</code>，模板实例化的结果是<code>void func(int&amp; &amp;&amp; p)</code>；</li>
+</ul>
+<p>前一种情况，通用引用变成右值引用；后一种情况，模板实例化的过程中产生了<em>引用的引用</em>。</p>
+<p><strong>例2：</strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">auto</span>&amp;&amp; r1 = <span class="number">3</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">int</span> i = <span class="number">3</span>;</span><br><span class="line"><span class="keyword">auto</span>&amp;&amp; r2 = i;</span><br></pre></td></tr></table></figure>
+
+<p>根据类型推导规则：</p>
+<ul>
+<li><code>r1</code>引用的是右值，所以<code>auto</code>的推导结果是<code>int</code>，<code>r1</code>的类型是<code>int&amp;&amp;</code>；</li>
+<li><code>r2</code>引用的是左值，所以<code>auto</code>的推导结果是<code>int&amp;</code>，<code>r2</code>的类型是<code>int&amp; &amp;&amp;</code>；</li>
+</ul>
+<p>通用引用<code>r1</code>变成右值引用；<code>r2</code>的类型推导过程中出现了<em>引用的引用</em>。</p>
+<p><strong>例3：</strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Bar</span> &#123;</span></span><br><span class="line">  <span class="keyword">public</span>:</span><br><span class="line">    <span class="keyword">typedef</span> T&amp; LVRefType;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>使用引用类型(左值引用或右值引用)去实例化Bar：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">int</span> i=<span class="number">1</span>;</span><br><span class="line"><span class="keyword">int</span> j=<span class="number">2</span>;</span><br><span class="line"></span><br><span class="line">Bar&lt;<span class="keyword">int</span>&amp;&gt;::LVRefType ri = i;</span><br><span class="line">Bar&lt;<span class="keyword">int</span>&amp;&amp;&gt;::LVRefType rj = j;</span><br></pre></td></tr></table></figure>
+
+<p>这样，模板类实例化过程中也产生<em>引用的引用</em>：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="keyword">int</span>&amp; &amp; LVRefType;   <span class="comment">//Bar&lt;int&amp;&gt;</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="keyword">int</span>&amp;&amp; &amp; LVRefType;  <span class="comment">//Bar&lt;int&amp;&amp;&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>例4：</strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">func</span><span class="params">(Bar&lt;<span class="keyword">int</span>&gt;::LVRefType&amp;&amp; p)</span></span>;</span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">func</span><span class="params">(Bar&lt;<span class="keyword">int</span>&amp;&gt;::LVRefType&amp;&amp; p)</span></span>;</span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">func</span><span class="params">(Bar&lt;<span class="keyword">int</span>&amp;&amp;&gt;::LVRefType&amp;&amp; p)</span></span>;</span><br></pre></td></tr></table></figure>
+<p>因为<code>Bar&lt;int&gt;::LVRefType</code>，<code>Bar&lt;int&amp;&gt;::LVRefType</code>和<code>Bar&lt;int&amp;&amp;&gt;::LVRefType</code>都等价于<code>int&amp;</code>，所以，typedef展开得到的结果都是：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">func</span><span class="params">(<span class="keyword">int</span>&amp; &amp;&amp; p)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<p>即，产生了<em>引用的引用</em>。</p>
+<p>如第4.2节所说，<em>引用的引用</em>是非法的。那我们这些例子中都存在<em>引用的引用</em>怎么办呢？好在，这些<em>引用的引用</em>不是存在于源代码中(否则编译失败)，而是在编译过程中临时产生的。编译器会立即消除它们，手段就是**引用折叠(reference collapsing)**。</p>
+<h2 id="引用折叠规则-4-4"><a href="#引用折叠规则-4-4" class="headerlink" title="引用折叠规则 (4.4)"></a>引用折叠规则 (4.4)</h2><p>左值引用和右值引用可以组合出四种<em>引用的引用</em>：</p>
+<ol>
+<li>左值引用的左值引用；</li>
+<li>左值引用的右值引用；</li>
+<li>右值引用的左值引用；</li>
+<li>右值引用的右值引用；</li>
+</ol>
+<p>折叠(collapsing rules)规则比较简单：</p>
+<ol>
+<li>右值引用的右值引用折叠成(collapses into)右值引用；</li>
+<li>其他情况折叠成(collapses into)左值引用；</li>
+</ol>
+<p>基于折叠规则，看看上面的四个例子：</p>
+<ul>
+<li>例1：对于<code>func(i)</code>，T的推导结果是<code>int&amp;</code>，模板实例化过程中产生<code>void func(int&amp; &amp;&amp; p)</code>，最终折叠成<code>void func(int&amp; p)</code>，也就是说，通用引用<code>p</code>最终变成左值引用；</li>
+<li>例2：r2引用的是左值，所以<code>auto</code>的推导结果是<code>int&amp;</code>，<code>r2</code>的类型展开成<code>int&amp; &amp;&amp;</code>，最终折叠成<code>int&amp;</code>，也就是说，通用引用<code>r2</code>最终变成左值引用；</li>
+<li>例3：<code>int&amp; &amp;</code>和<code>int&amp;&amp; &amp;</code>都折叠成<code>int&amp;</code>，LVRefType最终变成<code>int&amp;</code>；这么定义是正确的：无论取代<code>T</code>的是不是引用，是左值引用还是右值引用，<code>LVRefType</code>最终都是左值引用类型，和它的名字相符；</li>
+<li>例4：<code>int&amp; &amp;&amp; p</code>被折叠成<code>int&amp; p</code>；</li>
+</ul>
+<p>可见，<strong>类型推导和引用折叠在通用引用机制中起着重要作用</strong>：编译器允许<code>T&amp;&amp;</code>匹配左值和右值，然后经过类型推导和(或)引用折叠，<code>T&amp;&amp;</code>才最终变成左值引用或者右值引用。</p>
+<h2 id="std-move的工作原理-4-5"><a href="#std-move的工作原理-4-5" class="headerlink" title="std::move的工作原理 (4.5)"></a>std::move的工作原理 (4.5)</h2><p>回头看<code>std::move</code>的实现，你发现，它的工作原理不过是类型推导和引用折叠的另一个例子：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line"><span class="keyword">typename</span> remove_reference&lt;T&gt;::<span class="function">type&amp;&amp; <span class="title">move</span><span class="params">(T&amp;&amp; t)</span> <span class="keyword">noexcept</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">static_cast</span>&lt;<span class="keyword">typename</span> remove_reference&lt;T&gt;::type&amp;&amp;&gt;(t);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>move左值：</strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Foo f;</span><br><span class="line"><span class="built_in">std</span>::move(f);</span><br></pre></td></tr></table></figure>
+
+<p>根据类型推导规则(第4.1节)，<code>std::move</code>的类型参数<code>T</code>推导为<code>Foo&amp;</code>，<code>std::move</code>展开为：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typename</span> remove_reference&lt;Foo&amp;&gt;::<span class="function">type&amp;&amp; <span class="title">move</span><span class="params">(Foo&amp; &amp;&amp; t)</span> <span class="keyword">noexcept</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">static_cast</span>&lt;<span class="keyword">typename</span> remove_reference&lt;Foo&amp;&gt;::type&amp;&amp;&gt;(t);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>经过remove_reference和引用折叠：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Foo&amp;&amp; <span class="title">move</span><span class="params">(Foo&amp; t)</span> <span class="keyword">noexcept</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">static_cast</span>&lt;Foo&amp;&amp;&gt;(t);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可见：左值经过std::move()变为右值；</p>
+<p><strong>move右值：</strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">std</span>::move(Foo(<span class="string">&quot;xyz&quot;</span>));</span><br></pre></td></tr></table></figure>
+
+<p>根据类型推导规则(第4.1节)，<code>std::move</code>的类型参数<code>T</code>推导为<code>Foo</code>，<code>std::move</code>展开为：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typename</span> remove_reference&lt;Foo&gt;::<span class="function">type&amp;&amp; <span class="title">move</span><span class="params">(Foo&amp;&amp; t)</span> <span class="keyword">noexcept</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">static_cast</span>&lt;<span class="keyword">typename</span> remove_reference&lt;Foo&gt;::type&amp;&amp;&gt;(t);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>经过remove_reference：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Foo&amp;&amp; <span class="title">move</span><span class="params">(Foo&amp;&amp; t)</span> <span class="keyword">noexcept</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">static_cast</span>&lt;Foo&amp;&amp;&gt;(t);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可见：右值经过std::move()还是右值；</p>
+<h2 id="引用剥除-4-6"><a href="#引用剥除-4-6" class="headerlink" title="引用剥除 (4.6)"></a>引用剥除 (4.6)</h2><p>其实，引用剥除(reference stripping)和引用折叠(reference collapsing)没有一毛钱关系。之所以在这里提它，纯粹是为了消除直观上的混淆。</p>
+<p>在<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2018/05/25/cpp11-auto/">C++11中的auto关键字</a>中，我们已经见到过引用剥除，auto类型推导的时候，需要进行引用剥除，模板类型参数推导也需要。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">func</span><span class="params">(T&amp;&amp; p)</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">int</span>&amp;&amp; r1 = <span class="number">3</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">int</span> x = <span class="number">3</span>;</span><br><span class="line"><span class="keyword">int</span>&amp; r2 = x; </span><br><span class="line"></span><br><span class="line">func(r1);</span><br><span class="line">func(r2);</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>问题：在<code>func(r1)</code>中<code>p</code>的类型是<code>int&amp;&amp; &amp;&amp;</code>，然后折叠成<code>int&amp;&amp;</code>，对吗？答：不对。在推导类型T的时候，<code>r1</code>的右值引用是被剥除的(<code>int&amp;&amp; r1=3</code>中的<code>&amp;&amp;</code>被剥除)。又因为<code>r1</code>是一个左值(说过很多次了，右值引用类型的变量有名字，因此是左值，见<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2018/05/25/cpp11-rvalue-ref/">C++11中的右值引用</a>)，所以<code>T</code>推导为<code>int&amp;</code>。因此，模板实例化为<code>void func(int&amp; &amp;&amp; p)</code>，最终折叠成<code>void func(int&amp; p)</code>。</li>
+<li>问题：在<code>func(r2)</code>中，<code>p</code>的类型是<code>int&amp; &amp;&amp;</code>，然后折叠成<code>int&amp;</code>，对吗？答：对，但是，这和<code>int&amp; r2=x</code>中的<code>&amp;</code>无关，因为它也被剥除了。<code>T</code>被推导成<code>int&amp;</code>完全是因为<code>r2</code>是左值的缘故。</li>
+</ol>
+<p>可见，由于引用剥除的缘故，<code>r1</code>和<code>r2</code>声明中的<code>&amp;&amp;</code>和<code>&amp;</code>起不到任何作用；模板参数类型的推导，完全取决于函数实参是左值还是右值。</p>
+<h1 id="小结-5"><a href="#小结-5" class="headerlink" title="小结 (5)"></a>小结 (5)</h1><p>通用引用既能引用左值又能引用右值。实质上，是类型推导和引用折叠(reference collapsing)导致这种现象产生的。我们知道，const类型的左值引用(<code>const T&amp;</code>)也能够同时引用左值和右值，那通用引用的优势是什么呢？见<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2018/05/25/cpp11-perfect-forward/">C++11中的完美转发</a>。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E9%80%9A%E7%94%A8%E5%BC%95%E7%94%A8/" rel="tag"># 通用引用</a>
+              <a href="/tags/universal-reference/" rel="tag"># universal reference</a>
+              <a href="/tags/%E5%BC%95%E7%94%A8%E6%8A%98%E5%8F%A0/" rel="tag"># 引用折叠</a>
+              <a href="/tags/reference-collapsing/" rel="tag"># reference collapsing</a>
+              <a href="/tags/%E5%BC%95%E7%94%A8%E5%89%A5%E9%99%A4/" rel="tag"># 引用剥除</a>
+              <a href="/tags/reference-stripping/" rel="tag"># reference stripping</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2018/05/25/cpp11-rvalue-ref/" rel="prev" title="C++11中的右值引用">
+      <i class="fa fa-chevron-left"></i> C++11中的右值引用
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2018/05/25/cpp11-perfect-forward/" rel="next" title="C++11中的完美转发">
+      C++11中的完美转发 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B7%A6%E5%80%BC%E5%8F%B3%E5%80%BC%E9%83%BD%E5%8F%AF%E5%BC%95%E7%94%A8-1"><span class="nav-number">1.</span> <span class="nav-text">左值右值都可引用 (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%9E%84%E6%88%90%E9%80%9A%E7%94%A8%E5%BC%95%E7%94%A8%E7%9A%84%E6%9D%A1%E4%BB%B6-2"><span class="nav-number">2.</span> <span class="nav-text">构成通用引用的条件 (2)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%80%9A%E7%94%A8%E5%BC%95%E7%94%A8%E7%B1%BB%E5%9E%8B%E7%9A%84%E5%8F%98%E9%87%8F-3"><span class="nav-number">3.</span> <span class="nav-text">通用引用类型的变量 (3)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%B1%BB%E5%9E%8B%E6%8E%A8%E5%AF%BC%E5%92%8C%E5%BC%95%E7%94%A8%E6%8A%98%E5%8F%A0-4"><span class="nav-number">4.</span> <span class="nav-text">类型推导和引用折叠 (4)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%B1%BB%E5%9E%8B%E6%8E%A8%E5%AF%BC%E8%A7%84%E5%88%99-4-1"><span class="nav-number">4.1.</span> <span class="nav-text">类型推导规则 (4.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%95%E7%94%A8%E7%9A%84%E5%BC%95%E7%94%A8%E6%98%AF%E9%9D%9E%E6%B3%95%E7%9A%84-4-2"><span class="nav-number">4.2.</span> <span class="nav-text">引用的引用是非法的 (4.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BC%96%E8%AF%91%E8%BF%87%E7%A8%8B%E4%B8%AD%E4%BA%A7%E7%94%9F%E5%BC%95%E7%94%A8%E7%9A%84%E5%BC%95%E7%94%A8-4-3"><span class="nav-number">4.3.</span> <span class="nav-text">编译过程中产生引用的引用 (4.3)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%95%E7%94%A8%E6%8A%98%E5%8F%A0%E8%A7%84%E5%88%99-4-4"><span class="nav-number">4.4.</span> <span class="nav-text">引用折叠规则 (4.4)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#std-move%E7%9A%84%E5%B7%A5%E4%BD%9C%E5%8E%9F%E7%90%86-4-5"><span class="nav-number">4.5.</span> <span class="nav-text">std::move的工作原理 (4.5)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%95%E7%94%A8%E5%89%A5%E9%99%A4-4-6"><span class="nav-number">4.6.</span> <span class="nav-text">引用剥除 (4.6)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93-5"><span class="nav-number">5.</span> <span class="nav-text">小结 (5)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

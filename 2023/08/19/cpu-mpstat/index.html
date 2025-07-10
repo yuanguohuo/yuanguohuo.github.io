@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="本文简要介绍一下mpstat命令的使用，并补充一些CPU中断知识。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="CPU mpstat命令">
+<meta property="og:url" content="http://yoursite.com/2023/08/19/cpu-mpstat/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="本文简要介绍一下mpstat命令的使用，并补充一些CPU中断知识。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2023-08-19T20:03:12.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.490Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="cpu">
+<meta property="article:tag" content="mpstat">
+<meta property="article:tag" content="interrupt">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2023/08/19/cpu-mpstat/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>CPU mpstat命令 | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2023/08/19/cpu-mpstat/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          CPU mpstat命令
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2023-08-19 20:03:12" itemprop="dateCreated datePublished" datetime="2023-08-19T20:03:12+00:00">2023-08-19</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/cpu/" itemprop="url" rel="index"><span itemprop="name">cpu</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2023/08/19/cpu-mpstat/" class="post-meta-item leancloud_visitors" data-flag-title="CPU mpstat命令" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2023/08/19/cpu-mpstat/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2023/08/19/cpu-mpstat/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>本文简要介绍一下mpstat命令的使用，并补充一些CPU中断知识。</p>
+<a id="more"></a>
+
+<h1 id="mpstat命令-1"><a href="#mpstat命令-1" class="headerlink" title="mpstat命令 (1)"></a>mpstat命令 (1)</h1><p>这个工具的主要功能有2个：查看CPU使用率(<code>-u</code>选项)和CPU的中断数(<code>-I SUM|CPU|SCPU|ALL</code>选项)。这两种模式下，都可以使用<code>-P</code>选项来选择processor。</p>
+<p>命令的格式是:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mpstat &#123;CPU使用率or中断数&#125; [interval [count]]</span><br></pre></td></tr></table></figure>
+
+<p>以interval为间隔，输出count次；假如不带interval和count，就输出1次；带interval不带count就持续输出。</p>
+<h2 id="CPU使用率-u选项，其实默认就是-u，可以不加-1-1"><a href="#CPU使用率-u选项，其实默认就是-u，可以不加-1-1" class="headerlink" title="CPU使用率(-u选项，其实默认就是-u，可以不加) (1.1)"></a>CPU使用率(<code>-u</code>选项，其实默认就是<code>-u</code>，可以不加) (1.1)</h2><ul>
+<li>输出1次</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$ mpstat -u</span><br><span class="line">09:20:15 PM  CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest  %gnice   %idle</span><br><span class="line">09:20:15 PM  all    2.98    0.01    2.02    6.78    0.00    0.59    0.00    0.00    0.00   87.62</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>以1秒为间隔输出3次</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">$ mpstat -u 1 3</span><br><span class="line">09:22:23 PM  CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest  %gnice   %idle</span><br><span class="line">09:22:24 PM  all    3.20    0.00    2.46    6.64    0.00    0.54    0.00    0.00    0.00   87.16</span><br><span class="line">09:22:25 PM  all    2.52    0.00    1.62    6.16    0.00    0.33    0.00    0.00    0.00   89.37</span><br><span class="line">09:22:26 PM  all    4.51    0.00    1.70    6.15    0.00    0.47    0.00    0.00    0.00   87.16</span><br><span class="line">Average:     all    3.41    0.00    1.93    6.32    0.00    0.45    0.00    0.00    0.00   87.90</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>以1秒为间隔持续输出</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">$ mpstat -u 1</span><br><span class="line">09:23:14 PM  CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest  %gnice   %idle</span><br><span class="line">09:23:15 PM  all    2.82    0.00    2.31    5.22    0.00    0.64    0.00    0.00    0.00   89.01</span><br><span class="line">09:23:16 PM  all    3.91    0.00    4.26    6.16    0.00    1.14    0.00    0.00    0.00   84.53</span><br><span class="line">...</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+
+<p>以上输出的信息和<code>top+1</code>基本一致，但它是所有processor的平均值，是整个系统的粗略状况，我们要看每个(或某个)processor就要加上<code>-P</code>选项；</p>
+<ul>
+<li>processor 0,1,2,3</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">$mpstat -u -P 0,1,2,3</span><br><span class="line">09:27:02 PM  CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest  %gnice   %idle</span><br><span class="line">09:27:02 PM    0    2.93    0.02    1.95    7.16    0.00    0.14    0.00    0.00    0.00   87.80</span><br><span class="line">09:27:02 PM    1    3.03    0.01    2.06    6.37    0.00    0.86    0.00    0.00    0.00   87.67</span><br><span class="line">09:27:02 PM    2    3.14    0.01    2.10    6.19    0.00    0.86    0.00    0.00    0.00   87.70</span><br><span class="line">09:27:02 PM    3    3.10    0.01    2.04    6.49    0.00    0.62    0.00    0.00    0.00   87.74</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>所有processor</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">$ mpstat -u -P ALL</span><br><span class="line">09:27:52 PM  CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest  %gnice   %idle</span><br><span class="line">09:27:52 PM  all    2.98    0.01    2.02    6.78    0.00    0.59    0.00    0.00    0.00   87.62</span><br><span class="line">09:27:52 PM    0    2.93    0.02    1.95    7.16    0.00    0.14    0.00    0.00    0.00   87.80</span><br><span class="line">09:27:52 PM    1    3.03    0.01    2.06    6.37    0.00    0.86    0.00    0.00    0.00   87.67</span><br><span class="line">09:27:52 PM    2    3.14    0.01    2.10    6.19    0.00    0.86    0.00    0.00    0.00   87.70</span><br><span class="line">......</span><br><span class="line">09:27:52 PM   63    2.88    0.01    2.03    7.00    0.00    0.53    0.00    0.00    0.00   87.54</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>所有online processor: 一般所有processor都是online的，所以等价于所有processor</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">$mpstat -u -P ON</span><br><span class="line">09:28:53 PM  CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest  %gnice   %idle</span><br><span class="line">09:28:53 PM  all    2.98    0.01    2.02    6.78    0.00    0.59    0.00    0.00    0.00   87.62</span><br><span class="line">09:28:53 PM    0    2.93    0.02    1.95    7.16    0.00    0.14    0.00    0.00    0.00   87.80</span><br><span class="line">09:28:53 PM    1    3.03    0.01    2.06    6.37    0.00    0.86    0.00    0.00    0.00   87.67</span><br><span class="line">09:28:53 PM    2    3.14    0.01    2.10    6.19    0.00    0.86    0.00    0.00    0.00   87.70</span><br><span class="line">......</span><br><span class="line">09:28:53 PM   63    2.88    0.01    2.03    7.00    0.00    0.53    0.00    0.00    0.00   87.54</span><br></pre></td></tr></table></figure>
+
+<h2 id="CPU中断数-I选项-1-2"><a href="#CPU中断数-I选项-1-2" class="headerlink" title="CPU中断数(-I选项) (1.2)"></a>CPU中断数(<code>-I</code>选项) (1.2)</h2><p>和<code>-u</code>选项不同，<code>-I</code>选项需要一个参数：<code>SUM | CPU | SCPU | ALL</code>;</p>
+<ul>
+<li>所有CPU的所有中断(以1秒为间隔输出3次)</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">$mpstat -I SUM 1 3</span><br><span class="line">09:34:22 PM  CPU    intr&#x2F;s</span><br><span class="line">09:34:24 PM  all 114224.75</span><br><span class="line">09:34:25 PM  all 113701.00</span><br><span class="line">09:34:26 PM  all 123838.00</span><br><span class="line">Average:     all 117244.52</span><br></pre></td></tr></table></figure>
+
+<p>以上输出的是所有processor的中断数之和：既不区分各个processor，也不区分各个中断号；要显示各个CPU对各个中断的处理数，使用<code>-I CPU</code>选项:</p>
+<ul>
+<li>各processor的中断：列是中断号，行是processor号</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">$ mpstat -I CPU</span><br><span class="line"></span><br><span class="line">time   CPU    中断1    中断2 ... 中断M</span><br><span class="line">time    0      x        x         x</span><br><span class="line">time    1      x        x         x</span><br><span class="line">time    2      x        x         x</span><br><span class="line">time    ...</span><br><span class="line">time    63     x        x         x</span><br></pre></td></tr></table></figure>
+
+<p>这里输出的列非常多(所以非常难看)，我现在看的服务器上是584列(除去前2列的时间、CPU号)，每列代表一个中断：<code>0/s</code>, <code>4/s</code>, <code>8/s</code>, <code>9/s</code>, …, <code>598/s</code>, <code>NMI/s</code>, <code>LOC/s</code>, …, <code>PIW/s</code>。</p>
+<p>这些中断属于谁呢？可以对照<code>/proc/interrupts</code>；我现在看的这个服务器上，这个文件有584行(除去第1行表头)，每行代表一个中断；每列代表一个CPU。所以，<code>mpstat -I CPU</code>的输出是<code>/proc/interrupts</code>的转置。CPU列之后还有几列，标明中断对应的设备:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br></pre></td><td class="code"><pre><span class="line">$ cat &#x2F;proc&#x2F;interrupts | tr -s &#39; &#39; | cut -d &#39; &#39; -f 2,67-</span><br><span class="line"></span><br><span class="line">0: IR-IO-APIC 2-edge timer</span><br><span class="line">4: IR-IO-APIC 4-edge ttyS0</span><br><span class="line">8: IR-IO-APIC 8-edge rtc0</span><br><span class="line">9: IR-IO-APIC 9-fasteoi acpi</span><br><span class="line"></span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">注释: 112-126是hdd盘中断，15个 (和下面有什么区别?)</span><br><span class="line">112: IR-PCI-MSI 23068721-edge mpt3sas0-msix49</span><br><span class="line">113: IR-PCI-MSI 23068722-edge mpt3sas0-msix50</span><br><span class="line">...</span><br><span class="line">126: IR-PCI-MSI 23068735-edge mpt3sas0-msix63</span><br><span class="line"></span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">注释: 127-382是nvme盘中断，共256个(4个nvme盘，每个nvme盘64队列)</span><br><span class="line">127: IR-PCI-MSI 13631489-edge nvme1q1</span><br><span class="line">128: IR-PCI-MSI 13631490-edge nvme1q2</span><br><span class="line">129: IR-PCI-MSI 13631491-edge nvme1q3</span><br><span class="line">130: IR-PCI-MSI 13631492-edge nvme1q4</span><br><span class="line">131: IR-PCI-MSI 13631493-edge nvme1q5</span><br><span class="line">132: IR-PCI-MSI 13631494-edge nvme1q6</span><br><span class="line">133: IR-PCI-MSI 13631495-edge nvme1q7</span><br><span class="line">134: IR-PCI-MSI 13631497-edge nvme1q9</span><br><span class="line">135: IR-PCI-MSI 13631498-edge nvme1q10</span><br><span class="line">136: IR-PCI-MSI 13631499-edge nvme1q11</span><br><span class="line">137: IR-PCI-MSI 13631500-edge nvme1q12</span><br><span class="line">138: IR-PCI-MSI 13107200-edge nvme0q0</span><br><span class="line">139: IR-PCI-MSI 13631501-edge nvme1q13</span><br><span class="line">140: IR-PCI-MSI 13107201-edge nvme0q1</span><br><span class="line">141: IR-PCI-MSI 13631502-edge nvme1q14</span><br><span class="line">142: IR-PCI-MSI 13107202-edge nvme0q2</span><br><span class="line">143: IR-PCI-MSI 13631503-edge nvme1q15</span><br><span class="line">144: IR-PCI-MSI 13107203-edge nvme0q3</span><br><span class="line">...</span><br><span class="line">380: IR-PCI-MSI 71303230-edge nvme3q62</span><br><span class="line">381: IR-PCI-MSI 71303231-edge nvme3q63</span><br><span class="line">382: IR-PCI-MSI 71303232-edge nvme3q64</span><br><span class="line"></span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">注释：384-447是网卡eth0的中断，64队列，64个</span><br><span class="line">384: IR-PCI-MSI 12582912-edge mlx5_async@pci:0000:18:00.0</span><br><span class="line">385: IR-PCI-MSI 12582913-edge eth0-0</span><br><span class="line">386: IR-PCI-MSI 12582914-edge eth0-1</span><br><span class="line">387: IR-PCI-MSI 12582915-edge eth0-2</span><br><span class="line">388: IR-PCI-MSI 12582916-edge eth0-3</span><br><span class="line">...</span><br><span class="line">447: IR-PCI-MSI 12582975-edge eth0-62</span><br><span class="line"></span><br><span class="line">注释：449-512是网卡eth1的中断，64队列，64个</span><br><span class="line">449: IR-PCI-MSI 12584960-edge mlx5_async@pci:0000:18:00.1</span><br><span class="line">450: IR-PCI-MSI 12584961-edge eth1-0</span><br><span class="line">451: IR-PCI-MSI 12584962-edge eth1-1</span><br><span class="line">452: IR-PCI-MSI 12584963-edge eth1-2</span><br><span class="line">...</span><br><span class="line">512: IR-PCI-MSI 12585023-edge eth1-62</span><br><span class="line"></span><br><span class="line">注释: 514-577是hdd盘中断，64个 (和上面有什么区别?)</span><br><span class="line">514: IR-PCI-MSI 70254592-edge mpt3sas1-msix0</span><br><span class="line">515: IR-PCI-MSI 70254593-edge mpt3sas1-msix1</span><br><span class="line">516: IR-PCI-MSI 70254594-edge mpt3sas1-msix2</span><br><span class="line">517: IR-PCI-MSI 70254595-edge mpt3sas1-msix3</span><br><span class="line">518: IR-PCI-MSI 70254596-edge mpt3sas1-msix4</span><br><span class="line">519: IR-PCI-MSI 70254597-edge mpt3sas1-msix5</span><br><span class="line">...</span><br><span class="line">577: IR-PCI-MSI 70254655-edge mpt3sas1-msix63</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">578: IR-PCI-MSI 360448-edge mei_me</span><br><span class="line"></span><br><span class="line">注释：Intel I&#x2F;OAT中断?</span><br><span class="line">580: IR-PCI-MSI 65536-edge ioat-msix</span><br><span class="line">582: IR-PCI-MSI 67584-edge ioat-msix</span><br><span class="line">583: IR-PCI-MSI 69632-edge ioat-msix</span><br><span class="line">584: IR-PCI-MSI 71680-edge ioat-msix</span><br><span class="line">585: IR-PCI-MSI 73728-edge ioat-msix</span><br><span class="line">586: IR-PCI-MSI 75776-edge ioat-msix</span><br><span class="line">587: IR-PCI-MSI 77824-edge ioat-msix</span><br><span class="line">588: IR-PCI-MSI 79872-edge ioat-msix</span><br><span class="line">590: IR-PCI-MSI 67174400-edge ioat-msix</span><br><span class="line">592: IR-PCI-MSI 67176448-edge ioat-msix</span><br><span class="line">593: IR-PCI-MSI 67178496-edge ioat-msix</span><br><span class="line">594: IR-PCI-MSI 67180544-edge ioat-msix</span><br><span class="line">595: IR-PCI-MSI 67182592-edge ioat-msix</span><br><span class="line">596: IR-PCI-MSI 67184640-edge ioat-msix</span><br><span class="line">597: IR-PCI-MSI 67186688-edge ioat-msix</span><br><span class="line">598: IR-PCI-MSI 67188736-edge ioat-msix</span><br><span class="line"></span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">注释：看说明</span><br><span class="line">NMI: Non-maskable interrupts</span><br><span class="line">LOC: Local timer interrupts</span><br><span class="line">SPU: Spurious interrupts</span><br><span class="line">PMI: Performance monitoring interrupts</span><br><span class="line">IWI: IRQ work interrupts</span><br><span class="line">RTR: APIC ICR read retries</span><br><span class="line">RES: Rescheduling interrupts</span><br><span class="line">CAL: Function call interrupts</span><br><span class="line">TLB: TLB shootdowns</span><br><span class="line">TRM: Thermal event interrupts</span><br><span class="line">THR: Threshold APIC interrupts</span><br><span class="line">DFR: Deferred Error APIC interrupts</span><br><span class="line">MCE: Machine check exceptions</span><br><span class="line">MCP: Machine check polls</span><br><span class="line">HYP: Hypervisor callback interrupts</span><br><span class="line">HRE: Hyper-V reenlightenment interrupts</span><br><span class="line">HVS: Hyper-V stimer0 interrupts</span><br><span class="line">ERR:</span><br><span class="line">MIS:</span><br><span class="line">PIN: Posted-interrupt notification event</span><br><span class="line">NPI: Nested posted-interrupt event</span><br><span class="line">PIW: Posted-interrupt wakeup event</span><br></pre></td></tr></table></figure>
+
+<p>想看nvme0的中断情况，先找出它的中断号：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">$ cat &#x2F;proc&#x2F;interrupts | tr -s &#39; &#39; | grep nvme0</span><br><span class="line"> 138: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 379 IR-PCI-MSI 13107200-edge nvme0q0</span><br><span class="line"> 140: 2311717 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 IR-PCI-MSI 13107201-edge nvme0q1</span><br><span class="line"> 142: 0 2187723 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 IR-PCI-MSI 13107202-edge nvme0q2</span><br><span class="line"> 144: 0 0 2072374 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 IR-PCI-MSI 13107203-edge nvme0q3</span><br><span class="line"> 146: 0 0 0 2134044 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 IR-PCI-MSI 13107204-edge nvme0q4</span><br><span class="line"> 148: 0 0 0 0 2129282 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 IR-PCI-MSI 13107205-edge nvme0q5</span><br><span class="line"> 150: 0 0 0 0 0 2152753 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 IR-PCI-MSI 13107206-edge nvme0q6</span><br><span class="line"> ......</span><br><span class="line"> 254: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2004184 IR-PCI-MSI 13107264-edge nvme0q64</span><br></pre></td></tr></table></figure>
+
+<p>然后cut出对应的列(注意，列号并不连续，真是恶心):</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ cat &#x2F;tmp&#x2F;int | head -n 1  | tr -s &#39; &#39; | cut -d &#39; &#39; -f 3,112,114,116,省略,228</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>只看一个processor的中断(通过上面的方法抽取特定中断)</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">$ mpstat -I CPU -P 3</span><br><span class="line"></span><br><span class="line">time   CPU    中断1    中断2 ... 中断M</span><br><span class="line">time    3      x        x         x</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>各processor的软中断：列是中断号，行是processor号</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">$ mpstat -I SCPU</span><br><span class="line">09:47:59 PM  CPU       HI&#x2F;s    TIMER&#x2F;s   NET_TX&#x2F;s   NET_RX&#x2F;s    BLOCK&#x2F;s IRQ_POLL&#x2F;s  TASKLET&#x2F;s    SCHED&#x2F;s  HRTIMER&#x2F;s      RCU&#x2F;s</span><br><span class="line">09:47:59 PM    0       0.00     364.86       1.53       2.14      24.81       0.00       0.58     296.28       0.00     219.59</span><br><span class="line">09:47:59 PM    1       0.00     408.30      18.05      66.36      22.45       0.00      68.60     254.46       0.03     241.84</span><br><span class="line">09:47:59 PM    2       0.00     410.69      23.20     299.20      21.80       0.00     314.33     192.84       0.03     244.09</span><br><span class="line">......</span><br><span class="line">09:47:59 PM   63       0.00     357.20      17.42     278.88      24.23       0.00     300.86     134.34       0.02     231.53</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>只看一个processor的软中断</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$ mpstat -I SCPU -P 3</span><br><span class="line">09:49:02 PM  CPU       HI&#x2F;s    TIMER&#x2F;s   NET_TX&#x2F;s   NET_RX&#x2F;s    BLOCK&#x2F;s IRQ_POLL&#x2F;s  TASKLET&#x2F;s    SCHED&#x2F;s  HRTIMER&#x2F;s      RCU&#x2F;s</span><br><span class="line">09:49:02 PM    3       0.00     396.12      19.99      74.02      22.63       0.00      99.65     167.30       0.02     240.19</span><br></pre></td></tr></table></figure>
+
+<h1 id="补充知识interrupt-2"><a href="#补充知识interrupt-2" class="headerlink" title="补充知识interrupt (2)"></a>补充知识interrupt (2)</h1><h2 id="disable-interrupt-vs-mask-interrupt"><a href="#disable-interrupt-vs-mask-interrupt" class="headerlink" title="disable interrupt vs mask interrupt"></a>disable interrupt vs mask interrupt</h2><p>这两个词在同一本书里经常被混用，在不同的书里甚至是相反的。这里统一成：</p>
+<ul>
+<li>disable: 通过编程告诉PIC暂时禁止一个特定中断(IRQ号)；disabled的中断并没有丢失，enable的时候，PIC会发给CPU；注意：disable是通PIC完成的，所以对所有processor都生效；</li>
+<li>mask: 告诉processor忽略所有maskable中断。注意：它不是针对一个特定中断IRQ号，而是针对所有maskable中断，即IO设备的中断。Mask不是PIC的行为，而是CPU的。与maskable中断对应的是non-maskable interrupt (NMI)；mask实现方式是clear processor的eflags的<code>IF(Interrupt Flag)</code>标志，即<code>cli</code>指令；当<code>IF</code>标志被clear时(即mask中断时)，PIC还是会发来中断，但CPU会忽略(因为外部设备会保持它们的interrupt line asserted，直到被处理，所以也不会丢失)。取消mask的操作是unmask，即置位<code>IF</code>标志，<code>sti</code>指令；注意：mask是通过clear一个processor的<code>IF</code>标志完成的，所以是针对当前processor;</li>
+</ul>
+<p>简而言之: disable是在PIC上针对一个IRQ和所有processor; mask是在一个processor上针对所有maskable中断；</p>
+<h2 id="maskable-interrupt-vs-non-maskable-interrupt-NMI"><a href="#maskable-interrupt-vs-non-maskable-interrupt-NMI" class="headerlink" title="maskable interrupt vs. non-maskable interrupt (NMI)"></a>maskable interrupt vs. non-maskable interrupt (NMI)</h2><p>如上，前者可以被<code>cli</code>指令mask；后者不受影响。所有IO设备的中断都是maskable interrupt；</p>
+<h2 id="interrupt-gate-vs-trap-gate"><a href="#interrupt-gate-vs-trap-gate" class="headerlink" title="interrupt gate vs. trap gate"></a>interrupt gate vs. trap gate</h2><p>中断描述符表(IDT)中的两种描述符(好吧，共三种，忽略第三种)：interrupt gate和trap gate。中断描述符是: <code>irqno(异常0-31,中断IRQ+32)</code> =&gt; <code>segment and offset of interrupt/exception handler</code>的映射。这两种描述符的区别在于：对于interrupt gate，CPU(硬件)跳到对应segment时会自动clear <code>IF</code>标志，即自动mask中断(即忽略PIC发来的信号)，注意这是硬件行为，而trap gate不会。注意：<strong>Linux uses interrupt gates to handle interrupts and trap gates to handle exceptions</strong>.</p>
+<p>当我们讨论中断(非异常)时，总是interrupt gate，即<strong>进入handler时，中断总是被mask的</strong>。那么，是否所有的handler都有这个必要呢？不是的。根据需要：必须mask中断的，注册handler时要带上<code>SA_INTERRUPT</code>标志，否则不带。触发时，发现没有带<code>SA_INTERRUPT</code>标志，就把中断unmask了(<code>sti</code>指令)。 引用Understanding the Linux Kernel 3rd Editin，一个handler要执行一些ISR(多个device可能共用一个IRQ一个handler，每个device一个ISR，所以有多个)，就调用<code>handle_IRQ_event()</code>，这个函数：</p>
+<ul>
+<li>如果当前handler注册时没带<code>SA_INTERRUPT</code>，就调用<code>sti</code>，即不需要mask中断；</li>
+<li>逐个执行ISR;</li>
+<li>调用<code>cli</code>；为什么又mask中断呢？因为通过interrupt gate进来的时候就是mask中断的，返回是要unmask，所以保持进来时的样子；</li>
+</ul>
+<p>另外，handler执行时，总是要disable当前IRQ。</p>
+<h2 id="bottom-half-vs-tasklet"><a href="#bottom-half-vs-tasklet" class="headerlink" title="bottom-half vs. tasklet"></a>bottom-half vs. tasklet</h2><p>如上所述，interrupt handler执行时，</p>
+<ul>
+<li>当前IRQ总是disabled(注意，disable是通过PIC完成的，所以是对所有processor生效，虽然只是一个IRQ)；</li>
+<li>所有maskable中断可能被mask(取决于注册handler时是否带<code>SA_INTERRUPT</code>)，在当前processor上；</li>
+</ul>
+<p>所以，interrupt handler应该尽快返回，否则其他中断(相同或不同IRQ)可能被耽搁。然而，有时候中断中又有很多事情要做，难以做到尽快返回，因此bottom-half被引入:</p>
+<ul>
+<li>中断处理被分层两部分：top-half和bottom-half；</li>
+<li>top-half就是interrupt handler(通过<code>request_irq</code>注册的)；它处理一些简单的任务，调度一个bottom-half将来执行，然后就响应中断(中断返回)；</li>
+<li>bottom-half处理大部分的工作: 唤醒进程、开始另一个IO操作等；</li>
+<li>当bottom-half处理前一个中断时，top-half可以处理后一个中断；</li>
+</ul>
+<p>两者最大的不同是：如前所述，top-half执行时，总是需要当前IRQ被disable，且可能需要maskable中断被mask(取决于是否带<code>SA_INTERRUPT</code>)，而bottom-half不要求。</p>
+<p>但其他限制，bottom-haf和top-half是一样的：cannot sleep, cannot access user space, and cannot invoke the scheduler.</p>
+<p>Linux没有明确要求driver开发者如何划分这两者，但开发者应该只把时间敏感的、硬件相关的、不能被另一个interrupt中断的事情放在top-half中，其他的都放在bottom-half。典型情况是：top-half copy data from/to hardware, 数据的处理由bottom-half完成。网卡中断就是如此。</p>
+<p>需要澄清：bottom-half这个词是有歧义的，一个意思就是上面说的“中断后半段”；另一个意思是实现“中断后半段”的一种机制。Linux Device Drivers, Second Edition中使用bottom-haf表示“中断后半段”；使用简写BH表示实现bottom-half的机制。实现bottom-half的机制有两种，除了BH，还有tasklet；现在tasklet更流行。</p>
+<p>Tasklets of the same type are always serialized: in other words, the same type of tasklet cannot be executed by two CPUs at the same time. However, tasklets of different types can be executed concurrently on several CPUs. Serializing the tasklet simplifies the life of device driver developers, because the tasklet function needs not be reentrant.</p>
+<h2 id="软中断-softirq"><a href="#软中断-softirq" class="headerlink" title="软中断(softirq)"></a>软中断(softirq)</h2><p>Tasklet是通过softirq实现的(但softirq不只用于softirq)。也就是说，bottom-half是通过tasklet实现的，tasklet又是基于softirq实现的，所以softirq和bottom-half有很多相同特征：高优先级、运行时打开中断。</p>
+<p>Softirq处理几乎和硬件中断一样重要的事情。softirq在高优先级下运行（有一个例外，是什么?），但运行时没有mask/disable硬件中断。因此，它们通常会抢占除硬件中断以外的其他所有工作。</p>
+<p>从前，有32个软件中断向量(不是32个异常)，每个向量分配给每个设备驱动程序或相关任务。现在驱动程序已经和softirq分离，但仍然使用softirq：通过中间API(像tasklet和timer)进行访问，而不是直接调用。在当前的内核中，定义了十个softirq向量; 两个用于tasklet处理，两个用于网络(the source of the softirq mechanism and its most important application)，两个用于块层，两个用于计时器，一个用于调度程序，一个用于读-复制-更新（RCU）处理。对应<code>mpstat -I SCPU</code>的十列:</p>
+<ul>
+<li>HI/s(<code>HI_SOFTIRQ</code>): high priority tasklets;</li>
+<li>TIMER/s(<code>TIMER_SOFTIRQ</code>):</li>
+<li>NET_TX/s(<code>NET_TX_SOFTIRQ</code>): send operations in networks;</li>
+<li>NET_RX/s(<code>NET_RX_SOFTIRQ</code>): receive operations in networks;</li>
+<li>BLOCK/s(<code>BLOCK_SOFTIRQ</code>): used by the block layer to implement asynchronous request completions (libaio的completion?);</li>
+<li>IRQ_POLL/s</li>
+<li>TASKLET/s(<code>TASKLET_SOFTIRQ</code>): regular tasklets;</li>
+<li>SCHED/s(<code>SCHED_SOFTIRQ</code>): used by the scheduler to implement periodic load balancing on SMP systems;</li>
+<li>HRTIMER/s(<code>HRTIMER_SOFTIRQ</code>): required when high-resolution timers are enabled;</li>
+<li>RCU/s</li>
+</ul>
+<p>实现方式：The kernel maintains a per-CPU bitmask indicating which softirqs need processing at any given time. So, for example, when a kernel subsystem calls tasklet_schedule(), the TASKLET_SOFTIRQ bit is set on the corresponding CPU and, when softirqs are processed, the tasklet will be run. There are two places where software interrupts can “fire” and preempt the current thread. One of them is at the end of the processing for a hardware interrupt; it is common for interrupt handlers to raise softirqs, so it makes sense (for latency and optimal cache use) to process them as soon as hardware interrupts can be re-enabled (硬件interrupt handler经常发起tasklet, 它是一种softirq，所以interrupt handler结束就处理softirq). The other possibility is anytime that kernel code re-enables softirq processing (via a call to functions like <code>local_bh_enable()</code> or <code>spin_unlock_bh()</code>).</p>
+<p>每个processor对应一个<code>ksoftirqd</code>内核线程，例如在64核系统上：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">$ ps -ef | grep ksoftirqd</span><br><span class="line">root         9     2  0 Aug03 ?        00:02:31 [ksoftirqd&#x2F;0]</span><br><span class="line">root        16     2  0 Aug03 ?        00:02:37 [ksoftirqd&#x2F;1]</span><br><span class="line">root        21     2  0 Aug03 ?        00:02:29 [ksoftirqd&#x2F;2]</span><br><span class="line">root        26     2  0 Aug03 ?        00:01:42 [ksoftirqd&#x2F;3]</span><br><span class="line">......</span><br><span class="line">root       326     2  0 Aug03 ?        00:01:29 [ksoftirqd&#x2F;63]</span><br></pre></td></tr></table></figure>
+
+<p>注意：不是说softirq都是通过这些内核线程处理的，而是当正常流程处理不完的时候，才把过剩的交给它们：these processes exist to offload softirq processing when the load gets too heavy. If the regular, inline softirq processing code loops ten times and still finds more softirqs to process (because they continue to be raised), it will wake the appropriate ksoftirqd process (there is one per CPU) and exit; that process will eventually be scheduled and pick up running softirq handlers. Ksoftirqd will also be poked if a softirq is raised outside of (hardware or software) interrupt context; that is necessary because, otherwise, an arbitrary amount of time might pass before softirqs are processed again.</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/cpu/" rel="tag"># cpu</a>
+              <a href="/tags/mpstat/" rel="tag"># mpstat</a>
+              <a href="/tags/interrupt/" rel="tag"># interrupt</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/07/18/linux-tracing-perf/" rel="prev" title="Linux perf">
+      <i class="fa fa-chevron-left"></i> Linux perf
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/02/01/bcc-ebpf/" rel="next" title="Linux eBPF BCC">
+      Linux eBPF BCC <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#mpstat%E5%91%BD%E4%BB%A4-1"><span class="nav-number">1.</span> <span class="nav-text">mpstat命令 (1)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#CPU%E4%BD%BF%E7%94%A8%E7%8E%87-u%E9%80%89%E9%A1%B9%EF%BC%8C%E5%85%B6%E5%AE%9E%E9%BB%98%E8%AE%A4%E5%B0%B1%E6%98%AF-u%EF%BC%8C%E5%8F%AF%E4%BB%A5%E4%B8%8D%E5%8A%A0-1-1"><span class="nav-number">1.1.</span> <span class="nav-text">CPU使用率(-u选项，其实默认就是-u，可以不加) (1.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#CPU%E4%B8%AD%E6%96%AD%E6%95%B0-I%E9%80%89%E9%A1%B9-1-2"><span class="nav-number">1.2.</span> <span class="nav-text">CPU中断数(-I选项) (1.2)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%A1%A5%E5%85%85%E7%9F%A5%E8%AF%86interrupt-2"><span class="nav-number">2.</span> <span class="nav-text">补充知识interrupt (2)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#disable-interrupt-vs-mask-interrupt"><span class="nav-number">2.1.</span> <span class="nav-text">disable interrupt vs mask interrupt</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#maskable-interrupt-vs-non-maskable-interrupt-NMI"><span class="nav-number">2.2.</span> <span class="nav-text">maskable interrupt vs. non-maskable interrupt (NMI)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#interrupt-gate-vs-trap-gate"><span class="nav-number">2.3.</span> <span class="nav-text">interrupt gate vs. trap gate</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#bottom-half-vs-tasklet"><span class="nav-number">2.4.</span> <span class="nav-text">bottom-half vs. tasklet</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BD%AF%E4%B8%AD%E6%96%AD-softirq"><span class="nav-number">2.5.</span> <span class="nav-text">软中断(softirq)</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

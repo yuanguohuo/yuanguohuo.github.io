@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="本文主要介绍C++11中的右值引用，如何初始化，以及参数匹配上的特点，并总结了和左值引用的相似与不同。然后简单介绍了一下std::move。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="C++11中的右值引用">
+<meta property="og:url" content="http://yoursite.com/2018/05/25/cpp11-rvalue-ref/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="本文主要介绍C++11中的右值引用，如何初始化，以及参数匹配上的特点，并总结了和左值引用的相似与不同。然后简单介绍了一下std::move。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2018-05-25T09:12:31.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.488Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="右值引用">
+<meta property="article:tag" content="rvalue reference">
+<meta property="article:tag" content="std::move">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2018/05/25/cpp11-rvalue-ref/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>C++11中的右值引用 | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/25/cpp11-rvalue-ref/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          C++11中的右值引用
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2018-05-25 09:12:31" itemprop="dateCreated datePublished" datetime="2018-05-25T09:12:31+00:00">2018-05-25</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/c/" itemprop="url" rel="index"><span itemprop="name">c++</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2018/05/25/cpp11-rvalue-ref/" class="post-meta-item leancloud_visitors" data-flag-title="C++11中的右值引用" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2018/05/25/cpp11-rvalue-ref/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2018/05/25/cpp11-rvalue-ref/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>本文主要介绍C++11中的右值引用，如何初始化，以及参数匹配上的特点，并总结了和左值引用的相似与不同。然后简单介绍了一下std::move。</p>
+<a id="more"></a>
+
+<h1 id="左值引用-1"><a href="#左值引用-1" class="headerlink" title="左值引用 (1)"></a>左值引用 (1)</h1><p>在开始研究右值引用之前，先说一下左值引用。左值引用，就是C++11之前我们所说的引用。为了区分右值引用，现在把它明确的叫做<strong>左值</strong>引用。所以，无须多说，只提一点(因为后面会用到这点)：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">foo</span><span class="params">(<span class="keyword">int</span>&amp; a)</span></span>;       <span class="comment">//不能匹配右值，例如foo(3)会编译失败。</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">bar</span><span class="params">(<span class="keyword">const</span> <span class="keyword">int</span>&amp; a)</span></span>; <span class="comment">//可以匹配右值。</span></span><br></pre></td></tr></table></figure>
+
+<p>以后若说<em>右值引用只能引用右值，左值引用只能引用左值</em>，是指<em>非const的左值引用</em>。</p>
+<h1 id="右值引用-2"><a href="#右值引用-2" class="headerlink" title="右值引用 (2)"></a>右值引用 (2)</h1><p>有关右值引用(rvalue reference)的产生逻辑，见<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2018/05/24/cpp11-std-move/">C++11的std::move</a>，这里我们只关注右值引用本身。下文的例子都基于一个测试class Foo，它的定义在文末<em>测试Foo类</em>一节。</p>
+<h2 id="右值引用是一种新的类型-2-1"><a href="#右值引用是一种新的类型-2-1" class="headerlink" title="右值引用是一种新的类型 (2.1)"></a>右值引用是一种新的类型 (2.1)</h2><p>Foo&amp;&amp;是一个不用于Foo&amp;和Foo的新类型，如下三个函数可以同时出现：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">func</span><span class="params">(Foo f)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;int func1(Foo)&quot;</span> &lt;&lt; <span class="built_in">endl</span>;</span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">func</span><span class="params">(Foo&amp; f)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;int func1(Foo&amp;)&quot;</span> &lt;&lt; <span class="built_in">endl</span>;</span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">func</span><span class="params">(Foo&amp;&amp; f)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;int func1(Foo&amp;&amp;)&quot;</span> &lt;&lt; <span class="built_in">endl</span>;</span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>注意：</strong>能够同时定义这三个版本的重载，证明了Foo&amp;&amp;、Foo&amp;和Foo是三个不同的类型。但调用的时候，总是出现歧义：</p>
+<ul>
+<li>左值作参数 </li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="function">Foo <span class="title">foo</span><span class="params">(<span class="string">&quot;xyz&quot;</span>)</span></span>;</span><br><span class="line">  func(foo);</span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>编译失败，错误如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">error: call of overloaded ‘func(Foo&amp;)’ is ambiguous</span><br><span class="line">   func(foo);</span><br><span class="line">           ^</span><br><span class="line">candidates are:</span><br><span class="line">int func(Foo)</span><br><span class="line"> int func(Foo f)</span><br><span class="line">     ^</span><br><span class="line">int func(Foo&amp;)</span><br><span class="line"> int func(Foo&amp; f)</span><br><span class="line">     ^</span><br><span class="line">int func(Foo&amp;&amp;) &lt;near match&gt;</span><br><span class="line"> int func(Foo&amp;&amp; f)</span><br></pre></td></tr></table></figure>
+
+<p>冲突的是<code>func(Foo f)</code>和<code>func(Foo&amp; f)</code>，也就是说左值<code>foo</code>可以匹配<code>Foo f</code>也可以匹配<code>Foo&amp; f</code>。删掉二者中的任意一个则编译通过。值得一提的是，编译器认为<code>func(Foo&amp;&amp; f)</code>也是一个近似匹配的候选对象。但事实上，它是匹配不了的：你若真把<code>func(Foo f)</code>和<code>func(Foo&amp; f)</code>都删了，让<code>func(Foo&amp;&amp; f)</code>去匹配，则会报错: error: cannot bind ‘Foo’ lvalue to ‘Foo&amp;&amp;’.</p>
+<ul>
+<li>右值作参数</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  func(Foo(<span class="string">&quot;abc&quot;</span>));</span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>编译失败，错误如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">error: call of overloaded ‘func(Foo)’ is ambiguous</span><br><span class="line">   func(Foo(&quot;abc&quot;));</span><br><span class="line">                  ^</span><br><span class="line">candidates are:</span><br><span class="line">int func(Foo)</span><br><span class="line"> int func(Foo f)</span><br><span class="line">     ^</span><br><span class="line">int func(Foo&amp;&amp;)</span><br><span class="line"> int func(Foo&amp;&amp; f)</span><br></pre></td></tr></table></figure>
+
+<p><code>func(Foo&amp; f)</code>匹配不了右值(注意<code>func(const Foo&amp; f)</code>可以匹配右值，见”左值引用”一节)，而<code>func(Foo f)</code>和<code>func(Foo&amp;&amp; f)</code>都可以。删掉两者中的任何一个，则编译成功。</p>
+<p>先不管这两种歧义问题(不定义func(Foo)这个版本，只保留另两个)，这不影响我们得出结论: <strong><code>Foo&amp;&amp;</code>是一种不同于<code>Foo&amp;</code>和<code>Foo</code>的新类型。</strong></p>
+<h2 id="右值引用如何初始化-2-2"><a href="#右值引用如何初始化-2-2" class="headerlink" title="右值引用如何初始化 (2.2)"></a>右值引用如何初始化 (2.2)</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Foo <span class="title">func2</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="function">Foo <span class="title">f1</span><span class="params">(<span class="string">&quot;AAA&quot;</span>)</span></span>;</span><br><span class="line">  <span class="keyword">return</span> f1;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">int</span> &amp;&amp; r1 = <span class="number">3</span>;</span><br><span class="line">  Foo &amp;&amp; r2 = func2();</span><br><span class="line">  Foo &amp;&amp; r3 = Foo(<span class="string">&quot;BBB&quot;</span>);</span><br><span class="line"></span><br><span class="line">  <span class="function">Foo <span class="title">f</span><span class="params">(<span class="string">&quot;CCC&quot;</span>)</span></span>;</span><br><span class="line">  Foo &amp;&amp; r4 = <span class="built_in">std</span>::move(f);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>从上面的例子，总结一下右值引用如何初始化：</p>
+<ul>
+<li>r1：引用字面量；</li>
+<li>r2：引用临时变量(函数返回值)；</li>
+<li>r3：引用临时变量(匿名变量)；</li>
+<li>r4：引用经std::move强制的左值；</li>
+</ul>
+<h2 id="有名是左值无名是右值-2-3"><a href="#有名是左值无名是右值-2-3" class="headerlink" title="有名是左值无名是右值 (2.3)"></a>有名是左值无名是右值 (2.3)</h2><p>我们把上一节的例子加以扩充(注意，本例需要认真看一下class Foo的实现，见文末”测试用到的Foo类”一节):</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Foo <span class="title">func2</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="function">Foo <span class="title">f1</span><span class="params">(<span class="string">&quot;AAA&quot;</span>)</span></span>;</span><br><span class="line">  <span class="keyword">return</span> f1;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">int</span> &amp;&amp; r1 = <span class="number">3</span>;</span><br><span class="line">  Foo &amp;&amp; r2 = func2();</span><br><span class="line">  Foo &amp;&amp; r3 = Foo(<span class="string">&quot;BBB&quot;</span>);</span><br><span class="line"></span><br><span class="line">  <span class="function">Foo <span class="title">f</span><span class="params">(<span class="string">&quot;CCC&quot;</span>)</span></span>;</span><br><span class="line">  Foo &amp;&amp; r4 = <span class="built_in">std</span>::move(f);</span><br><span class="line"></span><br><span class="line">  r2.dump();</span><br><span class="line">  r3.dump();</span><br><span class="line"></span><br><span class="line">  r2 = Foo(<span class="string">&quot;DDD&quot;</span>);</span><br><span class="line">  <span class="function">Foo <span class="title">f3</span><span class="params">(<span class="string">&quot;EEE&quot;</span>)</span></span>;</span><br><span class="line">  r3 = f3;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>编译：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"># g++ -fno-elide-constructors --std&#x3D;c++11 test.cpp</span><br></pre></td></tr></table></figure>
+
+<p>运行，输出如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">Foo(const char * s)    0x7ffc4a430330&#x2F;0x21b0010&#x2F;AAA</span><br><span class="line">Foo(Foo &amp;&amp; other)    0x7ffc4a430330&#x2F;0x21b0010&#x2F;AAA--&gt;0x7ffc4a430380&#x2F;0x21b0010&#x2F;AAA</span><br><span class="line">~Foo()    0x7ffc4a430330&#x2F;0&#x2F;NULL</span><br><span class="line">Foo(const char * s)    0x7ffc4a430390&#x2F;0x21b0030&#x2F;BBB</span><br><span class="line">Foo(const char * s)    0x7ffc4a430360&#x2F;0x21b0050&#x2F;CCC</span><br><span class="line">0x7ffc4a430380&#x2F;0x21b0010&#x2F;AAA</span><br><span class="line">0x7ffc4a430390&#x2F;0x21b0030&#x2F;BBB</span><br><span class="line">Foo(const char * s)    0x7ffc4a4303a0&#x2F;0x21b0070&#x2F;DDD</span><br><span class="line">Foo&amp; operator&#x3D; (Foo &amp;&amp; other)    0x7ffc4a4303a0&#x2F;0x21b0070&#x2F;DDD&#x3D;&#x3D;&gt;0x7ffc4a430380&#x2F;0x21b0070&#x2F;DDD</span><br><span class="line">~Foo()    0x7ffc4a4303a0&#x2F;0&#x2F;NULL</span><br><span class="line">Foo(const char * s)    0x7ffc4a430350&#x2F;0x21b0010&#x2F;EEE</span><br><span class="line">Foo&amp; operator&#x3D; (const Foo &amp; other)    0x7ffc4a430350&#x2F;0x21b0010&#x2F;EEE&#x3D;&#x3D;&gt;0x7ffc4a430390&#x2F;0x21b0030&#x2F;EEE</span><br><span class="line">~Foo()    0x7ffc4a430350&#x2F;0x21b0010&#x2F;EEE</span><br><span class="line">~Foo()    0x7ffc4a430360&#x2F;0x21b0050&#x2F;CCC</span><br><span class="line">~Foo()    0x7ffc4a430390&#x2F;0x21b0030&#x2F;EEE</span><br><span class="line">~Foo()    0x7ffc4a430380&#x2F;0x21b0070&#x2F;DDD</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>输出第1行：构造func2中的局部变量f1；</li>
+<li>输出第2行：构造临时对象。f1的data被move到临时对象（通过移动拷贝构造函数）；它被r2引用；</li>
+<li>输出第3行：析构f1。data已经被move，故为0/NULL；</li>
+<li>输出第4行：构造临时对象Foo(“BBB”)；它被r3引用；</li>
+<li>输出第5行：构造main中的局部变量f；</li>
+<li>输出第6行：r2.dump()；</li>
+<li>输出第7行：r3.dump()；</li>
+<li>输出第8行：构造临时对象Foo(“DDD”);</li>
+<li>输出第9行：临时对象Foo(“DDD”)被赋值到r2（通过移动赋值函数）;</li>
+<li>输出第10行：析构临时对象Foo(“DDD”)。data已经被move，故为0/NULL；</li>
+<li>输出第11行：构造main中的局部变量f3；</li>
+<li>输出第12行：f3被赋值到r3。通过赋值函数(非移动赋值)；</li>
+<li>输出第13行：析构f3。它的data没有被move。</li>
+<li>输出第14行：析构main中的局部变量f；</li>
+<li>输出第15行：析构r3引用的临时对象(匿名变量)；</li>
+<li>输出第16行：析构r2引用的临时对象(函数返回值)；</li>
+</ul>
+<p>例子比较复杂，但我们关注的重点是r2和r3，它们引用两个临时对象。要说这俩临时对象，若没有r2和r4引用它们，它们一经构造就会立即被析构。但现在不同了：它们有了更长的生命周期，直到引用它们的右值引用类型的变量生命周期结束时，才被析构。</p>
+<p>另外，我们发现r2和r3可以出现在<code>=</code>的左边：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">r2 = Foo(<span class="string">&quot;DDD&quot;</span>);</span><br><span class="line"><span class="function">Foo <span class="title">f3</span><span class="params">(<span class="string">&quot;EEE&quot;</span>)</span></span>;</span><br><span class="line">r3 = f3;</span><br></pre></td></tr></table></figure>
+<p>特别是r3，这时候可以直接赋给它一个左值。这不是左值才有的特征吗？</p>
+<p>是的！<strong>右值引用类型的变量，r2和r3，就是左值！</strong>。再说一遍，<strong>右值引用类型的变量是左值！</strong>只不过：</p>
+<ul>
+<li>这个左值的类型是<strong>右值引用类型</strong>；</li>
+<li>这个左值只能<strong>通过右值来初始化</strong>；</li>
+</ul>
+<p>右值引用和左值引用比起来，<strong>不同的地方在于初始化那一刻：右值引用必须通过右值来初始化。</strong>初始化完成之后，就没有什么特殊的了。我们看r3，初始化完成之后，它引用着一个右值；其实这时候，这个右值被r3代表，已经”变成”了左值(不知道这么说准确不)，因为它有了更长的生命周期，也可以进行&amp;运算，甚至还出现在<code>=</code>的左边：即在<code>r3=f3</code>中，r3代表这个右值出现在<code>=</code>左边，释放了自己的资源然后拷贝了f3的资源。</p>
+<p>另外需要关注的是<code>Foo &amp;&amp; r4 = std::move(f);</code>。我们知道r4的类型是<code>Foo&amp;&amp;</code>，<code>std::move(f)</code>的类型也是<code>Foo&amp;&amp;</code>，但前者是左值，后者是右值。这就好像<code>int i=3;</code>一样，位于<code>=</code>两边的都是<code>int</code>类型的表达式，但一个是左值另一个是右值。这也从侧面说明右值引用类型(Foo&amp;&amp;)只是一个新的类型，就像int一样，有左值表达式，也有右值表达式。重申一遍，它就是一个类型，虽然类型名叫”右值引用类型”，但不要以为这个类型的变量都是右值。</p>
+<p>C++11有一个规则：<strong>右值引用类型(形如Foo&amp;&amp;)的表达式，有名字的是左值；没有名字的是右值。</strong>其实这也可以类比其他类型，命名变量(如局部变量、形参、全局变量)是左值；匿名变量(没有名字)是右值。为了加深理解，我们再看一些例子：</p>
+<p>例1：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Foo&amp;&amp; <span class="title">getFoo</span><span class="params">()</span></span>;</span><br><span class="line">Foo f = getFoo(); <span class="comment">//表达式getFoo()返回值没有名字，是右值，这里调用Foo(Foo&amp;&amp;)</span></span><br></pre></td></tr></table></figure>
+
+<p>例2：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">func</span><span class="params">(Foo&amp;&amp; f)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  Foo f2 = f; <span class="comment">//f有名字，是左值，这里调用Foo(Foo const&amp;)</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>例3：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">func</span><span class="params">(Foo&amp; f)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;int func1(Foo&amp;)&quot;</span> &lt;&lt; <span class="built_in">endl</span>;</span><br><span class="line">  f.dump();</span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">func</span><span class="params">(Foo&amp;&amp; f)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;int func1(Foo&amp;&amp;)&quot;</span> &lt;&lt; <span class="built_in">endl</span>;</span><br><span class="line">  f.dump();</span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="function">Foo <span class="title">f</span><span class="params">(<span class="string">&quot;123&quot;</span>)</span></span>;</span><br><span class="line">  Foo&amp;&amp; rvref = <span class="built_in">std</span>::move(f);</span><br><span class="line"></span><br><span class="line">  func(<span class="built_in">std</span>::move(f));</span><br><span class="line">  func(rvref);</span><br><span class="line">  func(<span class="built_in">std</span>::move(rvref));</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>编译：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"># g++ -fno-elide-constructors --std&#x3D;c++11 test.cpp</span><br></pre></td></tr></table></figure>
+
+<p>运行，输出如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">Foo(const char * s)    0x7ffd802c59c0&#x2F;0x1216010&#x2F;123</span><br><span class="line">int func1(Foo&amp;&amp;)</span><br><span class="line">0x7ffd802c59c0&#x2F;0x1216010&#x2F;123</span><br><span class="line">int func1(Foo&amp;)</span><br><span class="line">0x7ffd802c59c0&#x2F;0x1216010&#x2F;123</span><br><span class="line">int func1(Foo&amp;&amp;)</span><br><span class="line">0x7ffd802c59c0&#x2F;0x1216010&#x2F;123</span><br><span class="line">~Foo()    0x7ffd802c59c0&#x2F;0x1216010&#x2F;123</span><br></pre></td></tr></table></figure>
+
+<p>可见：</p>
+<ul>
+<li>std::move(f)匹配的是func(Foo&amp;&amp;)；这符合预期；</li>
+<li>rvref匹配的是func(Foo&amp;)；这就奇怪了，rvref明明就是Foo&amp;&amp;类型的，为什么没有匹配func(Foo&amp;&amp;)？</li>
+<li>std::move(rvref)匹配的是func(Foo&amp;&amp;)；恩，这也符合预期；</li>
+</ul>
+<p>看了这些例子，我们知道，<strong>左值的引用肯定是左值，但右值的引用却不一定是右值，这取决于表达式有没有名字</strong>。重申一遍：<strong>右值引用类型(形如Foo&amp;&amp;)的表达式，有名字的是左值；没有名字的是右值。</strong>背后的动机是什么呢？</p>
+<p>因为一个右值，一经拷贝(无论是做拷贝构造函数的参数，还是出现在”=”的右边)，便失去了它的资源(被move走了)。假如存在有名字的右值，那么一个不经意的拷贝(在”=”右边)，就把它修改了，让它丢失资源从而变成变成空壳子。这会带来严重的后果：想想我们看代码的时候，要找一个变量在哪里被修改过，都是找它在”=”左边的出现，不是吗？谁会关心它在”=”右边的出现呢？也就是说，假如存在有名字的右值，我们要找它在哪里被修改过，就不得不注意它所有的出现。如例2中，f在”=”右边出现一次，就不是原来的f了。这非常不合理。</p>
+<p>若程序员真想让有名字的变量当右值，怎么办呢？答案就是std::move()。虽然经std::move()强制过的变量，可能丢失了资源，但是，情况要好多了：有std::move()来提醒你，这个变量可能被修改了(资源被move走)。</p>
+<p>另外，一个右值引用类型的变量(左值)，例如，例3中的rvref，可以再次传给std::move()来得到右值。</p>
+<p>为了加深印象，再看一个例子。假如class B重载了移动构造函数，class D继承clss B。为了确保移动语义适用于D从B继承来的那部分，我们需要为D提供移动构造函数。这样是不对的：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">D(D&amp;&amp; other) : B(other)</span><br><span class="line">&#123;</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>因为other是一个左值，B(other)会调用B(const B&amp;)函数，而不是移动构造函数。正确的写法是：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">D(D&amp;&amp; other) : B(<span class="built_in">std</span>::move(other))</span><br><span class="line">&#123;</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>注意：</strong>父类的右值引用类型的变量，可以引用子类的右值。</p>
+<h2 id="参数匹配-2-4"><a href="#参数匹配-2-4" class="headerlink" title="参数匹配 (2.4)"></a>参数匹配 (2.4)</h2><p>从前面可以看出，func(Foo&amp;)匹配左值(重申：有名字的右值引用表达式是左值)，func(Foo&amp;&amp;)匹配右值。在本节，我们主要强调：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">func</span><span class="params">(<span class="keyword">const</span> Foo&amp;)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<p>是能够匹配右值的(注意是const的左值引用)。这个问题说过啊(见”左值引用”一节)，有什么新鲜的？还真有一点需要提。考虑构造函数和赋值函数：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Foo(<span class="keyword">const</span> Foo&amp;);</span><br><span class="line">Foo&amp; <span class="keyword">operator</span>=(<span class="keyword">const</span> Foo&amp;);</span><br></pre></td></tr></table></figure>
+
+<p>它们是能够匹配右值的。若在class Foo中，没有移动构造和移动赋值函数，下面对构造和赋值的调用，会匹配上面的两个函数。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">Foo <span class="title">f1</span><span class="params">(<span class="string">&quot;123&quot;</span>)</span></span>;</span><br><span class="line"><span class="function">Foo <span class="title">f2</span><span class="params">(<span class="built_in">std</span>::move(f1))</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="function">Foo <span class="title">f3</span><span class="params">(<span class="string">&quot;456&quot;</span>)</span></span>;</span><br><span class="line"><span class="function">Foo <span class="title">f4</span><span class="params">(<span class="string">&quot;789&quot;</span>)</span></span>;</span><br><span class="line">f4 = <span class="built_in">std</span>::move(f3);</span><br></pre></td></tr></table></figure>
+
+<p>这是有好处的：假如你确定f1和f3不再需要，可以被move，你就可以这么这样写代码，而不用关系class Foo是否重载了移动构造和移动赋值函数。若暂时没有重载，那也不会出错；将来重载了，则会带来性能提升。</p>
+<h2 id="和左值引用的相似与不同-2-5"><a href="#和左值引用的相似与不同-2-5" class="headerlink" title="和左值引用的相似与不同 (2.5)"></a>和左值引用的相似与不同 (2.5)</h2><p>相似之处：</p>
+<ul>
+<li><strong>右值引用类型的变量</strong>和<strong>左值引用类型的变量</strong>，本身都是左值；</li>
+<li><strong>右值引用类型的变量</strong>和<strong>左值引用类型的变量</strong>，都是引用另一个变量，本身不占内存；</li>
+<li>对<strong>右值引用类型的变量</strong>和<strong>左值引用类型的变量</strong>进行&amp;运算，得到的都是被引用对象的地址；</li>
+<li>和返回局部变量的左值引用是非法的一样，<strong>返回局部变量的右值引用也是非法的</strong>；道理也相同；</li>
+<li>和左值引用一样，父类的右值引用，也能够引用子类的右值；</li>
+</ul>
+<p>不同之处：</p>
+<ul>
+<li>初始化不同：<strong>右值引用类型的变量</strong>只能用右值进行初始化，而<strong>左值引用类型的变量</strong>必须用左值(这里指非const情形)。</li>
+</ul>
+<p>也就是说：<strong>右值引用类型的变量和左值引用类型的变量，除了初始化方式不同之外，其他都是相同的</strong></p>
+<h2 id="std-move-2-6"><a href="#std-move-2-6" class="headerlink" title="std::move (2.6)"></a>std::move (2.6)</h2><p>std::move的作用，就是把一个左值强制转换为右值，然后就可以用来初始化一个右值引用类型的变量了，例如函数形参，或者局部变量Foo&amp;&amp; f。它的实现如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line"><span class="keyword">typename</span> remove_reference&lt;T&gt;::<span class="function">type&amp;&amp; <span class="title">move</span><span class="params">(T&amp;&amp; t)</span> <span class="keyword">noexcept</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">static_cast</span>&lt;<span class="keyword">typename</span> remove_reference&lt;T&gt;::type&amp;&amp;&gt;(t);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>“typename remove_reference<T>::type”就是把T中的引用去掉，无论T是”Foo&amp;”还是”Foo”，它的结果都是Foo。这样就明确了，std::move()就是通过static_cast&lt;&gt;把参数t强制为右值的。现在，先记住这个简单的理解吧。我将在<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2018/05/25/cpp11-universal-ref/">C++11中的通用引用</a>中<em>std::move的工作原理</em>介绍它是如何工作的。</p>
+<h2 id="区分右值和右值引用-2-7"><a href="#区分右值和右值引用-2-7" class="headerlink" title="区分右值和右值引用 (2.7)"></a>区分右值和右值引用 (2.7)</h2><p>下面都是右值引用类型的表达式，区分一下右值和右值引用:</p>
+<ul>
+<li>Foo&amp;&amp; f中的f是右值引用(或者说右值引用类型的变量)，本身是左值；</li>
+<li>std::move(g)是右值(假设g是Foo类型的左值)，所以可以赋给一个右值引用类型的变量；</li>
+<li>bar()是右值(假设bar的原型是Foo&amp;&amp; bar();)，这种情形和std::move()一样；</li>
+<li>static_cast&lt;Foo&amp;&amp;&gt;(g)是右值(假设g是Foo类型的左值)，这种情形和std::move()一样；</li>
+</ul>
+<h1 id="测试Foo类-3"><a href="#测试Foo类-3" class="headerlink" title="测试Foo类 (3)"></a>测试Foo类 (3)</h1><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> <span class="built_in">std</span>;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Foo</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">  <span class="keyword">private</span>:</span><br><span class="line">    <span class="keyword">char</span> * data;</span><br><span class="line">  <span class="keyword">public</span>:</span><br><span class="line">    <span class="keyword">virtual</span> ~Foo()</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;~Foo()    &quot;</span> </span><br><span class="line">                &lt;&lt; (<span class="keyword">void</span>*)<span class="keyword">this</span> &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (<span class="keyword">void</span>*)data &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (data==<span class="literal">NULL</span>?<span class="string">&quot;NULL&quot;</span>:data) &lt;&lt; <span class="built_in">std</span>::<span class="built_in">endl</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span>(data != <span class="literal">NULL</span>)</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="keyword">delete</span> []data;</span><br><span class="line">        data = <span class="literal">NULL</span>;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    Foo(<span class="keyword">const</span> <span class="keyword">char</span> * s) : data(<span class="literal">NULL</span>)</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;Foo(const char * s)    &quot;</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span>(s)</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="keyword">int</span> len = <span class="built_in">strlen</span>(s);</span><br><span class="line">        data = <span class="keyword">new</span> <span class="keyword">char</span>[len+<span class="number">1</span>];</span><br><span class="line">        <span class="built_in">memcpy</span>(data, s, len+<span class="number">1</span>);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; (<span class="keyword">void</span>*)<span class="keyword">this</span> &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (<span class="keyword">void</span>*)data &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (data==<span class="literal">NULL</span>?<span class="string">&quot;NULL&quot;</span>:data) &lt;&lt; <span class="built_in">std</span>::<span class="built_in">endl</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    Foo(<span class="keyword">const</span> Foo &amp; other) : data(<span class="literal">NULL</span>)</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;Foo(const Foo &amp; other)    &quot;</span> </span><br><span class="line">                &lt;&lt; (<span class="keyword">void</span>*)&amp;other &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (<span class="keyword">void</span>*)other.data &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (other.data==<span class="literal">NULL</span>?<span class="string">&quot;NULL&quot;</span>:other.data) &lt;&lt; <span class="string">&quot;--&gt;&quot;</span>;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span>(other.data)</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="keyword">int</span> len = <span class="built_in">strlen</span>(other.data);</span><br><span class="line">        data = <span class="keyword">new</span> <span class="keyword">char</span>[len+<span class="number">1</span>];</span><br><span class="line">        <span class="built_in">memcpy</span>(data, other.data, len+<span class="number">1</span>);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; (<span class="keyword">void</span>*)<span class="keyword">this</span> &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (<span class="keyword">void</span>*)data &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (data==<span class="literal">NULL</span>?<span class="string">&quot;NULL&quot;</span>:data)&lt;&lt; <span class="built_in">std</span>::<span class="built_in">endl</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    Foo&amp; <span class="keyword">operator</span>= (<span class="keyword">const</span> Foo &amp; other)</span><br><span class="line">    &#123;</span><br><span class="line">      <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;Foo&amp; operator= (const Foo &amp; other)    &quot;</span> </span><br><span class="line">                &lt;&lt; (<span class="keyword">void</span>*)&amp;other &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (<span class="keyword">void</span>*)other.data &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (other.data==<span class="literal">NULL</span>?<span class="string">&quot;NULL&quot;</span>:other.data) &lt;&lt; <span class="string">&quot;==&gt;&quot;</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span>(<span class="keyword">this</span> != &amp;other)</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="keyword">if</span>(<span class="literal">NULL</span> != data)</span><br><span class="line">        &#123;</span><br><span class="line">          <span class="keyword">delete</span> []data;</span><br><span class="line">          data = <span class="literal">NULL</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span>(<span class="literal">NULL</span> != other.data)</span><br><span class="line">        &#123;</span><br><span class="line">          <span class="keyword">int</span> len = <span class="built_in">strlen</span>(other.data);</span><br><span class="line">          data = <span class="keyword">new</span> <span class="keyword">char</span>[len+<span class="number">1</span>];</span><br><span class="line">          <span class="built_in">memcpy</span>(data, other.data, len+<span class="number">1</span>);</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; (<span class="keyword">void</span>*)<span class="keyword">this</span> &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (<span class="keyword">void</span>*)data &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (data==<span class="literal">NULL</span>?<span class="string">&quot;NULL&quot;</span>:data) &lt;&lt; <span class="built_in">std</span>::<span class="built_in">endl</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">return</span> *<span class="keyword">this</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    Foo(Foo &amp;&amp; other) <span class="keyword">noexcept</span></span><br><span class="line">    &#123;</span><br><span class="line">      <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;Foo(Foo &amp;&amp; other)    &quot;</span> </span><br><span class="line">                &lt;&lt; (<span class="keyword">void</span>*)&amp;other &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (<span class="keyword">void</span>*)other.data &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (other.data==<span class="literal">NULL</span>?<span class="string">&quot;NULL&quot;</span>:other.data) &lt;&lt; <span class="string">&quot;--&gt;&quot;</span>;</span><br><span class="line"></span><br><span class="line">      data = other.data;</span><br><span class="line">      other.data = <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">      <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; (<span class="keyword">void</span>*)<span class="keyword">this</span> &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (<span class="keyword">void</span>*)data &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (data==<span class="literal">NULL</span>?<span class="string">&quot;NULL&quot;</span>:data) &lt;&lt; <span class="built_in">std</span>::<span class="built_in">endl</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    Foo&amp; <span class="keyword">operator</span>= (Foo &amp;&amp; other) <span class="keyword">noexcept</span></span><br><span class="line">    &#123;</span><br><span class="line">      <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;Foo&amp; operator= (Foo &amp;&amp; other)    &quot;</span> </span><br><span class="line">                &lt;&lt; (<span class="keyword">void</span>*)&amp;other &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (<span class="keyword">void</span>*)other.data </span><br><span class="line">                &lt;&lt; <span class="string">&quot;/&quot;</span> &lt;&lt; (other.data==<span class="literal">NULL</span>?<span class="string">&quot;NULL&quot;</span>:other.data) &lt;&lt; <span class="string">&quot;==&gt;&quot;</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span>(<span class="keyword">this</span> != &amp;other)</span><br><span class="line">      &#123;</span><br><span class="line">        <span class="keyword">if</span>(data != <span class="literal">NULL</span>)</span><br><span class="line">        &#123;</span><br><span class="line">          <span class="keyword">delete</span> []data;</span><br><span class="line">          data = <span class="literal">NULL</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        data = other.data;</span><br><span class="line">        other.data = <span class="literal">NULL</span>;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; (<span class="keyword">void</span>*)<span class="keyword">this</span> &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (<span class="keyword">void</span>*)data &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (data==<span class="literal">NULL</span>?<span class="string">&quot;NULL&quot;</span>:data) &lt;&lt; <span class="built_in">std</span>::<span class="built_in">endl</span>;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">return</span> *<span class="keyword">this</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">dump</span><span class="params">()</span></span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">      <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; (<span class="keyword">void</span>*)<span class="keyword">this</span> &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (<span class="keyword">void</span>*)data &lt;&lt; <span class="string">&quot;/&quot;</span> </span><br><span class="line">                &lt;&lt; (data==<span class="literal">NULL</span>?<span class="string">&quot;NULL&quot;</span>:data) &lt;&lt; <span class="built_in">std</span>::<span class="built_in">endl</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h1 id="小结-4"><a href="#小结-4" class="headerlink" title="小结 (4)"></a>小结 (4)</h1><p>本文研究右值引用的本质。它和左值引用有很多相似之处，除了初始化。所以，可以使用类比的方式来理解它。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E5%8F%B3%E5%80%BC%E5%BC%95%E7%94%A8/" rel="tag"># 右值引用</a>
+              <a href="/tags/rvalue-reference/" rel="tag"># rvalue reference</a>
+              <a href="/tags/std-move/" rel="tag"># std::move</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2018/05/24/cpp11-value-types/" rel="prev" title="C++11中的值的类型">
+      <i class="fa fa-chevron-left"></i> C++11中的值的类型
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2018/05/25/cpp11-universal-ref/" rel="next" title="C++11中的通用引用">
+      C++11中的通用引用 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B7%A6%E5%80%BC%E5%BC%95%E7%94%A8-1"><span class="nav-number">1.</span> <span class="nav-text">左值引用 (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%B3%E5%80%BC%E5%BC%95%E7%94%A8-2"><span class="nav-number">2.</span> <span class="nav-text">右值引用 (2)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%B3%E5%80%BC%E5%BC%95%E7%94%A8%E6%98%AF%E4%B8%80%E7%A7%8D%E6%96%B0%E7%9A%84%E7%B1%BB%E5%9E%8B-2-1"><span class="nav-number">2.1.</span> <span class="nav-text">右值引用是一种新的类型 (2.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%B3%E5%80%BC%E5%BC%95%E7%94%A8%E5%A6%82%E4%BD%95%E5%88%9D%E5%A7%8B%E5%8C%96-2-2"><span class="nav-number">2.2.</span> <span class="nav-text">右值引用如何初始化 (2.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%89%E5%90%8D%E6%98%AF%E5%B7%A6%E5%80%BC%E6%97%A0%E5%90%8D%E6%98%AF%E5%8F%B3%E5%80%BC-2-3"><span class="nav-number">2.3.</span> <span class="nav-text">有名是左值无名是右值 (2.3)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%82%E6%95%B0%E5%8C%B9%E9%85%8D-2-4"><span class="nav-number">2.4.</span> <span class="nav-text">参数匹配 (2.4)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%92%8C%E5%B7%A6%E5%80%BC%E5%BC%95%E7%94%A8%E7%9A%84%E7%9B%B8%E4%BC%BC%E4%B8%8E%E4%B8%8D%E5%90%8C-2-5"><span class="nav-number">2.5.</span> <span class="nav-text">和左值引用的相似与不同 (2.5)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#std-move-2-6"><span class="nav-number">2.6.</span> <span class="nav-text">std::move (2.6)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8C%BA%E5%88%86%E5%8F%B3%E5%80%BC%E5%92%8C%E5%8F%B3%E5%80%BC%E5%BC%95%E7%94%A8-2-7"><span class="nav-number">2.7.</span> <span class="nav-text">区分右值和右值引用 (2.7)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%B5%8B%E8%AF%95Foo%E7%B1%BB-3"><span class="nav-number">3.</span> <span class="nav-text">测试Foo类 (3)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93-4"><span class="nav-number">4.</span> <span class="nav-text">小结 (4)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="Linux tracing系统中有3层：front-end, tracing-framework(本文叫tracer)和event-source; 本文聚焦于perf，它属于tracer，类似的还有ftrace, eBPF等。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Linux perf">
+<meta property="og:url" content="http://yoursite.com/2023/07/18/linux-tracing-perf/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="Linux tracing系统中有3层：front-end, tracing-framework(本文叫tracer)和event-source; 本文聚焦于perf，它属于tracer，类似的还有ftrace, eBPF等。">
+<meta property="og:locale">
+<meta property="og:image" content="http://yoursite.com/2023/07/18/linux-tracing-perf/linux-tracing-tracing-overview.png">
+<meta property="og:image" content="http://yoursite.com/2023/07/18/linux-tracing-perf/linux-tracing-perf_event.png">
+<meta property="og:image" content="http://yoursite.com/2023/07/18/linux-tracing-perf/core-and-uncore-in-multicore-processors.png">
+<meta property="article:published_time" content="2023-07-18T20:47:03.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.520Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="kernel">
+<meta property="article:tag" content="tracing">
+<meta property="article:tag" content="perf">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2023/07/18/linux-tracing-perf/linux-tracing-tracing-overview.png">
+
+<link rel="canonical" href="http://yoursite.com/2023/07/18/linux-tracing-perf/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>Linux perf | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2023/07/18/linux-tracing-perf/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Linux perf
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2023-07-18 20:47:03" itemprop="dateCreated datePublished" datetime="2023-07-18T20:47:03+00:00">2023-07-18</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/tracing/" itemprop="url" rel="index"><span itemprop="name">tracing</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2023/07/18/linux-tracing-perf/" class="post-meta-item leancloud_visitors" data-flag-title="Linux perf" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2023/07/18/linux-tracing-perf/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2023/07/18/linux-tracing-perf/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>Linux tracing系统中有3层：front-end, tracing-framework(本文叫tracer)和event-source; 本文聚焦于perf，它属于tracer，类似的还有ftrace, eBPF等。</p>
+<a id="more"></a>
+
+<h1 id="框架-1"><a href="#框架-1" class="headerlink" title="框架 (1)"></a>框架 (1)</h1><p>先引用<a target="_blank" rel="noopener" href="https://leezhenghui.github.io/linux/2019/03/05/exploring-usdt-on-linux.html">两张图</a>说明一下ftrace在linux tracing中的位置与角色：</p>
+<p><img src="linux-tracing-tracing-overview.png" alt="figure1"></p>
+<div style="text-align: center;"><em>图1</em></div>
+
+<p>Tracing系统包含3层: event-source是数据来源，包括tracepoint, kprobe, usdt等；tracer (tracing framework) 运行于内核中，负责搜集event数据，甚至能够聚合与统计数据(例如eBPF)；front-end为用户提供交互接口，触发tracing，获取数据并进行聚合与统计(tracer不能做的话)。具体到perf，是这样的：</p>
+<p><img src="linux-tracing-perf_event.png" alt="figure2"></p>
+<div style="text-align: center;"><em>图2</em></div>
+
+<p>位于front-end层的是<code>perf</code>命令行工具以及实现它的<code>perf_event_open()</code> syscall (还有一些相关的<code>ioctl()</code>)；tracing-framework的核心是<code>perf_event</code>；event-soure比较广泛，包括硬件event, 软件event, tracepoint；注意，图中tracepoint是广义的tracepoint，除了包括编译进内核的静态tracepoint，还包括kprobe和uprobe等动态tracepoint。虽然在本图中，它们都叫tracepoint，但下文可以看到，系统调用<code>perf_event_open()</code>的参数<code>attr.type</code>是不同的：静态tracepoint对应的是2(<code>PERF_TYPE_TRACEPOINT</code>)，kprobe对应的是6，uprobe对应的是7。</p>
+<h1 id="说明-2"><a href="#说明-2" class="headerlink" title="说明 (2)"></a>说明 (2)</h1><p>Perf中有一些confusing的term，因为它是慢慢发展的，名词的意义随着演进可能发生了变化。我做了一些搜索，在本文中试图澄清它们，不正确的地方还望指正。</p>
+<h2 id="PMU-2-1"><a href="#PMU-2-1" class="headerlink" title="PMU (2.1)"></a>PMU (2.1)</h2><p>PMU(Performance Monitoring Unit)就是CPU core上的Performance Monitoring Counter (PMC)的集合。PMC是物理register，包括Fixed-PMC和Programmable-PMC；Fixed-PMC用于计数特定的event，而Programmable-PMC通过编程(即给对应的control-register设置不同的值)可为不同的event计数，见引文[1]。可以查看每个core的PMU配置：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"># sudo yum install cpuid</span><br><span class="line"></span><br><span class="line"># cpuid </span><br><span class="line">   ......</span><br><span class="line">   Architecture Performance Monitoring Features (0xa&#x2F;eax):</span><br><span class="line">      version ID                               &#x3D; 0x4 (4)</span><br><span class="line">      number of counters per logical processor &#x3D; 0x4 (4)</span><br><span class="line">      bit width of counter                     &#x3D; 0x30 (48)</span><br><span class="line">      length of EBX bit vector                 &#x3D; 0x7 (7)</span><br><span class="line">   Architecture Performance Monitoring Features (0xa&#x2F;ebx):</span><br><span class="line">      core cycle event not available           &#x3D; false</span><br><span class="line">      instruction retired event not available  &#x3D; false</span><br><span class="line">      reference cycles event not available     &#x3D; false</span><br><span class="line">      last-level cache ref event not available &#x3D; false</span><br><span class="line">      last-level cache miss event not avail    &#x3D; false</span><br><span class="line">      branch inst retired event not available  &#x3D; false</span><br><span class="line">      branch mispred retired event not avail   &#x3D; false</span><br><span class="line">   Architecture Performance Monitoring Features (0xa&#x2F;edx):</span><br><span class="line">      number of fixed counters    &#x3D; 0x3 (3)</span><br><span class="line">      bit width of fixed counters &#x3D; 0x30 (48)</span><br><span class="line">   ......</span><br></pre></td></tr></table></figure>
+
+<p>可见每个core有4个Programmable-PMC (number of counters per logical processor)和3个Fixed-PMC (number of fixed counters)；对于Intel CPU，3个Fixed-PMC通常是cycles, reference cycles, instructions retired. </p>
+<p>补充：What is retired instruction?</p>
+<p>Modern processors execute much more instructions that the program flow needs. This is called a speculative execution. Instructions that were “proven” as indeed needed by the program execution flow are “retired”. Instructions Retired event indicates the number of instructions that retired or executed completely. This does not include partially processed instructions executed due to branch mispredictions.</p>
+<p>In the context “retired” means: the instruction (microoperation, μop) leaves the “Retirement Unit”. It means that, in Out-of-order CPU pipeline, the instruction is finally executed and its results are correct and visible in the architectural state as if they execute in-order. 1. In performance context this is the number you should check to compute how many instructions were really executed (with useful output). 2. If your context is energy saving, you may check how many instructions started their execution in Out-Of-Order pipeline (“ISSUED” counter or “EXECUTED” counter), and then compare the number with count of retired operation; high difference shows that CPU does a lot of useless work and uses excess power.</p>
+<p>CPI (Clockticks per Instructions Retired或者Cycles per Instructions)就是平均每个retired指令占用的cycles (Clockticks)，即{the number of instructions retired}除以{the number of unhalted processor cycles (Clockticks)}. CPI是程序调优中的一个指标，越低越好(当然，也要注意总共的retired instruction数)；见引文[2].</p>
+<p>简言之，retired instruction就是在乱序pipeline中，执行的有效的指令。与之相反的是，因为预测错误而被执行的无效指令。</p>
+<p>回到PMU，我们知道它是一些control-register or counter-register；访问它们的指令有2种：<code>RDMSR</code> vs <code>RDPMC</code>. 它们的参数意义不同，<code>RDPMC &#123;performance-counter-number&#125;</code> vs <code>RDMSR &#123;register-number&#125;</code>. 例如，Performance counter numbers 0,1,2,3对应的counter-register分别是0xc1, 0xc2, 0xc3, 0xc4；对应的control-register分别是0x186, 0x187, 0x188, 0x189. 那么要获取counter-0的值，可以使用<code>RDMSR 0xc1</code>，也可以使用<code>RDPMC 0x0</code>. 再比如，3个”Fixed-PMC”的register number分别是0x309, 0x30a, 0x30b，它们对应的counter number分别是0x40000000, 0x40000001, 0x40000002，这样要获取第1个counter的值，既可以使用<code>RDMSR 0x309</code>，也可以使用<code>RDPMC 0x40000000</code>。顺便提一下: 1.<code>RDPMC</code>指令引入的比较晚，所以对比较老的CPU只能使用<code>RDMSR</code>；2. <code>RDMSR</code>在privilege level 0 (内核态)才能使用。</p>
+<p>所以，PMU最初的意思是CPU的用于性能统计的register(包括control-register). 但在代码中，software(不是硬件register而是kernel实现的软件计数器，针对特定硬件事件及者软件事件计数), tracepoint, kprobe, uprobe相关的counter都被抽象成PMU。好在，除了代码中，PMU在其它地方都是指硬件register；例如<code>perf list pmu</code></p>
+<h2 id="core-vs-uncore-2-2"><a href="#core-vs-uncore-2-2" class="headerlink" title="core vs. uncore (2.2)"></a>core vs. uncore (2.2)</h2><p>Intel processor分为core和uncore：uncore can be defined as the CPU components outside the core but closely associated with it; uncore is a collection of components of a processor not in the core but essential for core performance. The CPU core contains components involved in executing instructions, including execution units, L1 and L2 cache, branch prediction logic, etc; uncore functions include the last level cache (LLC, the last one before hitting RAM), integrated memory controllers (IMC), on-chip interconnect (OCI), power control logic (PWR), etc.</p>
+<p>也就是说，PMU是一些用于性能统计的register，它们可能是core组件上的，有可能是uncore组件上的。</p>
+<p><img src="core-and-uncore-in-multicore-processors.png" alt="figure3"></p>
+<div style="text-align: center;"><em>图3</em></div>
+
+
+<h2 id="event分类-2-3"><a href="#event分类-2-3" class="headerlink" title="event分类 (2.3)"></a>event分类 (2.3)</h2><p>在linux-5.10.161中支持的<code>perf_type_id</code>有：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">enum</span> perf_type_id &#123;</span><br><span class="line">  PERF_TYPE_HARDWARE      = <span class="number">0</span>,</span><br><span class="line">  PERF_TYPE_SOFTWARE      = <span class="number">1</span>,</span><br><span class="line">  PERF_TYPE_TRACEPOINT    = <span class="number">2</span>,</span><br><span class="line">  PERF_TYPE_HW_CACHE      = <span class="number">3</span>,</span><br><span class="line">  PERF_TYPE_RAW           = <span class="number">4</span>,</span><br><span class="line">  PERF_TYPE_BREAKPOINT    = <span class="number">5</span>,</span><br><span class="line"></span><br><span class="line">  PERF_TYPE_MAX,        <span class="comment">/* non-ABI */</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>在<code>perf list</code>的输出中，有:</p>
+<ul>
+<li>Hardware event, 对应<code>PERF_TYPE_HARDWARE</code></li>
+<li>Software event, 对应<code>PERF_TYPE_SOFTWARE</code></li>
+<li>Hardware cache event, 对应<code>PERF_TYPE_HW_CACHE</code></li>
+<li>Kernel PMU event</li>
+<li>Raw hardware event descriptor, 对应<code>PERF_TYPE_RAW</code></li>
+<li>Hardware breakpoint, 对应<code>PERF_TYPE_BREAKPOINT</code></li>
+<li>Tracepoint event, 对应<code>PERF_TYPE_TRACEPOINT</code></li>
+</ul>
+<p>这个type是如何分的呢？”Kernel PMU event”为什么没有对应的type id?</p>
+<p>首先，看软件相关的event，即非PMU event。”Software event”(<code>PERF_TYPE_SOFTWARE</code>)字面看上比较笼统，其实它特指kernel实现的有限几个软件计数器，针对特定硬件事件及者软件事件计数，例如page-faults, context-switches等。”Tracepoint event”(<code>PERF_TYPE_TRACEPOINT</code>)指内核中的静态tracepoint。另外”Hardware breakpoint”(<code>PERF_TYPE_BREAKPOINT</code>)其实是一个software event (软件实现但用于记录硬件breakpoint事件)，见linux-5.10.161的<code>kernel/events/hw_breakpoint.c</code>:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="class"><span class="keyword">struct</span> <span class="title">pmu</span> <span class="title">perf_breakpoint</span> = &#123;</span></span><br><span class="line">  .task_ctx_nr  = perf_sw_context, <span class="comment">/* could eventually get its own */</span></span><br><span class="line">  </span><br><span class="line">  ......</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>然后，就是<strong>hardware</strong> event，即PMU event, 这个非常混乱，其实是这样的： </p>
+<p>“Raw hardware event descriptor”(<code>PERF_TYPE_RAW</code>)不应该是一种event type，而是hardware/PMU event的描述规范或协议，<code>perf list</code>以及<code>enum perf_type_id</code>把它当做event类型有点confusing; 所有的hardware/PMU event都可以使用这种规范来描述。有2种语法:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rNNN                                               [Raw hardware event descriptor]</span><br><span class="line">cpu&#x2F;t1&#x3D;v1[,t2&#x3D;v2,t3 ...]&#x2F;modifier                  [Raw hardware event descriptor]</span><br></pre></td></tr></table></figure>
+
+<p>例如在第3节中的例子<code>perf stat -e r53010e,r5301c2</code>就是使用第一种描述方式。这种描述很灵活：不同系统结构的CPU的hardware/PMU event不同，code就不同，使用这种方式都可以精确描述。但显然，它的缺点是使用不便：需要我们自己去生成code (见第3节)。于是，就给常用的hardware/PMU event起一些别名，在不同架构的CPU上保持通行(可能映射到不同的PMU register上)，这就产生了”Hardware event”和”Hardware cache event”。别名更方便，raw code表达能力更强，使用时，有别名就用别名，没有别名只好使用raw code.</p>
+<p>“Hardware event”(对应<code>PERF_TYPE_HARDWARE</code>)是最generalized的事件，”Hardware cache event”(对应<code>PERF_TYPE_HW_CACHE</code>)是cache相关的事件。并且这两者之间也有别名关系(因为cache相关的event也有最generalized的)，下面会看到。从Intel CPU看，前者都来自于core PMU (包括L1-cache)，后者可能来自于core PMU也可能来自于uncore PMU (Last-Level-Cache, LLC). 其他架构的CPU没有core/uncore概念。</p>
+<p>最后，”Kernel PMU event”(没有对应一个<code>perf_type_id</code>)罗列所有PMU，把所有带别名的都打印出来，它是”Hardware event”和”Hardware cache event”的超集，是”Raw hardware event descriptor”描述的子集。在x86系统上，这种超集/子集关系还不是太明显(“Kernel PMU event”中找不到”Hardware cache event”)，手头刚好有一台ARM服务器：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line">List of pre-defined events (to be used in -e):</span><br><span class="line"></span><br><span class="line">  branch-misses                                      [Hardware event]</span><br><span class="line">  bus-cycles                                         [Hardware event]</span><br><span class="line">  cache-misses                                       [Hardware event]</span><br><span class="line">  cache-references                                   [Hardware event]</span><br><span class="line">  cpu-cycles OR cycles                               [Hardware event]</span><br><span class="line">  instructions                                       [Hardware event]</span><br><span class="line">  stalled-cycles-backend OR idle-cycles-backend      [Hardware event]</span><br><span class="line">  stalled-cycles-frontend OR idle-cycles-frontend    [Hardware event]</span><br><span class="line"></span><br><span class="line">  ......</span><br><span class="line"></span><br><span class="line">  L1-dcache-load-misses                              [Hardware cache event] &#x3D;&#x3D; cache-misses      [Hardware event]</span><br><span class="line">  L1-dcache-loads                                    [Hardware cache event] &#x3D;&#x3D; cache-references  [Hardware event]</span><br><span class="line">  L1-icache-load-misses                              [Hardware cache event]</span><br><span class="line">  L1-icache-loads                                    [Hardware cache event]</span><br><span class="line">  LLC-load-misses                                    [Hardware cache event]</span><br><span class="line">  LLC-loads                                          [Hardware cache event]</span><br><span class="line">  branch-load-misses                                 [Hardware cache event] &#x3D;&#x3D; branch-misses     [Hardware event]</span><br><span class="line">  branch-loads                                       [Hardware cache event]</span><br><span class="line">  dTLB-load-misses                                   [Hardware cache event]</span><br><span class="line">  dTLB-loads                                         [Hardware cache event]</span><br><span class="line">  iTLB-load-misses                                   [Hardware cache event]</span><br><span class="line">  iTLB-loads                                         [Hardware cache event]</span><br><span class="line"></span><br><span class="line">  ......</span><br><span class="line"></span><br><span class="line">  br_mis_pred OR armv8_pmuv3_0&#x2F;br_mis_pred&#x2F;                 [Kernel PMU event] &#x3D;&#x3D; branch-load-misses [Hardware cache event] &#x3D;&#x3D; branch-misses [Hardware event]</span><br><span class="line">  br_mis_pred_retired OR armv8_pmuv3_0&#x2F;br_mis_pred_retired&#x2F; [Kernel PMU event]</span><br><span class="line">  br_pred OR armv8_pmuv3_0&#x2F;br_pred&#x2F;                         [Kernel PMU event] &#x3D;&#x3D; branch-loads  [Hardware cache event]</span><br><span class="line">  br_retired OR armv8_pmuv3_0&#x2F;br_retired&#x2F;                   [Kernel PMU event]</span><br><span class="line">  bus_access OR armv8_pmuv3_0&#x2F;bus_access&#x2F;                   [Kernel PMU event]</span><br><span class="line">  bus_cycles OR armv8_pmuv3_0&#x2F;bus_cycles&#x2F;                   [Kernel PMU event] &#x3D;&#x3D; bus-cycles    [Hardware event]</span><br><span class="line">  cid_write_retired OR armv8_pmuv3_0&#x2F;cid_write_retired&#x2F;     [Kernel PMU event]</span><br><span class="line">  cnt_cycles OR armv8_pmuv3_0&#x2F;cnt_cycles&#x2F;                   [Kernel PMU event]</span><br><span class="line">  cpu_cycles OR armv8_pmuv3_0&#x2F;cpu_cycles&#x2F;                   [Kernel PMU event] &#x3D;&#x3D; cpu-cycles    [Hardware event]</span><br><span class="line">  dtlb_walk OR armv8_pmuv3_0&#x2F;dtlb_walk&#x2F;                     [Kernel PMU event]</span><br><span class="line">  exc_return OR armv8_pmuv3_0&#x2F;exc_return&#x2F;                   [Kernel PMU event]</span><br><span class="line">  exc_taken OR armv8_pmuv3_0&#x2F;exc_taken&#x2F;                     [Kernel PMU event]</span><br><span class="line">  inst_retired OR armv8_pmuv3_0&#x2F;inst_retired&#x2F;               [Kernel PMU event] &#x3D;&#x3D; instructions [Hardware event]</span><br><span class="line">  ......</span><br><span class="line">  l1d_cache_refill OR armv8_pmuv3_0&#x2F;l1d_cache_refill&#x2F;       [Kernel PMU event] &#x3D;&#x3D; L1-dcache-load-misses  [Hardware cache event] &#x3D;&#x3D; cache-misses     [Hardware event]</span><br><span class="line">  l1d_cache OR armv8_pmuv3_0&#x2F;l1d_cache&#x2F;                     [Kernel PMU event] &#x3D;&#x3D; L1-dcache-loads        [Hardware cache event] &#x3D;&#x3D; cache-references [Hardware event]</span><br><span class="line">  l1i_cache_lmiss OR armv8_pmuv3_0&#x2F;l1i_cache_lmiss&#x2F;         [Kernel PMU event] &#x3D;&#x3D; L1-icache-load-misses  [Hardware cache event]</span><br><span class="line">  l1i_cache OR armv8_pmuv3_0&#x2F;l1i_cache&#x2F;                     [Kernel PMU event] &#x3D;&#x3D; L1-icache-loads        [Hardware cache event]</span><br><span class="line">  l3d_cache_lmiss_rd OR armv8_pmuv3_0&#x2F;l3d_cache_lmiss_rd&#x2F;   [Kernel PMU event] &#x3D;&#x3D; LLC-load-misses        [Hardware cache event]</span><br><span class="line">  l3d_cache OR armv8_pmuv3_0&#x2F;l3d_cache&#x2F;                     [Kernel PMU event] &#x3D;&#x3D; LLC-loads              [Hardware cache event]</span><br><span class="line">  l1d_tlb_refill OR armv8_pmuv3_0&#x2F;l1d_tlb_refill&#x2F;           [Kernel PMU event] &#x3D;&#x3D; dTLB-load-misses       [Hardware cache event]</span><br><span class="line">  l1d_tlb OR armv8_pmuv3_0&#x2F;l1d_tlb&#x2F;                         [Kernel PMU event] &#x3D;&#x3D; dTLB-loads             [Hardware cache event]</span><br><span class="line">  l1i_tlb_refill OR armv8_pmuv3_0&#x2F;l1i_tlb_refill&#x2F;           [Kernel PMU event] &#x3D;&#x3D; iTLB-load-misses       [Hardware cache event]</span><br><span class="line">  l1i_tlb OR armv8_pmuv3_0&#x2F;l1i_tlb&#x2F;                         [Kernel PMU event] &#x3D;&#x3D; iTLB-loads             [Hardware cache event]</span><br><span class="line">  ......</span><br></pre></td></tr></table></figure>
+
+<p>检验一下它们的别名关系：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># perf stat -e branch-misses,branch-load-misses,br_mis_pred -- sleep 10</span></span><br><span class="line">             8,817      branch-misses</span><br><span class="line">             8,817      branch-load-misses</span><br><span class="line">             8,817      br_mis_pred</span><br><span class="line"></span><br><span class="line"><span class="comment"># perf stat -e bus-cycles,bus_cycles -- sleep 10</span></span><br><span class="line">             1,712,729      bus-cycles</span><br><span class="line">             1,712,729      bus_cycles</span><br><span class="line"></span><br><span class="line"><span class="comment">#perf stat -e cache-misses,L1-dcache-load-misses,l1d_cache_refill -- sleep 10</span></span><br><span class="line">             10,011      cache-misses</span><br><span class="line">             10,011      L1-dcache-load-misses</span><br><span class="line">             10,011      l1d_cache_refill</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># perf stat -e cache-references,L1-dcache-loads,l1d_cache -- sleep 10</span></span><br><span class="line">             359,467      cache-references</span><br><span class="line">             359,467      L1-dcache-loads</span><br><span class="line">             359,467      l1d_cache</span><br><span class="line"></span><br><span class="line"><span class="comment"># perf stat -e cpu-cycles,cpu_cycles -- sleep 10</span></span><br><span class="line">             1,732,864      cpu-cycles</span><br><span class="line">             1,732,848      cpu_cycles</span><br><span class="line"></span><br><span class="line"><span class="comment"># perf stat -e instructions,inst_retired -- sleep 10</span></span><br><span class="line">             880,113      instructions</span><br><span class="line">             880,113      inst_retired</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment"># perf stat -e L1-icache-load-misses,l1i_cache_lmiss -- sleep 10</span></span><br><span class="line">             16,206      L1-icache-load-misses</span><br><span class="line">             16,206      l1i_cache_lmiss</span><br><span class="line"></span><br><span class="line"><span class="comment"># perf stat -e L1-icache-loads,l1i_cache -- sleep 10</span></span><br><span class="line">             301,348      L1-icache-loads</span><br><span class="line">             301,348      l1i_cache</span><br><span class="line"></span><br><span class="line"><span class="comment"># perf stat -e LLC-load-misses,l3d_cache_lmiss_rd -- sleep 10</span></span><br><span class="line">             20,380      LLC-load-misses</span><br><span class="line">             20,380      l3d_cache_lmiss_rd</span><br><span class="line"></span><br><span class="line"><span class="comment"># perf stat -e LLC-loads,l3d_cache -- sleep 10</span></span><br><span class="line">                  0      LLC-loads</span><br><span class="line">                  0      l3d_cache</span><br><span class="line"></span><br><span class="line"><span class="comment"># perf stat -e branch-loads,br_pred -- sleep 10</span></span><br><span class="line">           195,470      branch-loads</span><br><span class="line">           195,470      br_pred</span><br><span class="line"></span><br><span class="line"><span class="comment"># perf stat -e dTLB-load-misses,l1d_tlb_refill,dTLB-loads,l1d_tlb -- sleep 10</span></span><br><span class="line">             1,922      dTLB-load-misses          <span class="comment">#    0.57% of all dTLB cache accesses</span></span><br><span class="line">             1,922      l1d_tlb_refill</span><br><span class="line">           338,922      dTLB-loads</span><br><span class="line">           338,922      l1d_tlb</span><br><span class="line"></span><br><span class="line"><span class="comment">#perf stat -e iTLB-load-misses,l1i_tlb_refill,iTLB-loads,l1i_tlb -- sleep 10</span></span><br><span class="line">               243      iTLB-load-misses          <span class="comment">#    0.11% of all iTLB cache accesses</span></span><br><span class="line">               243      l1i_tlb_refill</span><br><span class="line">           216,069      iTLB-loads</span><br><span class="line">           216,069      l1i_tlb</span><br></pre></td></tr></table></figure>
+
+<p>理解：<strong>这种别名关系其实就是映射关系，也是抽象概念和具体实现之间的关系</strong>，比如在ARM中:</p>
+<ul>
+<li>“instructions”是通过”inst_retired”实现的，或者说”instructions”是”inst_retired”的别名，或者说”instructions”映射到”inst_retired”;</li>
+<li>“LLC-loads”是通过”l3d_cache”实现的，或者说”LLC-loads”是”l3d_cache”的别名，或者说”LLC-loads”映射到”l3d_cache”；</li>
+</ul>
+<p>总之，”Hardware event”，”Hardware cache event”, “Kernel PMU event”，再到”Raw hardware event”，使用起来越来越不便，但越来越具体，越来越清晰：比如”LLC-loads”是最后一级缓存的load数，但最后一级是第几级呢？是data cache还是instruction cache？比较模糊。当看到它是”l3d_cache”的别名时，就知道是第三级，data cache。</p>
+<h1 id="perf命令-3"><a href="#perf命令-3" class="headerlink" title="perf命令 (3)"></a>perf命令 (3)</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"># git clone git:&#x2F;&#x2F;perfmon2.git.sourceforge.net&#x2F;gitroot&#x2F;perfmon2&#x2F;libpfm4</span><br><span class="line"># cd libpfm4&#x2F;</span><br><span class="line"># make -j8</span><br><span class="line"># .&#x2F;examples&#x2F;showevtinfo  &gt; ..&#x2F;eventinfo</span><br><span class="line"># vim ..&#x2F;eventinfo</span><br><span class="line"></span><br><span class="line"># .&#x2F;examples&#x2F;check_events UOPS_RETIRED:ALL</span><br><span class="line">......</span><br><span class="line">Codes          : 0x5301c2</span><br><span class="line"></span><br><span class="line"># .&#x2F;examples&#x2F;check_events UOPS_ISSUED:ANY</span><br><span class="line">......</span><br><span class="line">Codes          : 0x53010e</span><br><span class="line"></span><br><span class="line"># perf stat -e r53010e,r5301c2,instructions,cycles,ref-cycles -- ls</span><br><span class="line">config.mk  COPYING  debian  docs  examples  include  lib  libpfm.spec  Makefile  perf_examples  python  README  rules.mk  tests</span><br><span class="line"></span><br><span class="line"> Performance counter stats for &#39;ls&#39;:</span><br><span class="line"></span><br><span class="line">         2,285,628      r53010e                   #    UOPS_ISSUED:ANY</span><br><span class="line">         2,012,176      r5301c2                   #    UOPS_RETIRED:ALL</span><br><span class="line">         1,527,404      instructions              #    0.74  insns per cycle</span><br><span class="line">         2,062,626      cycles</span><br><span class="line">         1,694,272      ref-cycles</span><br><span class="line"></span><br><span class="line">       0.001568937 seconds time elapsed</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"># echo &quot;scale&#x3D;2; 1527404&#x2F;2062626&quot; | bc</span><br><span class="line">0.74</span><br></pre></td></tr></table></figure>
+
+<p>Microprocessors like x86 generally do not directly execute instructions, but instead, translate them into sequences of simpler operations, termed micro-operations or uops. In other words, micro-operations (also known as a micro-ops or uops) are detailed low-level instructions used in some designs to implement complex machine instructions. 所以，uops retired比instructions (retired)要多？</p>
+<h1 id="perf-event-open系统调用-4"><a href="#perf-event-open系统调用-4" class="headerlink" title="perf_event_open系统调用 (4)"></a><code>perf_event_open</code>系统调用 (4)</h1><h1 id="实现-5"><a href="#实现-5" class="headerlink" title="实现 (5)"></a>实现 (5)</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">start_kernel() &#123;</span><br><span class="line">    perf_event_init() &#123;</span><br><span class="line">        perf_pmu_register(&amp;perf_swevent, &quot;software&quot;, PERF_TYPE_SOFTWARE);</span><br><span class="line">        perf_pmu_register(&amp;perf_cpu_clock, NULL, -1);</span><br><span class="line">        perf_pmu_register(&amp;perf_task_clock, NULL, -1);</span><br><span class="line">        perf_tp_register() &#123;</span><br><span class="line">            perf_pmu_register(&amp;perf_tracepoint, &quot;tracepoint&quot;, PERF_TYPE_TRACEPOINT);</span><br><span class="line">            perf_pmu_register(&amp;perf_kprobe, &quot;kprobe&quot;, -1);</span><br><span class="line">            perf_pmu_register(&amp;perf_uprobe, &quot;uprobe&quot;, -1);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+
+<h1 id="总结-6"><a href="#总结-6" class="headerlink" title="总结 (6)"></a>总结 (6)</h1><h1 id="引用-7"><a href="#引用-7" class="headerlink" title="引用 (7)"></a>引用 (7)</h1><ol>
+<li><a target="_blank" rel="noopener" href="https://easyperf.net/blog/2018/06/01/PMU-counters-and-profiling-basics">https://easyperf.net/blog/2018/06/01/PMU-counters-and-profiling-basics</a></li>
+<li><a target="_blank" rel="noopener" href="http://portal.nacad.ufrj.br/online/intel/vtune2017/help/GUID-5C38FB45-A3ED-41F2-B57C-2B513A666205.html">http://portal.nacad.ufrj.br/online/intel/vtune2017/help/GUID-5C38FB45-A3ED-41F2-B57C-2B513A666205.html</a></li>
+<li><a target="_blank" rel="noopener" href="https://bnikolic.co.uk/blog/hpc-prof-events.html">https://bnikolic.co.uk/blog/hpc-prof-events.html</a></li>
+</ol>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/kernel/" rel="tag"># kernel</a>
+              <a href="/tags/tracing/" rel="tag"># tracing</a>
+              <a href="/tags/perf/" rel="tag"># perf</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/07/18/linux-tracing-ftrace/" rel="prev" title="Linux Ftrace">
+      <i class="fa fa-chevron-left"></i> Linux Ftrace
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/08/19/cpu-mpstat/" rel="next" title="CPU mpstat命令">
+      CPU mpstat命令 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%A1%86%E6%9E%B6-1"><span class="nav-number">1.</span> <span class="nav-text">框架 (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AF%B4%E6%98%8E-2"><span class="nav-number">2.</span> <span class="nav-text">说明 (2)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#PMU-2-1"><span class="nav-number">2.1.</span> <span class="nav-text">PMU (2.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#core-vs-uncore-2-2"><span class="nav-number">2.2.</span> <span class="nav-text">core vs. uncore (2.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#event%E5%88%86%E7%B1%BB-2-3"><span class="nav-number">2.3.</span> <span class="nav-text">event分类 (2.3)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#perf%E5%91%BD%E4%BB%A4-3"><span class="nav-number">3.</span> <span class="nav-text">perf命令 (3)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#perf-event-open%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8-4"><span class="nav-number">4.</span> <span class="nav-text">perf_event_open系统调用 (4)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%9E%E7%8E%B0-5"><span class="nav-number">5.</span> <span class="nav-text">实现 (5)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93-6"><span class="nav-number">6.</span> <span class="nav-text">总结 (6)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%BC%95%E7%94%A8-7"><span class="nav-number">7.</span> <span class="nav-text">引用 (7)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

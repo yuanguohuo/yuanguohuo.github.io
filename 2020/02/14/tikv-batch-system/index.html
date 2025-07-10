@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="BatchSystem是TiKV实现multi-raft的基石，本文介绍BatchSystem的实现。BatchSystem本身是一个抽象出来的通用的模块，不牵涉业务逻辑（multi-raft），方便单独介绍。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TiKV的BatchSystem">
+<meta property="og:url" content="http://yoursite.com/2020/02/14/tikv-batch-system/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="BatchSystem是TiKV实现multi-raft的基石，本文介绍BatchSystem的实现。BatchSystem本身是一个抽象出来的通用的模块，不牵涉业务逻辑（multi-raft），方便单独介绍。">
+<meta property="og:locale">
+<meta property="og:image" content="http://yoursite.com/2020/02/14/tikv-batch-system/batch_system.001.jpeg">
+<meta property="article:published_time" content="2020-02-14T08:57:12.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.545Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="tikv">
+<meta property="article:tag" content="BatchSystem">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2020/02/14/tikv-batch-system/batch_system.001.jpeg">
+
+<link rel="canonical" href="http://yoursite.com/2020/02/14/tikv-batch-system/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>TiKV的BatchSystem | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/02/14/tikv-batch-system/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          TiKV的BatchSystem
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2020-02-14 08:57:12" itemprop="dateCreated datePublished" datetime="2020-02-14T08:57:12+00:00">2020-02-14</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/tikv/" itemprop="url" rel="index"><span itemprop="name">tikv</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2020/02/14/tikv-batch-system/" class="post-meta-item leancloud_visitors" data-flag-title="TiKV的BatchSystem" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2020/02/14/tikv-batch-system/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2020/02/14/tikv-batch-system/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>BatchSystem是TiKV实现multi-raft的基石，本文介绍BatchSystem的实现。BatchSystem本身是一个抽象出来的通用的模块，不牵涉业务逻辑（multi-raft），方便单独介绍。</p>
+<a id="more"></a>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+
+<script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+<h1 id="总体结构-1"><a href="#总体结构-1" class="headerlink" title="总体结构 (1)"></a>总体结构 (1)</h1><img src="/2020/02/14/tikv-batch-system/batch_system.001.jpeg" class="" title="Batch System">
+
+<h1 id="Fsm、BasicMailbox与Scheduler-2"><a href="#Fsm、BasicMailbox与Scheduler-2" class="headerlink" title="Fsm、BasicMailbox与Scheduler (2)"></a><code>Fsm</code>、<code>BasicMailbox</code>与<code>Scheduler</code> (2)</h1><p><code>Fsm</code>是一个trait，由业务逻辑来实现。<code>Fsm</code>的运转是靠<code>Message</code>来驱动的，所以就有了<code>BasicMailbox</code>。一个<code>Fsm</code>和一个<code>BasicMailbox</code>绑定：<code>BasicMailbox</code>用于接收驱动<code>Fsm</code>的<code>Message</code>；<code>Fsm</code>是发到<code>BasicMailbox</code>的<code>Message</code>的owner。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">struct</span> <span class="title">BasicMailbox</span></span>&lt;Owner: Fsm&gt; &#123;</span><br><span class="line">    sender: mpsc::LooseBoundedSender&lt;Owner::Message&gt;,</span><br><span class="line">    state: Arc&lt;FsmState&lt;Owner&gt;&gt;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>其中<code>sender</code>提供发送<code>Message</code>的功能，<code>state</code>里面实际上包裹了一个<code>Fsm</code>（除了<code>Fsm</code>本身还包含<code>Fsm</code>的状态）。可以从<code>BasicMailbox</code>中把<code>Fsm</code>拿出来（<code>take_fsm</code>函数），也可以还回去（<code>release</code>函数）。</p>
+<p>当需要驱动<code>Fsm</code>的时候，就通过以下两个函数向关联的<code>BasicMailbox</code>发一个<code>Message</code>：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">impl</span>&lt;Owner: Fsm&gt; BasicMailbox&lt;Owner&gt; &#123;</span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">force_send</span></span>&lt;S: FsmScheduler&lt;Fsm = Owner&gt;&gt;(</span><br><span class="line">        &amp;<span class="keyword">self</span>,</span><br><span class="line">        msg: Owner::Message,</span><br><span class="line">        scheduler: &amp;S,</span><br><span class="line">    ) -&gt; <span class="built_in">Result</span>&lt;(), SendError&lt;Owner::Message&gt;&gt; &#123;...&#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">pub</span> <span class="function"><span class="keyword">fn</span> <span class="title">try_send</span></span>&lt;S: FsmScheduler&lt;Fsm = Owner&gt;&gt;(</span><br><span class="line">        &amp;<span class="keyword">self</span>,</span><br><span class="line">        msg: Owner::Message,</span><br><span class="line">        scheduler: &amp;S,</span><br><span class="line">    ) -&gt; <span class="built_in">Result</span>&lt;(), TrySendError&lt;Owner::Message&gt;&gt; &#123;...&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>发送到<code>BasicMailbox</code>的<code>Message</code>立即驱动<code>Fsm</code>吗？不是的，<code>Fsm</code>经过调度，才能最终被<code>Message</code>驱动。这也是<code>force_send</code>和<code>try_send</code>的第二个参数的用途。这两个函数是这样工作的：把<code>msg</code>放入sender；把<code>Fsm</code>从<code>BasicMailbox</code>里拿出来，扔给<code>Scheduler</code>，这时<code>Fsm</code>处于<code>NOTIFYSTATE_NOTIFIED</code>状态（调度之前，<code>Fsm</code>在<code>BasicMailbox</code>中的时候处于<code>NOTIFYSTATE_IDLE</code>状态。将来，<code>Fsm</code>被<code>Message</code>之后就会被还回<code>BasicMailbox</code>，那时又回到<code>NOTIFYSTATE_IDLE</code>状态。</p>
+<p><code>Scheduler</code>里面包含一个<code>channel</code>的发送端。当<code>BasicMailbox</code>接收到一个<code>Message</code>的时候，就把对应的<code>Fsm</code>扔到这个<code>channel</code>里。下文再说<code>channel</code>的接收端以及如何消费里面的<code>Fsm</code>。</p>
+<h1 id="Router-3"><a href="#Router-3" class="headerlink" title="Router (3)"></a><code>Router</code> (3)</h1><p><code>Router</code>包含上文介绍过的3个组件：</p>
+<ul>
+<li><code>BasicMailbox</code>: 一个<code>Control BasicMailbox</code>和若干个<code>Normal BasicMailbox</code>。<code>Router</code>提供的接口是：向<code>Control BasicMailbox</code>或某个（由参数<code>addr</code>指定）<code>Normal BasicMailbox</code>发送一个<code>Message</code>；除此之外，还有广播，即向把<code>Message</code>发给所有<code>BasicMailbox</code>；</li>
+<li><code>Fsm</code>: 每个<code>BasicMailbox</code>都关联一个<code>Fsm</code>，即有一个<code>Control Fsm</code>和若干个<code>Normal Fsm</code>；</li>
+<li><code>Scheduler</code>: 一个<code>Control Scheduler</code>和一个<code>Normal Scheduler</code>；当一个<code>Message</code>发到一个<code>BasicMailbox</code>的时候，就把对应的<code>Fsm</code>拿出来，让<code>Scheduler</code>调度（即放进<code>Scheduler</code>的<code>channel</code>里）；</li>
+</ul>
+<h1 id="Poller与PollHandler-4"><a href="#Poller与PollHandler-4" class="headerlink" title="Poller与PollHandler (4)"></a><code>Poller</code>与<code>PollHandler</code> (4)</h1><p>前文说过，每个<code>Scheduler</code>有一个<code>channel</code>，有<code>Message</code>发给一个<code>Fsm</code>（发送到其关联的<code>BasicMailbox</code>）的时候，<code>Fsm</code>就被放进<code>channel</code>。<code>Poller</code>就是这个<code>channel</code>的消费者：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">Poller</span></span>&lt;N: Fsm, C: Fsm, Handler&gt; &#123;</span><br><span class="line">    router: Router&lt;N, C, NormalScheduler&lt;N, C&gt;, ControlScheduler&lt;N, C&gt;&gt;,</span><br><span class="line">    fsm_receiver: channel::Receiver&lt;FsmTypes&lt;N, C&gt;&gt;,</span><br><span class="line">    handler: Handler,</span><br><span class="line">    max_batch_size: <span class="built_in">usize</span>,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>其中<code>fsm_receiver</code>就是<code>channel</code>的接收端。一个<code>Poller</code>就是一个线程，线程中运行<code>Poller::poll()</code>函数。这个函数是一个大循环，每一轮都是从<code>fsm_receiver</code>中接收一批<code>Fsm</code>（可能是<code>Control Fsm</code>也可能是<code>Normal Fsm</code>，这些<code>Fsm</code>上有<code>Message</code>），由结构体<code>Batch</code>表示，然后处理它们。BatcySystem的名字就来源于此：一次接收并处理一批<code>Fsm</code>。详细点说：</p>
+<ul>
+<li>上面router里有$M$个<code>Fsm/BasicMailbox</code>（在TiKV中，一个region对应一个<code>Normal Fsm/BasicMailbox</code>，此外还有一个<code>Control Fsm/BasicMailbox</code>）；</li>
+<li>下面线程池里有$N$个<code>Poller</code>；</li>
+<li>当一个<code>Fsm</code>（无论<code>Normal Fsm</code>还是<code>Control Fsm</code>）的<code>BasicMailbox</code>接收到<code>Message</code>的时候，这个<code>Fsm</code>就被<code>Scheduler</code>发给线程池去处理；</li>
+<li>每个线程（<code>Poller::pool()</code>）一次拿一批<code>Fsm</code>来处理，处理完之后再还给<code>BasicMailbox</code>（等<code>BasicMailbox</code>再接收到<code>Message</code>的时候，再处理）；</li>
+</ul>
+<p>注意，这里面有两个消息通道：</p>
+<ul>
+<li><ol>
+<li><code>Fsm</code>被发往<code>Poller</code>的消息通道：发送端在<code>Scheduler</code>里，接收端在<code>Poller</code>里； </li>
+</ol>
+</li>
+<li><ol start="2">
+<li><code>Message</code>被发往<code>Fsm</code>的消息通道：发送端在<code>BasicMailbox</code>里，接收端在<code>Fsm</code>里（<code>PeerFsm</code>和<code>StoreFsm</code>的<code>receiver</code>）；</li>
+</ol>
+</li>
+</ul>
+<p>如上所述，<code>Poller::poll()</code>的主要工作是从<code>fsm_receiver</code>中接收一批<code>Fsm</code>并处理它们。但，处理的逻辑是业务层的事，所以这里由一个trait（<code>PollHandler</code>）表示处理逻辑。由于<code>fsm_receiver</code>接收到的既有<code>Control Fsm</code>也有<code>Normal Fsm</code>，所以<code>PollHandler</code>定义了<code>handle_control</code>和<code>handle_normal</code>接口。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">pub</span> <span class="class"><span class="keyword">trait</span> <span class="title">PollHandler</span></span>&lt;N, C&gt; &#123;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">begin</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, batch_size: <span class="built_in">usize</span>);</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">handle_control</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, control: &amp;<span class="keyword">mut</span> C) -&gt; <span class="built_in">Option</span>&lt;<span class="built_in">usize</span>&gt;;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">handle_normal</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, normal: &amp;<span class="keyword">mut</span> N) -&gt; <span class="built_in">Option</span>&lt;<span class="built_in">usize</span>&gt;;</span><br><span class="line">    <span class="function"><span class="keyword">fn</span> <span class="title">end</span></span>(&amp;<span class="keyword">mut</span> <span class="keyword">self</span>, batch: &amp;<span class="keyword">mut</span> [<span class="built_in">Box</span>&lt;N&gt;]);</span><br><span class="line">    <span class="comment">//......</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>Poller</code>接收到一批<code>Fsm</code>之后：</p>
+<ul>
+<li>调用<code>begin()</code>；</li>
+<li>对每个<code>Fsm</code>调用<code>handle_control()</code>或<code>handle_normal()</code>；</li>
+<li>调用<code>end()</code>；</li>
+</ul>
+<p>这些都是业务层实现的。可以想象，业务层实现<code>handle_normal()</code>或<code>handle_control()</code>的时候，应该是从<code>Fsm</code>接收<code>Message</code>，处理它，驱动<code>Fsm</code>。</p>
+<h1 id="BatchSystem-5"><a href="#BatchSystem-5" class="headerlink" title="BatchSystem (5)"></a><code>BatchSystem</code> (5)</h1><p><code>BatchSystem</code>就是把上述东西组合起来，其<code>spawn</code>函数的工作就是创建$N$个<code>Poller</code>实例，并启动线程。</p>
+<h1 id="小结-6"><a href="#小结-6" class="headerlink" title="小结 (6)"></a>小结 (6)</h1><p>本文梳理一下BatchSystem的逻辑，后文就不用再陷入这些细节，聚焦于TiKV的业务逻辑：一个消息发给一个<code>PeerFsm</code>或<code>StoreFsm</code>的时候，直接去看对应的<code>PollHandler</code>实现即可。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/tikv/" rel="tag"># tikv</a>
+              <a href="/tags/BatchSystem/" rel="tag"># BatchSystem</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/01/13/rust-pattern-match/" rel="prev" title="Rust的pattern match">
+      <i class="fa fa-chevron-left"></i> Rust的pattern match
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/02/20/rust-option/" rel="next" title="Rust的Option细节">
+      Rust的Option细节 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E4%BD%93%E7%BB%93%E6%9E%84-1"><span class="nav-number">1.</span> <span class="nav-text">总体结构 (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Fsm%E3%80%81BasicMailbox%E4%B8%8EScheduler-2"><span class="nav-number">2.</span> <span class="nav-text">Fsm、BasicMailbox与Scheduler (2)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Router-3"><span class="nav-number">3.</span> <span class="nav-text">Router (3)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Poller%E4%B8%8EPollHandler-4"><span class="nav-number">4.</span> <span class="nav-text">Poller与PollHandler (4)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#BatchSystem-5"><span class="nav-number">5.</span> <span class="nav-text">BatchSystem (5)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93-6"><span class="nav-number">6.</span> <span class="nav-text">小结 (6)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

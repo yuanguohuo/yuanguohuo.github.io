@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="fio是平时常用的工具之一，然而它有很多参数用于定制不同的压力模式，输出也包含很多信息，之前没有仔细研究。本文搞清楚一些常用参数所定制的行为，并且详细解读一下输出的信息。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Linux fio">
+<meta property="og:url" content="http://yoursite.com/2019/05/23/fio-notes/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="fio是平时常用的工具之一，然而它有很多参数用于定制不同的压力模式，输出也包含很多信息，之前没有仔细研究。本文搞清楚一些常用参数所定制的行为，并且详细解读一下输出的信息。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2019-05-23T21:38:22.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.491Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="io">
+<meta property="article:tag" content="fio">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2019/05/23/fio-notes/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>Linux fio | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/05/23/fio-notes/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Linux fio
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2019-05-23 21:38:22" itemprop="dateCreated datePublished" datetime="2019-05-23T21:38:22+00:00">2019-05-23</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2019/05/23/fio-notes/" class="post-meta-item leancloud_visitors" data-flag-title="Linux fio" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2019/05/23/fio-notes/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2019/05/23/fio-notes/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>fio是平时常用的工具之一，然而它有很多参数用于定制不同的压力模式，输出也包含很多信息，之前没有仔细研究。本文搞清楚一些常用参数所定制的行为，并且详细解读一下输出的信息。</p>
+<a id="more"></a>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+
+<script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+<h1 id="安装最新的fio-1"><a href="#安装最新的fio-1" class="headerlink" title="安装最新的fio (1)"></a>安装最新的fio (1)</h1><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> yum install -y libaio libaio-devel</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> git <span class="built_in">clone</span> http://git.kernel.dk/fio.git</span></span><br><span class="line"><span class="meta">#</span><span class="bash"> git checkout tags/fio-3.14</span></span><br><span class="line"><span class="meta">#</span><span class="bash"> ./configure --prefix=/usr/<span class="built_in">local</span>/fio-3.14</span></span><br><span class="line"><span class="meta">#</span><span class="bash"> make</span></span><br><span class="line"><span class="meta">#</span><span class="bash"> make install</span></span><br></pre></td></tr></table></figure>
+
+<h1 id="job-definition和job-instance-2"><a href="#job-definition和job-instance-2" class="headerlink" title="job definition和job instance (2)"></a>job definition和job instance (2)</h1><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> cat jobfile1</span></span><br><span class="line">[global]</span><br><span class="line">    ioengine=libaio</span><br><span class="line">    buffered=0</span><br><span class="line">    direct=1</span><br><span class="line">    filename=/dev/sdd</span><br><span class="line"></span><br><span class="line">[randwrite_job]</span><br><span class="line">    rw=randwrite</span><br><span class="line">    bs=1m</span><br><span class="line">    size=2048G</span><br><span class="line">    runtime=30s</span><br><span class="line">    numjobs=3</span><br><span class="line">[seqread_job]</span><br><span class="line">    rw=read</span><br><span class="line">    bs=4k</span><br><span class="line">    size=2048G</span><br><span class="line">    runtime=30s</span><br><span class="line">    numjobs=2</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>job definition: jobfile1中的randwrite_job和seqread_job；它们是静态的，描述I/O的特征(顺序写还是随机写，ioengine，大小等等)，可以产生多个job instance;</li>
+<li>job instance: 运行时产生的job实例(fork)。运行上面的jobfile1会产生5个job instance，其中randwrite_job产生3个(numjobs=3)，seqread_job产生2个(numjobs=2)；同一个job definition产生的job实例有着同样的I/O特征；</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">终端A:</span><br><span class="line"><span class="meta">#</span><span class="bash"> ./fio jobfile1</span></span><br><span class="line">randwrite_job: (g=0): rw=randwrite, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=1</span><br><span class="line">...</span><br><span class="line">seqread_job: (g=0): rw=read, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=1</span><br><span class="line">...</span><br><span class="line">fio-3.14</span><br><span class="line">Starting 5 processes</span><br><span class="line">Jobs: 5 (f=5): [w(3),R(2)][100.0%][r=56KiB/s,w=82.0MiB/s][r=14,w=82 IOPS][eta 00m:00s]</span><br><span class="line">randwrite_job: (groupid=0, jobs=1): err= 0: pid=30602: Thu Jun 20 18:47:26 2019</span><br><span class="line">......</span><br><span class="line">randwrite_job: (groupid=0, jobs=1): err= 0: pid=30603: Thu Jun 20 18:47:26 2019</span><br><span class="line">......</span><br><span class="line">randwrite_job: (groupid=0, jobs=1): err= 0: pid=30604: Thu Jun 20 18:47:26 2019</span><br><span class="line">......</span><br><span class="line">seqread_job: (groupid=0, jobs=1): err= 0: pid=30605: Thu Jun 20 18:47:26 2019</span><br><span class="line">......</span><br><span class="line">seqread_job: (groupid=0, jobs=1): err= 0: pid=30606: Thu Jun 20 18:47:26 2019</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">Run status group 0 (all jobs):</span><br><span class="line">   READ: bw=12.9MiB/s (13.5MB/s), 6597KiB/s-6598KiB/s (6756kB/s-6756kB/s), io=387MiB (406MB), run=30070-30070msec</span><br><span class="line">  WRITE: bw=60.5MiB/s (63.5MB/s), 20.1MiB/s-20.2MiB/s (21.1MB/s-21.2MB/s), io=1817MiB (1905MB), run=30003-30023msec</span><br><span class="line"></span><br><span class="line">Disk stats (read/write):</span><br><span class="line">  sdd: ios=99304/3610, merge=0/0, ticks=58342/176819, in_queue=235709, util=99.77%</span><br><span class="line"></span><br><span class="line">终端B:</span><br><span class="line"><span class="meta">#</span><span class="bash"> ps -ef|grep fio</span></span><br><span class="line">root      30566 141809 19 18:46 pts/1    00:00:00 ./fio jobfile1</span><br><span class="line">root      30602  30566  0 18:46 ?        00:00:00 ./fio jobfile1</span><br><span class="line">root      30603  30566  0 18:46 ?        00:00:00 ./fio jobfile1</span><br><span class="line">root      30604  30566  0 18:46 ?        00:00:00 ./fio jobfile1</span><br><span class="line">root      30605  30566  4 18:46 ?        00:00:00 ./fio jobfile1</span><br><span class="line">root      30606  30566  4 18:46 ?        00:00:00 ./fio jobfile1</span><br></pre></td></tr></table></figure>
+
+<p>值得一提的是，上面一共有6个fio进程；因为其中一个是主控进程(30566)，其他5个才是job实例进程；</p>
+<h1 id="常用的fio选项-3"><a href="#常用的fio选项-3" class="headerlink" title="常用的fio选项 (3)"></a>常用的fio选项 (3)</h1><h2 id="size选项-3-1"><a href="#size选项-3-1" class="headerlink" title="size选项(3.1)"></a>size选项(3.1)</h2><p>它的值有两种形式：</p>
+<ul>
+<li>绝对大小，例如10M,20G；</li>
+<li>百分比，例如20%；需要文件事先存在；<br>无论哪种形式都是指定一个job实例读写的空间(多个job实例的情况下每个job实例都读写这么大的空间)；fio运行时间取决于–runtime指定的时间和读写这么多空间所需时间二者中的最小者。</li>
+</ul>
+<h2 id="bs-选项-3-2"><a href="#bs-选项-3-2" class="headerlink" title="bs 选项(3.2)"></a>bs 选项(3.2)</h2><p>I/O单元的大小。</p>
+<h2 id="rw选项-3-3"><a href="#rw选项-3-3" class="headerlink" title="rw选项(3.3)"></a>rw选项(3.3)</h2><ul>
+<li>write: 顺序写;</li>
+<li>randwrite: 随机写；</li>
+<li>read: 顺序读；</li>
+<li>randread: 随机读；</li>
+<li>rw: 顺序混合读写；</li>
+<li>randrw: 随机混合读写；</li>
+</ul>
+<h2 id="ioengine选项-3-4"><a href="#ioengine选项-3-4" class="headerlink" title="ioengine选项 (3.4)"></a>ioengine选项 (3.4)</h2><h3 id="libaio-3-4-1"><a href="#libaio-3-4-1" class="headerlink" title="libaio (3.4.1)"></a>libaio (3.4.1)</h3><p>即linux native asynchronous I/O，也就是使用io_submit提交I/O请求，然后再异步地使用io_getevents获取结果。可以通过strace来看实际的系统调用。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">终端A:</span><br><span class="line"><span class="meta">#</span><span class="bash"> ./fio --name=seqwrite       \</span></span><br><span class="line">        --rw=write            \</span><br><span class="line">        --bs=4k               \</span><br><span class="line">        --size=2048G          \</span><br><span class="line">        --runtime=30          \</span><br><span class="line">        --ioengine=libaio     \</span><br><span class="line">        --direct=1            \</span><br><span class="line">        --iodepth=1           \</span><br><span class="line">        --numjobs=1           \</span><br><span class="line">        --filename=/dev/sdd</span><br><span class="line"></span><br><span class="line">终端B:</span><br><span class="line"><span class="meta">#</span><span class="bash"> ps -ef|grep fio</span></span><br><span class="line">root      31136 141809 26 20:00 pts/1    00:00:00 ./fio --name=seqwrite --rw=write --bs=4k --size=2048G --runtime=30 --ioengine=libaio --direct=1 --iodepth=1 --numjobs=1 --filename=/dev/sdd</span><br><span class="line">root      31170  31136 19 20:00 ?        00:00:00 ./fio --name=seqwrite --rw=write --bs=4k --size=2048G --runtime=30 --ioengine=libaio --direct=1 --iodepth=1 --numjobs=1 --filename=/dev/sdd</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> strace -p 31170</span></span><br><span class="line">Process 31170 attached</span><br><span class="line">......</span><br><span class="line">io_submit(140009640251392, 1, &#123;&#123;pwrite, filedes:3, str:&quot;\0\200|:\0\0\0\0\6\234j\251\362\315\351\n\200S*\7\t\345\r\25pJ%\367\v9\235\30&quot;..., nbytes:4096, offset:981250048&#125;&#125;) = 1</span><br><span class="line">io_getevents(140009640251392, 1, 1, &#123;&#123;(nil), 0x1cb57e8, 4096, 0&#125;&#125;, NULL) = 1</span><br><span class="line">io_submit(140009640251392, 1, &#123;&#123;pwrite, filedes:3, str:&quot;\0\200|:\0\0\0\0\6\234j\251\362\315\351\n\200S*\7\t\345\r\25pJ%\367\v9\235\30&quot;..., nbytes:4096, offset:981254144&#125;&#125;) = 1</span><br><span class="line">io_getevents(140009640251392, 1, 1, &#123;&#123;(nil), 0x1cb57e8, 4096, 0&#125;&#125;, NULL) = 1</span><br><span class="line">......</span><br></pre></td></tr></table></figure>
+
+<h3 id="sync-3-4-2"><a href="#sync-3-4-2" class="headerlink" title="sync (3.4.2)"></a>sync (3.4.2)</h3><p>这个名字有点误导，它虽然叫做sync，但并不意味着文件以O_SYNC的方式打开，也不意味着每个write之后会调用fsync/fdatasync操作。实际上，这个sync和libaio是相对的概念，不是先提交I/O请求(io_submit)再异步获取结果(io_getevents)，而是使用read/write这样的系统调用来完成I/O。到底write之后会不会调用fsync，要看–fsync或者–fdatasync的设置；</p>
+<h3 id="psync-3-4-3"><a href="#psync-3-4-3" class="headerlink" title="psync (3.4.3)"></a>psync (3.4.3)</h3><p>和sync类似，不同之处在于使用pread和pwrite来进行I/O。</p>
+<h2 id="iodepth选项-3-5"><a href="#iodepth选项-3-5" class="headerlink" title="iodepth选项 (3.5)"></a>iodepth选项 (3.5)</h2><p>简单来说，就是一个job实例在一个文件上的inflight的I/O的数。考虑–ioengine=libaio的情景：把I/O请求通过io_submit发出去然后通过io_getevents获取结果，这样一个job实例就可以保持有多个inflight I/O。但是对于–ioengine=sync或者psync，一个job实例只能顺序地调用read/write(pread/pwrite)，也就是只能保持一个I/O inflight，所以对于–ioengine=sync或者–ioengine=psync设置iodepth为大于1的值不起作用。对比一下：</p>
+<ul>
+<li><strong>libaio</strong></li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line">终端A:</span><br><span class="line"><span class="meta">#</span><span class="bash"> ./fio --name=seqwrite     \</span></span><br><span class="line">        --rw=write          \</span><br><span class="line">        --bs=4k             \</span><br><span class="line">        --size=2048G        \</span><br><span class="line">        --runtime=30        \</span><br><span class="line">        --ioengine=libaio   \</span><br><span class="line">        --direct=1          \</span><br><span class="line">        --iodepth=2         \</span><br><span class="line">        --numjobs=3         \</span><br><span class="line">        --filename=/dev/sdd \</span><br><span class="line">        --group_reporting</span><br><span class="line"></span><br><span class="line">seqwrite: (g=0): rw=write, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=2</span><br><span class="line">...</span><br><span class="line">fio-3.14</span><br><span class="line">Starting 3 processes</span><br><span class="line">Jobs: 3 (f=3): [W(3)][100.0%][w=26.5MiB/s][w=6784 IOPS][eta 00m:00s]</span><br><span class="line">seqwrite: (groupid=0, jobs=3): err= 0: pid=31333: Thu Jun 20 20:10:28 2019</span><br><span class="line">  write: IOPS=7158, BW=27.0MiB/s (29.3MB/s)(839MiB/30001msec)</span><br><span class="line">    slat (nsec): min=2934, max=37646, avg=6739.80, stdev=2421.02</span><br><span class="line">    clat (usec): min=125, max=148817, avg=830.45, stdev=1904.14</span><br><span class="line">     lat (usec): min=130, max=148823, avg=837.30, stdev=1904.16</span><br><span class="line">    clat percentiles (usec):</span><br><span class="line">     |  1.00th=[  141],  5.00th=[  347], 10.00th=[  627], 20.00th=[  635],</span><br><span class="line">     | 30.00th=[  635], 40.00th=[  644], 50.00th=[  660], 60.00th=[  791],</span><br><span class="line">     | 70.00th=[  799], 80.00th=[  865], 90.00th=[  996], 95.00th=[ 1369],</span><br><span class="line">     | 99.00th=[ 1516], 99.50th=[ 2573], 99.90th=[12256], 99.95th=[34341],</span><br><span class="line">     | 99.99th=[96994]</span><br><span class="line">   bw (  KiB/s): min=14528, max=49712, per=100.00%, avg=28649.71, stdev=2786.85, samples=179</span><br><span class="line">   iops        : min= 3632, max=12428, avg=7162.42, stdev=696.71, samples=179</span><br><span class="line">  lat (usec)   : 250=4.55%, 500=0.51%, 750=51.07%, 1000=34.20%</span><br><span class="line">  lat (msec)   : 2=8.99%, 4=0.21%, 10=0.05%, 20=0.34%, 50=0.03%</span><br><span class="line">  lat (msec)   : 100=0.03%, 250=0.01%</span><br><span class="line">  cpu          : usr=0.70%, sys=2.53%, ctx=185415, majf=0, minf=98</span><br><span class="line">  IO depths    : 1=0.1%, 2=100.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, &gt;=64=0.0%</span><br><span class="line">     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, &gt;=64=0.0%</span><br><span class="line">     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, &gt;=64=0.0%</span><br><span class="line">     issued rwts: total=0,214751,0,0 short=0,0,0,0 dropped=0,0,0,0</span><br><span class="line">     latency   : target=0, window=0, percentile=100.00%, depth=2</span><br><span class="line"></span><br><span class="line">Run status group 0 (all jobs):</span><br><span class="line">  WRITE: bw=27.0MiB/s (29.3MB/s), 27.0MiB/s-27.0MiB/s (29.3MB/s-29.3MB/s), io=839MiB (880MB), run=30001-30001msec</span><br><span class="line"></span><br><span class="line">Disk stats (read/write):</span><br><span class="line">  sdd: ios=122/213903, merge=0/0, ticks=24/176947, in_queue=176925, util=99.77%</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">终端B:</span><br><span class="line"><span class="meta">#</span><span class="bash"> iostat -mxd 1 /dev/sdd</span></span><br><span class="line">avg-cpu:  %user   %nice %system %iowait  %steal   %idle</span><br><span class="line">           0.09    0.00    0.22    0.00    0.00   99.69</span><br><span class="line"></span><br><span class="line">Device:         rrqm/s   wrqm/s     r/s     w/s    rMB/s    wMB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util</span><br><span class="line">sdd               0.00     0.00    0.00 8540.00     0.00    33.36     8.00     5.91    0.69    0.00    0.69   0.12 100.00</span><br><span class="line"></span><br><span class="line">avg-cpu:  %user   %nice %system %iowait  %steal   %idle</span><br><span class="line">           0.06    0.00    0.22    0.03    0.00   99.69</span><br><span class="line"></span><br><span class="line">Device:         rrqm/s   wrqm/s     r/s     w/s    rMB/s    wMB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util</span><br><span class="line">sdd               0.00     0.00    0.00 8434.00     0.00    32.95     8.00     5.90    0.70    0.00    0.70   0.12 100.00</span><br></pre></td></tr></table></figure>
+
+<p><code>IO depths: 1=0.1%, 2=100.0%</code>表明iodepth为2。iostat显示avgqu-sz接近6。我们有3个job实例，故每个job实例的iodepth接近2；</p>
+<ul>
+<li><strong>sync</strong></li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line">终端A:</span><br><span class="line"><span class="meta">#</span><span class="bash"> ./fio --name=seqwrite     \</span></span><br><span class="line">        --rw=write          \</span><br><span class="line">        --bs=4k             \</span><br><span class="line">        --size=2048G        \</span><br><span class="line">        --runtime=30        \</span><br><span class="line">        --ioengine=sync     \</span><br><span class="line">        --direct=1          \</span><br><span class="line">        --iodepth=2         \</span><br><span class="line">        --numjobs=3         \</span><br><span class="line">        --filename=/dev/sdd \</span><br><span class="line">        --group_reporting</span><br><span class="line"></span><br><span class="line">seqwrite: (g=0): rw=write, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=sync, iodepth=2</span><br><span class="line">...</span><br><span class="line">fio-3.14</span><br><span class="line">Starting 3 processes</span><br><span class="line">Jobs: 3 (f=3): [W(3)][100.0%][w=33.0MiB/s][w=8457 IOPS][eta 00m:00s]</span><br><span class="line">seqwrite: (groupid=0, jobs=3): err= 0: pid=31445: Thu Jun 20 20:14:31 2019</span><br><span class="line">  write: IOPS=5405, BW=21.1MiB/s (22.1MB/s)(634MiB/30001msec)</span><br><span class="line">    clat (usec): min=107, max=97490, avg=553.96, stdev=1255.04</span><br><span class="line">     lat (usec): min=107, max=97490, avg=554.08, stdev=1255.04</span><br><span class="line">    clat percentiles (usec):</span><br><span class="line">     |  1.00th=[  269],  5.00th=[  310], 10.00th=[  314], 20.00th=[  314],</span><br><span class="line">     | 30.00th=[  318], 40.00th=[  469], 50.00th=[  490], 60.00th=[  578],</span><br><span class="line">     | 70.00th=[  668], 80.00th=[  693], 90.00th=[  734], 95.00th=[  750],</span><br><span class="line">     | 99.00th=[  766], 99.50th=[  783], 99.90th=[14615], 99.95th=[26870],</span><br><span class="line">     | 99.99th=[62653]</span><br><span class="line">   bw (  KiB/s): min=12400, max=34776, per=99.06%, avg=21419.20, stdev=2159.32, samples=177</span><br><span class="line">   iops        : min= 3100, max= 8694, avg=5354.80, stdev=539.83, samples=177</span><br><span class="line">  lat (usec)   : 250=0.64%, 500=53.22%, 750=41.44%, 1000=4.47%</span><br><span class="line">  lat (msec)   : 2=0.02%, 4=0.01%, 10=0.02%, 20=0.12%, 50=0.04%</span><br><span class="line">  lat (msec)   : 100=0.02%</span><br><span class="line">  cpu          : usr=0.42%, sys=1.85%, ctx=162178, majf=0, minf=102</span><br><span class="line">  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, &gt;=64=0.0%</span><br><span class="line">     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, &gt;=64=0.0%</span><br><span class="line">     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, &gt;=64=0.0%</span><br><span class="line">     issued rwts: total=0,162177,0,0 short=0,0,0,0 dropped=0,0,0,0</span><br><span class="line">     latency   : target=0, window=0, percentile=100.00%, depth=2</span><br><span class="line"></span><br><span class="line">Run status group 0 (all jobs):</span><br><span class="line">  WRITE: bw=21.1MiB/s (22.1MB/s), 21.1MiB/s-21.1MiB/s (22.1MB/s-22.1MB/s), io=634MiB (664MB), run=30001-30001msec</span><br><span class="line"></span><br><span class="line">Disk stats (read/write):</span><br><span class="line">  sdd: ios=120/161214, merge=0/0, ticks=28/87940, in_queue=87943, util=99.78%</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">终端B:</span><br><span class="line"><span class="meta">#</span><span class="bash"> iostat -mxd 1 /dev/sdd</span></span><br><span class="line">avg-cpu:  %user   %nice %system %iowait  %steal   %idle</span><br><span class="line">           0.03    0.00    0.16    8.20    0.00   91.61</span><br><span class="line"></span><br><span class="line">Device:         rrqm/s   wrqm/s     r/s     w/s    rMB/s    wMB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util</span><br><span class="line">sdd               0.00     0.00    0.00 4209.00     0.00    16.44     8.00     2.94    0.70    0.00    0.70   0.24 100.00</span><br><span class="line"></span><br><span class="line">avg-cpu:  %user   %nice %system %iowait  %steal   %idle</span><br><span class="line">           0.03    0.00    0.09    9.08    0.00   90.80</span><br><span class="line"></span><br><span class="line">Device:         rrqm/s   wrqm/s     r/s     w/s    rMB/s    wMB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util</span><br><span class="line">sdd               0.00     0.00    0.00 4155.00     0.00    16.23     8.00     2.96    0.71    0.00    0.71   0.24 100.10</span><br></pre></td></tr></table></figure>
+
+<p><code>IO depths: 1=100.0%, 2=0.0%</code>表明iodepth为1；iostat显示avgqu-sz接近3。我们有3个job实例，故每个job实例的iodepth接近1；</p>
+<h2 id="direct选项-3-6"><a href="#direct选项-3-6" class="headerlink" title="direct选项 (3.6)"></a>direct选项 (3.6)</h2><p>这个选项决定：打开文件时带不带O_DIRECT标记；</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> strace -f ./fio --name=seqwrite     \</span></span><br><span class="line">                  --rw=write          \</span><br><span class="line">                  --bs=4k             \</span><br><span class="line">                  --size=2048G        \</span><br><span class="line">                  --runtime=30        \</span><br><span class="line">                  --ioengine=libaio   \</span><br><span class="line">                  --direct=1          \</span><br><span class="line">                  --iodepth=1         \</span><br><span class="line">                  --numjobs=1         \</span><br><span class="line">                  --filename=/dev/sdd \</span><br><span class="line">                  --group_reporting &gt; strace.log  2&gt;&amp;1</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> cat strace.log</span></span><br><span class="line">...</span><br><span class="line">[pid 31496] open(&quot;/dev/sdd&quot;, O_RDWR|O_DIRECT|O_NOATIME) = 3</span><br><span class="line">[pid 31496] ioctl(3, BLKFLSBUF, 0x750080) = 0</span><br><span class="line">[pid 31496] fadvise64(3, 0, 2199023255552, POSIX_FADV_SEQUENTIAL) = 0</span><br><span class="line">[pid 31496] io_submit(140395703390208, 1, &#123;&#123;pwrite, filedes:3, str:&quot;5\340(\3148\240\231\26\6\234j\251\362\315\351\n\200S*\7\t\345\r\25pJ%\367\v9\235\30&quot;..., nbytes:4096, offset:0&#125;&#125;) = 1</span><br><span class="line">[pid 31496] io_getevents(140395703390208, 1, 1, &#123;&#123;(nil), 0x7d37e8, 4096, 0&#125;&#125;, NULL) = 1</span><br><span class="line">[pid 31496] io_submit(140395703390208, 1, &#123;&#123;pwrite, filedes:3, str:&quot;\0\20\0\0\0\0\0\0\6\234j\251\362\315\351\n\200S*\7\t\345\r\25pJ%\367\v9\235\30&quot;..., nbytes:4096, offset:4096&#125;&#125;) = 1</span><br><span class="line">[pid 31496] io_getevents(140395703390208, 1, 1, &#123;&#123;(nil), 0x7d37e8, 4096, 0&#125;&#125;, NULL) = 1</span><br></pre></td></tr></table></figure>
+
+<p>值得注意的是，ioengine=libaio时，一定要direct=1。因为目前(2018年)，libaio只支持direct I/O：libaio只在O_DIRECT的情况下是异步的，在没有O_DIRECT的情况下可能会blocking；</p>
+<h2 id="sync选项-3-7"><a href="#sync选项-3-7" class="headerlink" title="sync选项 (3.7)"></a>sync选项 (3.7)</h2><p>和direct选项类似，它决定的是：打开文件时带不带O_SYNC标记；</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> strace -f ./fio --name=seqwrite      \</span></span><br><span class="line">                  --rw=write           \</span><br><span class="line">                  --bs=4k              \</span><br><span class="line">                  --size=2048G         \</span><br><span class="line">                  --runtime=30         \</span><br><span class="line">                  --ioengine=sync      \</span><br><span class="line">                  --sync=1             \</span><br><span class="line">                  --iodepth=1          \</span><br><span class="line">                  --numjobs=1          \</span><br><span class="line">                  --filename=/dev/sdd  \</span><br><span class="line">                  --group_reporting &gt; strace.log 2&gt;&amp;1</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> cat strace.log</span></span><br><span class="line">...</span><br><span class="line">[pid 31618] open(&quot;/dev/sdd&quot;, O_RDWR|O_SYNC|O_NOATIME) = 3</span><br><span class="line">[pid 31618] ioctl(3, BLKFLSBUF, 0x747020) = 0</span><br><span class="line">[pid 31618] fadvise64(3, 0, 2199023255552, POSIX_FADV_SEQUENTIAL) = 0</span><br><span class="line">[pid 31618] write(3, &quot;5\340(\3148\240\231\26\6\234j\251\362\315\351\n\200S*\7\t\345\r\25pJ%\367\v9\235\30&quot;..., 4096 &lt;unfinished ...&gt;</span><br><span class="line">[pid 31582] &lt;... nanosleep resumed&gt; NULL) = 0</span><br><span class="line">[pid 31582] wait4(31618, 0x7ffcf5649400, WNOHANG, NULL) = 0</span><br><span class="line">[pid 31582] stat(&quot;/tmp/fio-dump-status&quot;, 0x7ffcf56483c0) = -1 ENOENT (No such file or directory)</span><br><span class="line">[pid 31582] nanosleep(&#123;0, 10000000&#125;,  &lt;unfinished ...&gt;</span><br><span class="line">[pid 31618] &lt;... write resumed&gt; )       = 4096</span><br><span class="line">[pid 31618] write(3, &quot;5\340(\3148\240\231\26\6\234j\251\362\315\351\n\200S*\7\t\345\r\25pJ%\367\v9\235\30&quot;..., 4096) = 4096</span><br><span class="line">[pid 31618] write(3, &quot;5\340(\3148\240\231\26\6\234j\251\362\315\351\n\200S*\7\t\345\r\25pJ%\367\v9\235\30&quot;..., 4096) = 4096</span><br><span class="line">[pid 31618] write(3, &quot;5\340(\3148\240\231\26\6\234j\251\362\315\351\n\200S*\7\t\345\r\25pJ%\367\v9\235\30&quot;..., 4096) = 4096</span><br></pre></td></tr></table></figure>
+
+<h2 id="fsync和fdatasync选项-3-8"><a href="#fsync和fdatasync选项-3-8" class="headerlink" title="fsync和fdatasync选项 (3.8)"></a>fsync和fdatasync选项 (3.8)</h2><p>如第3.4.2节所说，ioengine=sync或psync，有点误导，因为它不会调用fsync或fdatasync操作。要想在write后调用fsync或者fdatasync，需要加水–fsync=N或者–fdatasync=N。这里的N表示每N个write之后调用fsync或者fdatasync一次。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> strace -f ./fio --name=seqwrite     \</span></span><br><span class="line">                  --rw=write          \</span><br><span class="line">                  --bs=4k             \</span><br><span class="line">                  --size=2048G        \</span><br><span class="line">                  --runtime=30        \</span><br><span class="line">                  --ioengine=psync    \</span><br><span class="line">                  --fdatasync=3       \</span><br><span class="line">                  --iodepth=1         \</span><br><span class="line">                  --numjobs=1         \</span><br><span class="line">                  --filename=/dev/sdd \</span><br><span class="line">                  --group_reporting &gt; strace.log  2&gt;&amp;1</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash">cat strace.log</span></span><br><span class="line">...</span><br><span class="line">[pid 31670] open(&quot;/dev/sdd&quot;, O_RDWR|O_NOATIME) = 3</span><br><span class="line">[pid 31670] ioctl(3, BLKFLSBUF, 0x746f40) = 0</span><br><span class="line">[pid 31670] fadvise64(3, 0, 2199023255552, POSIX_FADV_SEQUENTIAL) = 0</span><br><span class="line">[pid 31670] pwrite(3, &quot;5\340(\3148\240\231\26\6\234j\251\362\315\351\n\200S*\7\t\345\r\25pJ%\367\v9\235\30&quot;..., 4096, 0) = 4096</span><br><span class="line">[pid 31670] pwrite(3, &quot;5\340(\3148\240\231\26\6\234j\251\362\315\351\n\200S*\7\t\345\r\25pJ%\367\v9\235\30&quot;..., 4096, 4096) = 4096</span><br><span class="line">[pid 31670] pwrite(3, &quot;5\340(\3148\240\231\26\6\234j\251\362\315\351\n\200S*\7\t\345\r\25pJ%\367\v9\235\30&quot;..., 4096, 8192) = 4096</span><br><span class="line">[pid 31670] fdatasync(3 &lt;unfinished ...&gt;</span><br><span class="line">[pid 31636] &lt;... nanosleep resumed&gt; NULL) = 0</span><br><span class="line">[pid 31636] wait4(31670, 0x7ffe86a9c280, WNOHANG, NULL) = 0</span><br><span class="line">[pid 31636] stat(&quot;/tmp/fio-dump-status&quot;, 0x7ffe86a9b240) = -1 ENOENT (No such file or directory)</span><br><span class="line">[pid 31636] nanosleep(&#123;0, 10000000&#125;,  &lt;unfinished ...&gt;</span><br><span class="line">[pid 31670] &lt;... fdatasync resumed&gt; )   = 0</span><br><span class="line">[pid 31670] pwrite(3, &quot;5\340(\3148\240\231\26\6\234j\251\362\315\351\n\200S*\7\t\345\r\25pJ%\367\v9\235\30&quot;..., 4096, 12288) = 4096</span><br><span class="line">[pid 31670] pwrite(3, &quot;5\340(\3148\240\231\26\6\234j\251\362\315\351\n\200S*\7\t\345\r\25pJ%\367\v9\235\30&quot;..., 4096, 16384) = 4096</span><br><span class="line">[pid 31670] pwrite(3, &quot;5\340(\3148\240\231\26\6\234j\251\362\315\351\n\200S*\7\t\345\r\25pJ%\367\v9\235\30&quot;..., 4096, 20480) = 4096</span><br><span class="line">[pid 31670] fdatasync(3 &lt;unfinished ...&gt;</span><br><span class="line">[pid 31636] &lt;... nanosleep resumed&gt; NULL) = 0</span><br><span class="line">[pid 31636] wait4(31670, 0x7ffe86a9c280, WNOHANG, NULL) = 0</span><br><span class="line">[pid 31636] stat(&quot;/tmp/fio-dump-status&quot;, 0x7ffe86a9b240) = -1 ENOENT (No such file or directory)</span><br><span class="line">[pid 31636] nanosleep(&#123;0, 10000000&#125;,  &lt;unfinished ...&gt;</span><br><span class="line">[pid 31670] &lt;... fdatasync resumed&gt; )   = 0</span><br></pre></td></tr></table></figure>
+
+<p>关于fsync/fdatasync需要注意：fsync/fdatasync的耗时不包含在write latency之内。新版本的fio(例如fio-3.13和fio-3.14)单独显示fsync/fdatasync的耗时，而老版本不显示fsync/fdatasync的耗时(这有点使人迷惑：write latency很小——因为不包含fsync/fdatasync耗时——但IOPS又不高，你会疑惑时间花在哪里了)。</p>
+<h2 id="有关sync的选项-3-9"><a href="#有关sync的选项-3-9" class="headerlink" title="有关sync的选项 (3.9)"></a>有关sync的选项 (3.9)</h2><p>从前几节可以看到，和sync相关的选项有：</p>
+<ul>
+<li>–direct, </li>
+<li>–sync, </li>
+<li>–fsync(fdatasync)；<br>而常用的ioengine有两种：</li>
+<li>libaio</li>
+<li>sync(psync)。<br>如何组合使用呢？</li>
+</ul>
+<ul>
+<li>ioengine=libaio: –direct=1是必须的(见3.6节)，所以，–fsync(fdatasync)就不需要了；而–sync可以和–direct组合使用，但一般测试裸盘性能直接用–direct就可以了。</li>
+<li>ioengine=sync(psync): 可以选择–direct或者–fsync(fdatasync)，选择–direct时可以和–sync组合使用。</li>
+</ul>
+<p>所以共有下面几种组合：</p>
+<ul>
+<li>–ioengine=libaio –direct=1</li>
+<li>–ioengine=sync(psync) –direct=1</li>
+<li>–ioengine=sync(psync) –direct=1 –sync=1</li>
+<li>–ioengine=sync(psync) –fsync=1</li>
+</ul>
+<h1 id="解析fio的输出-4"><a href="#解析fio的输出-4" class="headerlink" title="解析fio的输出 (4)"></a>解析fio的输出 (4)</h1><h2 id="运行时输出-4-1"><a href="#运行时输出-4-1" class="headerlink" title="运行时输出 (4.1)"></a>运行时输出 (4.1)</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> ./fio --name=randwrite     \</span></span><br><span class="line">        --rw=randwrite       \</span><br><span class="line">        --bs=4k              \</span><br><span class="line">        --size=2048G         \</span><br><span class="line">        --runtime=30         \</span><br><span class="line">        --ioengine=libaio    \</span><br><span class="line">        --direct=1           \</span><br><span class="line">        --iodepth=1          \</span><br><span class="line">        --numjobs=2          \</span><br><span class="line">        --filename=/dev/sdd  \</span><br><span class="line">        --group_reporting</span><br><span class="line"></span><br><span class="line">randwrite: (g=0): rw=randwrite, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=1</span><br><span class="line">...</span><br><span class="line">fio-3.14</span><br><span class="line">Starting 2 processes</span><br><span class="line">Jobs: 2 (f=2): [w(2)][30.0%][w=1473KiB/s][w=368 IOPS][eta 00m:21s]</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> ./fio --name=randrw        \</span></span><br><span class="line">        --rw=randrw          \</span><br><span class="line">        --bs=4k              \</span><br><span class="line">        --size=2048G         \</span><br><span class="line">        --runtime=30         \</span><br><span class="line">        --ioengine=libaio    \</span><br><span class="line">        --direct=1           \</span><br><span class="line">        --iodepth=2          \</span><br><span class="line">        --numjobs=3          \</span><br><span class="line">        --filename=/dev/sdd  \</span><br><span class="line">        --group_reporting</span><br><span class="line"></span><br><span class="line">randrw: (g=0): rw=randrw, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=2</span><br><span class="line">...</span><br><span class="line">fio-3.14</span><br><span class="line">Starting 3 processes</span><br><span class="line">Jobs: 3 (f=3): [m(3)][43.3%][r=356KiB/s,w=288KiB/s][r=89,w=72 IOPS][eta 00m:17s]</span><br></pre></td></tr></table></figure>
+
+<p>第一个方括号：</p>
+<ul>
+<li>w: running, doing random writes</li>
+<li>W: running, doing sequential writes</li>
+<li>r: running, doing random reads</li>
+<li>R: running, doing sequential reads</li>
+<li>m: running, doing mixed random reads/writes</li>
+<li>M: running, doing mixed sequential reads/writes</li>
+<li>C: thread created</li>
+<li>f: thread finishing</li>
+</ul>
+<p>其他字段比较直观；</p>
+<h2 id="运行后输出-4-2"><a href="#运行后输出-4-2" class="headerlink" title="运行后输出 (4.2)"></a>运行后输出 (4.2)</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br></pre></td><td class="code"><pre><span class="line">终端A:</span><br><span class="line"><span class="meta">#</span><span class="bash"> cat jobfile2</span></span><br><span class="line">[global]</span><br><span class="line">    filename=/dev/sdd</span><br><span class="line">    runtime=30</span><br><span class="line"></span><br><span class="line">[randrw_job]</span><br><span class="line">    rw=randrw</span><br><span class="line">    bs=4k</span><br><span class="line">    size=2048G</span><br><span class="line">    ioengine=libaio</span><br><span class="line">    direct=1</span><br><span class="line">    iodepth=3</span><br><span class="line">    numjobs=2</span><br><span class="line">    new_group=1</span><br><span class="line">[seqwrite_job]</span><br><span class="line">    rw=write</span><br><span class="line">    bs=1m</span><br><span class="line">    size=2048G</span><br><span class="line">    ioengine=psync</span><br><span class="line">    fdatasync=1</span><br><span class="line">    iodepth=1</span><br><span class="line">    numjobs=3</span><br><span class="line">    new_group=1</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> ./fio jobfile2</span></span><br><span class="line">randrw_job: (g=0): rw=randrw, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=3</span><br><span class="line">...</span><br><span class="line">seqwrite_job: (g=1): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=psync, iodepth=1</span><br><span class="line">...</span><br><span class="line">fio-3.14</span><br><span class="line">Starting 5 processes</span><br><span class="line">Jobs: 5 (f=5): [m(2),W(3)][100.0%][r=184KiB/s,w=18.2MiB/s][r=46,w=62 IOPS][eta 00m:00s]</span><br><span class="line">randrw_job: (groupid=0, jobs=1): err= 0: pid=32197: Thu Jun 20 21:00:52 2019</span><br><span class="line">  read: IOPS=25, BW=102KiB/s (105kB/s)(3072KiB/30069msec)</span><br><span class="line">    slat (nsec): min=4625, max=47380, avg=8140.65, stdev=3172.10</span><br><span class="line">    clat (msec): min=6, max=702, avg=70.09, stdev=50.63</span><br><span class="line">     lat (msec): min=6, max=702, avg=70.10, stdev=50.63</span><br><span class="line">    clat percentiles (msec):</span><br><span class="line">     |  1.00th=[   11],  5.00th=[   16], 10.00th=[   21], 20.00th=[   32],</span><br><span class="line">     | 30.00th=[   42], 40.00th=[   53], 50.00th=[   62], 60.00th=[   74],</span><br><span class="line">     | 70.00th=[   88], 80.00th=[  109], 90.00th=[  129], 95.00th=[  140],</span><br><span class="line">     | 99.00th=[  165], 99.50th=[  180], 99.90th=[  701], 99.95th=[  701],</span><br><span class="line">     | 99.99th=[  701]</span><br><span class="line">   bw (  KiB/s): min=   48, max=  208, per=50.59%, avg=102.20, stdev=30.54, samples=60</span><br><span class="line">   iops        : min=   12, max=   52, avg=25.50, stdev= 7.66, samples=60</span><br><span class="line">  write: IOPS=26, BW=105KiB/s (108kB/s)(3168KiB/30069msec)</span><br><span class="line">    slat (nsec): min=4809, max=48279, avg=8970.20, stdev=3268.66</span><br><span class="line">    clat (usec): min=240, max=184217, avg=45829.65, stdev=38448.28</span><br><span class="line">     lat (usec): min=247, max=184225, avg=45838.75, stdev=38448.28</span><br><span class="line">    clat percentiles (usec):</span><br><span class="line">     |  1.00th=[   249],  5.00th=[   963], 10.00th=[  3326], 20.00th=[ 10945],</span><br><span class="line">     | 30.00th=[ 18220], 40.00th=[ 27132], 50.00th=[ 34866], 60.00th=[ 44303],</span><br><span class="line">     | 70.00th=[ 60556], 80.00th=[ 86508], 90.00th=[108528], 95.00th=[114820],</span><br><span class="line">     | 99.00th=[135267], 99.50th=[147850], 99.90th=[183501], 99.95th=[183501],</span><br><span class="line">     | 99.99th=[183501]</span><br><span class="line">   bw (  KiB/s): min=   55, max=  256, per=49.42%, avg=105.27, stdev=38.93, samples=60</span><br><span class="line">   iops        : min=   13, max=   64, avg=26.27, stdev= 9.75, samples=60</span><br><span class="line">  lat (usec)   : 250=0.64%, 500=1.41%, 750=0.32%, 1000=0.19%</span><br><span class="line">  lat (msec)   : 2=1.28%, 4=2.05%, 10=3.91%, 20=11.15%, 50=30.32%</span><br><span class="line">  lat (msec)   : 100=30.00%, 250=18.59%, 750=0.13%</span><br><span class="line">  cpu          : usr=0.07%, sys=0.06%, ctx=1293, majf=0, minf=36</span><br><span class="line">  IO depths    : 1=0.1%, 2=99.9%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, &gt;=64=0.0%</span><br><span class="line">     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, &gt;=64=0.0%</span><br><span class="line">     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, &gt;=64=0.0%</span><br><span class="line">     issued rwts: total=768,792,0,0 short=0,0,0,0 dropped=0,0,0,0</span><br><span class="line">     latency   : target=0, window=0, percentile=100.00%, depth=3</span><br><span class="line">randrw_job: (groupid=0, jobs=1): err= 0: pid=32198: Thu Jun 20 21:00:52 2019</span><br><span class="line">  read: IOPS=25, BW=101KiB/s (103kB/s)(3028KiB/30080msec)</span><br><span class="line">    slat (nsec): min=5002, max=73687, avg=8442.84, stdev=4368.25</span><br><span class="line">    clat (msec): min=3, max=761, avg=72.31, stdev=50.54</span><br><span class="line">     lat (msec): min=3, max=761, avg=72.32, stdev=50.54</span><br><span class="line">    clat percentiles (msec):</span><br><span class="line">     |  1.00th=[   11],  5.00th=[   17], 10.00th=[   21], 20.00th=[   34],</span><br><span class="line">     | 30.00th=[   45], 40.00th=[   56], 50.00th=[   67], 60.00th=[   80],</span><br><span class="line">     | 70.00th=[   93], 80.00th=[  109], 90.00th=[  124], 95.00th=[  133],</span><br><span class="line">     | 99.00th=[  165], 99.50th=[  174], 99.90th=[  760], 99.95th=[  760],</span><br><span class="line">     | 99.99th=[  760]</span><br><span class="line">   bw (  KiB/s): min=   48, max=  208, per=49.83%, avg=100.67, stdev=25.65, samples=60</span><br><span class="line">   iops        : min=   12, max=   52, avg=25.17, stdev= 6.41, samples=60</span><br><span class="line">  write: IOPS=26, BW=108KiB/s (110kB/s)(3240KiB/30080msec)</span><br><span class="line">    slat (nsec): min=4540, max=51576, avg=9104.22, stdev=2615.64</span><br><span class="line">    clat (usec): min=238, max=164380, avg=43712.83, stdev=37644.08</span><br><span class="line">     lat (usec): min=245, max=164387, avg=43722.05, stdev=37644.38</span><br><span class="line">    clat percentiles (usec):</span><br><span class="line">     |  1.00th=[   243],  5.00th=[   627], 10.00th=[  2573], 20.00th=[ 10159],</span><br><span class="line">     | 30.00th=[ 19006], 40.00th=[ 26084], 50.00th=[ 33162], 60.00th=[ 40633],</span><br><span class="line">     | 70.00th=[ 52167], 80.00th=[ 81265], 90.00th=[107480], 95.00th=[116917],</span><br><span class="line">     | 99.00th=[135267], 99.50th=[147850], 99.90th=[164627], 99.95th=[164627],</span><br><span class="line">     | 99.99th=[164627]</span><br><span class="line">   bw (  KiB/s): min=   40, max=  224, per=50.64%, avg=107.87, stdev=38.31, samples=60</span><br><span class="line">   iops        : min=   10, max=   56, avg=26.97, stdev= 9.58, samples=60</span><br><span class="line">  lat (usec)   : 250=1.28%, 500=1.02%, 750=0.51%, 1000=0.13%</span><br><span class="line">  lat (msec)   : 2=1.34%, 4=1.98%, 10=4.34%, 20=10.34%, 50=30.82%</span><br><span class="line">  lat (msec)   : 100=28.27%, 250=19.85%, 750=0.06%, 1000=0.06%</span><br><span class="line">  cpu          : usr=0.06%, sys=0.07%, ctx=1298, majf=0, minf=37</span><br><span class="line">  IO depths    : 1=0.1%, 2=99.9%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, &gt;=64=0.0%</span><br><span class="line">     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, &gt;=64=0.0%</span><br><span class="line">     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, &gt;=64=0.0%</span><br><span class="line">     issued rwts: total=757,810,0,0 short=0,0,0,0 dropped=0,0,0,0</span><br><span class="line">     latency   : target=0, window=0, percentile=100.00%, depth=3</span><br><span class="line">seqwrite_job: (groupid=1, jobs=1): err= 0: pid=32199: Thu Jun 20 21:00:52 2019</span><br><span class="line">  write: IOPS=6, BW=6500KiB/s (6656kB/s)(191MiB/30091msec)</span><br><span class="line">    clat (usec): min=433, max=1473, avg=869.79, stdev=93.12</span><br><span class="line">     lat (usec): min=472, max=1567, avg=907.29, stdev=98.27</span><br><span class="line">    clat percentiles (usec):</span><br><span class="line">     |  1.00th=[  449],  5.00th=[  717], 10.00th=[  750], 20.00th=[  848],</span><br><span class="line">     | 30.00th=[  865], 40.00th=[  873], 50.00th=[  881], 60.00th=[  889],</span><br><span class="line">     | 70.00th=[  898], 80.00th=[  906], 90.00th=[  938], 95.00th=[  971],</span><br><span class="line">     | 99.00th=[ 1074], 99.50th=[ 1467], 99.90th=[ 1467], 99.95th=[ 1467],</span><br><span class="line">     | 99.99th=[ 1467]</span><br><span class="line">   bw (  KiB/s): min= 4096, max=12263, per=34.20%, avg=6629.54, stdev=1334.07, samples=59</span><br><span class="line">   iops        : min=    4, max=   11, avg= 6.46, stdev= 1.24, samples=59</span><br><span class="line">  lat (usec)   : 500=1.05%, 750=8.90%, 1000=85.86%</span><br><span class="line">  lat (msec)   : 2=4.19%</span><br><span class="line">  fsync/fdatasync/sync_file_range:</span><br><span class="line">    sync (msec): min=27, max=918, avg=156.63, stdev=62.89</span><br><span class="line">    sync percentiles (msec):</span><br><span class="line">     |  1.00th=[   63],  5.00th=[  103], 10.00th=[  116], 20.00th=[  134],</span><br><span class="line">     | 30.00th=[  144], 40.00th=[  150], 50.00th=[  157], 60.00th=[  161],</span><br><span class="line">     | 70.00th=[  165], 80.00th=[  174], 90.00th=[  184], 95.00th=[  194],</span><br><span class="line">     | 99.00th=[  275], 99.50th=[  919], 99.90th=[  919], 99.95th=[  919],</span><br><span class="line">     | 99.99th=[  919]</span><br><span class="line">  cpu          : usr=0.03%, sys=0.91%, ctx=1723, majf=0, minf=38</span><br><span class="line">  IO depths    : 1=200.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, &gt;=64=0.0%</span><br><span class="line">     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, &gt;=64=0.0%</span><br><span class="line">     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, &gt;=64=0.0%</span><br><span class="line">     issued rwts: total=0,191,0,0 short=191,0,0,0 dropped=0,0,0,0</span><br><span class="line">     latency   : target=0, window=0, percentile=100.00%, depth=1</span><br><span class="line">seqwrite_job: (groupid=1, jobs=1): err= 0: pid=32200: Thu Jun 20 21:00:52 2019</span><br><span class="line">  write: IOPS=6, BW=6462KiB/s (6617kB/s)(190MiB/30110msec)</span><br><span class="line">    clat (usec): min=394, max=1473, avg=570.53, stdev=144.18</span><br><span class="line">     lat (usec): min=433, max=1571, avg=620.61, stdev=155.65</span><br><span class="line">    clat percentiles (usec):</span><br><span class="line">     |  1.00th=[  424],  5.00th=[  453], 10.00th=[  465], 20.00th=[  486],</span><br><span class="line">     | 30.00th=[  494], 40.00th=[  506], 50.00th=[  529], 60.00th=[  537],</span><br><span class="line">     | 70.00th=[  553], 80.00th=[  586], 90.00th=[  840], 95.00th=[  865],</span><br><span class="line">     | 99.00th=[ 1074], 99.50th=[ 1467], 99.90th=[ 1467], 99.95th=[ 1467],</span><br><span class="line">     | 99.99th=[ 1467]</span><br><span class="line">   bw (  KiB/s): min= 4096, max=12263, per=34.02%, avg=6594.83, stdev=1319.27, samples=59</span><br><span class="line">   iops        : min=    4, max=   11, avg= 6.42, stdev= 1.22, samples=59</span><br><span class="line">  lat (usec)   : 500=33.68%, 750=53.68%, 1000=11.58%</span><br><span class="line">  lat (msec)   : 2=1.05%</span><br><span class="line">  fsync/fdatasync/sync_file_range:</span><br><span class="line">    sync (msec): min=26, max=876, avg=157.85, stdev=61.68</span><br><span class="line">    sync percentiles (msec):</span><br><span class="line">     |  1.00th=[   29],  5.00th=[  103], 10.00th=[  117], 20.00th=[  136],</span><br><span class="line">     | 30.00th=[  144], 40.00th=[  150], 50.00th=[  157], 60.00th=[  161],</span><br><span class="line">     | 70.00th=[  167], 80.00th=[  174], 90.00th=[  186], 95.00th=[  197],</span><br><span class="line">     | 99.00th=[  279], 99.50th=[  877], 99.90th=[  877], 99.95th=[  877],</span><br><span class="line">     | 99.99th=[  877]</span><br><span class="line">  cpu          : usr=0.04%, sys=1.12%, ctx=17379, majf=0, minf=38</span><br><span class="line">  IO depths    : 1=200.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, &gt;=64=0.0%</span><br><span class="line">     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, &gt;=64=0.0%</span><br><span class="line">     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, &gt;=64=0.0%</span><br><span class="line">     issued rwts: total=0,190,0,0 short=190,0,0,0 dropped=0,0,0,0</span><br><span class="line">     latency   : target=0, window=0, percentile=100.00%, depth=1</span><br><span class="line">seqwrite_job: (groupid=1, jobs=1): err= 0: pid=32201: Thu Jun 20 21:00:52 2019</span><br><span class="line">  write: IOPS=6, BW=6428KiB/s (6582kB/s)(189MiB/30110msec)</span><br><span class="line">    clat (usec): min=346, max=1072, avg=491.86, stdev=103.58</span><br><span class="line">     lat (usec): min=362, max=1108, avg=540.57, stdev=113.92</span><br><span class="line">    clat percentiles (usec):</span><br><span class="line">     |  1.00th=[  371],  5.00th=[  400], 10.00th=[  416], 20.00th=[  445],</span><br><span class="line">     | 30.00th=[  453], 40.00th=[  461], 50.00th=[  469], 60.00th=[  478],</span><br><span class="line">     | 70.00th=[  486], 80.00th=[  502], 90.00th=[  578], 95.00th=[  758],</span><br><span class="line">     | 99.00th=[  963], 99.50th=[ 1074], 99.90th=[ 1074], 99.95th=[ 1074],</span><br><span class="line">     | 99.99th=[ 1074]</span><br><span class="line">   bw (  KiB/s): min= 4096, max=10240, per=33.84%, avg=6560.19, stdev=1247.56, samples=59</span><br><span class="line">   iops        : min=    4, max=   10, avg= 6.39, stdev= 1.17, samples=59</span><br><span class="line">  lat (usec)   : 500=79.37%, 750=15.34%, 1000=4.76%</span><br><span class="line">  lat (msec)   : 2=0.53%</span><br><span class="line">  fsync/fdatasync/sync_file_range:</span><br><span class="line">    sync (msec): min=28, max=854, avg=158.76, stdev=59.57</span><br><span class="line">    sync percentiles (msec):</span><br><span class="line">     |  1.00th=[   63],  5.00th=[  104], 10.00th=[  118], 20.00th=[  136],</span><br><span class="line">     | 30.00th=[  144], 40.00th=[  150], 50.00th=[  157], 60.00th=[  163],</span><br><span class="line">     | 70.00th=[  167], 80.00th=[  176], 90.00th=[  188], 95.00th=[  197],</span><br><span class="line">     | 99.00th=[  279], 99.50th=[  852], 99.90th=[  852], 99.95th=[  852],</span><br><span class="line">     | 99.99th=[  852]</span><br><span class="line">  cpu          : usr=0.02%, sys=1.13%, ctx=17185, majf=0, minf=37</span><br><span class="line">  IO depths    : 1=200.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, &gt;=64=0.0%</span><br><span class="line">     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, &gt;=64=0.0%</span><br><span class="line">     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, &gt;=64=0.0%</span><br><span class="line">     issued rwts: total=0,189,0,0 short=189,0,0,0 dropped=0,0,0,0</span><br><span class="line">     latency   : target=0, window=0, percentile=100.00%, depth=1</span><br><span class="line"></span><br><span class="line">Run status group 0 (all jobs):</span><br><span class="line">   READ: bw=203KiB/s (208kB/s), 101KiB/s-102KiB/s (103kB/s-105kB/s), io=6100KiB (6246kB), run=30069-30080msec</span><br><span class="line">  WRITE: bw=213KiB/s (218kB/s), 105KiB/s-108KiB/s (108kB/s-110kB/s), io=6408KiB (6562kB), run=30069-30080msec</span><br><span class="line"></span><br><span class="line">Run status group 1 (all jobs):</span><br><span class="line">  WRITE: bw=18.9MiB/s (19.8MB/s), 6428KiB/s-6500KiB/s (6582kB/s-6656kB/s), io=570MiB (598MB), run=30091-30110msec</span><br><span class="line"></span><br><span class="line">Disk stats (read/write):</span><br><span class="line">  sdd: ios=1637/4947, merge=0/140809, ticks=107529/282374, in_queue=391910, util=99.77%</span><br><span class="line"></span><br><span class="line">终端B:</span><br><span class="line"><span class="meta">#</span><span class="bash"> ps -ef|grep fio</span></span><br><span class="line">root      32162 141809 19 21:00 pts/1    00:00:00 ./fio jobfile2</span><br><span class="line">root      32197  32162  1 21:00 ?        00:00:00 ./fio jobfile2</span><br><span class="line">root      32198  32162  1 21:00 ?        00:00:00 ./fio jobfile2</span><br><span class="line">root      32199  32162  1 21:00 ?        00:00:00 ./fio jobfile2</span><br><span class="line">root      32200  32162  1 21:00 ?        00:00:00 ./fio jobfile2</span><br><span class="line">root      32201  32162  1 21:00 ?        00:00:00 ./fio jobfile2</span><br></pre></td></tr></table></figure>
+
+<p>如jobfile2所示，我们有两个job definition：randrw_job和seqwrite_job:</p>
+<p>randrw_job有2个job实例:</p>
+<ul>
+<li>groupid=0 pid=32197: 记作g0-j0</li>
+<li>groupid=0 pid=32198: 记作g0-j1</li>
+</ul>
+<p>seqwrite_job有3个job实例；</p>
+<ul>
+<li>groupid=1 pid=32199: 记作g1-j0</li>
+<li>groupid=1 pid=32200: 记作g1-j1</li>
+<li>groupid=1 pid=32201: 记作g1-j2</li>
+</ul>
+<h3 id="一个job实例的输出-4-2-1"><a href="#一个job实例的输出-4-2-1" class="headerlink" title="一个job实例的输出 (4.2.1)"></a>一个job实例的输出 (4.2.1)</h3><p>我们以g0-j0为例，看输出结果:</p>
+<ul>
+<li><strong>job头</strong></li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">randrw_job: (groupid&#x3D;0, jobs&#x3D;1): err&#x3D; 0: pid&#x3D;32197: Thu Jun 20 21:00:52 2019</span><br></pre></td></tr></table></figure>
+<p>显示了所属group，pid，运行时间等；</p>
+<ul>
+<li><strong>job read统计信息</strong></li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">read: IOPS&#x3D;25, BW&#x3D;102KiB&#x2F;s (105kB&#x2F;s)(3072KiB&#x2F;30069msec)</span><br></pre></td></tr></table></figure>
+
+<p>BW表示平均带宽，KiB/s是按1K=1024计算的，kB/s是按1K=1000计算的；别的无须多说；</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">slat (nsec): min&#x3D;4625, max&#x3D;47380, avg&#x3D;8140.65, stdev&#x3D;3172.10</span><br></pre></td></tr></table></figure>
+
+<p>提交延迟，s代表submission；min, max, avg分别代表最小、最大和平均值。stdev表示标准差(standard deviation)，越大代表波动越大。注意slat只在–ioengine=libaio的时候才会出现，因为对于–ioengine=sync/psync没有所谓的提交延迟。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">clat (msec): min&#x3D;6, max&#x3D;702, avg&#x3D;70.09, stdev&#x3D;50.63</span><br></pre></td></tr></table></figure>
+
+<p>完成延迟，c代表completion；和slat一样，min, max, avg分别代表最小，最大和平均值，stdev表示标准差(standard deviation)。对于–ioengine=libaio，clat表示从提交到完成的延迟。对于–ioengine=sync/psync，fio文档中说clat等于或非常接近于0(因为提交就相当于完成)。但从实验上看，不是这样的：对于–ioengine=sync/psync，不显示slat，clat接近总延迟。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">lat (msec): min&#x3D;6, max&#x3D;702, avg&#x3D;70.10, stdev&#x3D;50.63</span><br></pre></td></tr></table></figure>
+
+<p>总延迟，即从I/O被创建到完成的延迟。大致是这样(对吗?)：</p>
+<ul>
+<li>对于–ioengine=libaio:     lat = latency(创建到提交) + slat + clat </li>
+<li>对于–ioengine=sync/psync: lat = latency(创建到开始) + clat</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">clat percentiles (msec):</span><br><span class="line"> |  1.00th&#x3D;[   11],  5.00th&#x3D;[   16], 10.00th&#x3D;[   21], 20.00th&#x3D;[   32],</span><br><span class="line"> | 30.00th&#x3D;[   42], 40.00th&#x3D;[   53], 50.00th&#x3D;[   62], 60.00th&#x3D;[   74],</span><br><span class="line"> | 70.00th&#x3D;[   88], 80.00th&#x3D;[  109], 90.00th&#x3D;[  129], 95.00th&#x3D;[  140],</span><br><span class="line"> | 99.00th&#x3D;[  165], 99.50th&#x3D;[  180], 99.90th&#x3D;[  701], 99.95th&#x3D;[  701],</span><br><span class="line"> | 99.99th&#x3D;[  701]</span><br></pre></td></tr></table></figure>
+
+<p>clat的百分位数。1%的clat在11ms以内；5%在16ms以内；10%的在21ms以内；99.9%在701ms以内；99.99%在701ms以内；</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bw (  KiB&#x2F;s): min&#x3D;   48, max&#x3D;  208, per&#x3D;50.59%, avg&#x3D;102.20, stdev&#x3D;30.54, samples&#x3D;60</span><br></pre></td></tr></table></figure>
+
+<p>基于采样得到的带宽统计(可以看见，与前面的BW=102KiB/s接近)。min, max, avg分别表示最小、最大和平均值；stdev表示标准差。samples表示采样数。per表示当前job实例(g0-j0)的带宽在组里所占的百分比，即g0-j0在groupid=0的组里(g0-j0和g0-j1), 读带宽占总读带宽的50.59%(g0-j1占49.83%)</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">iops        : min&#x3D;   12, max&#x3D;   52, avg&#x3D;25.50, stdev&#x3D; 7.66, samples&#x3D;60</span><br></pre></td></tr></table></figure>
+
+<p>基于采样得到的iops统计(可以看见，与前面的IOPS=25接近)。和bw一样。</p>
+<ul>
+<li><strong>job write统计信息</strong></li>
+</ul>
+<p>和read一样，不赘述；</p>
+<ul>
+<li><strong>job 总体统计信息</strong></li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">lat (usec)   : 250&#x3D;0.64%, 500&#x3D;1.41%, 750&#x3D;0.32%, 1000&#x3D;0.19%</span><br><span class="line">lat (msec)   : 2&#x3D;1.28%, 4&#x3D;2.05%, 10&#x3D;3.91%, 20&#x3D;11.15%, 50&#x3D;30.32%</span><br><span class="line">lat (msec)   : 100&#x3D;30.00%, 250&#x3D;18.59%, 750&#x3D;0.13%</span><br></pre></td></tr></table></figure>
+
+<p>所有I/O的总体延迟分布，包含read和write。</p>
+<ul>
+<li>lat在[0us,250us)区间内的I/O占0.64%；</li>
+<li>lat在[250us,500us)区间内的I/O占1.41%；</li>
+<li>lat在[500us,750us)区间内的I/O占0.32%；</li>
+<li>lat在[750us,1ms)区间的I/O占0.19%；</li>
+<li>lat在[1ms, 2ms)区间的I/O占1.28%；</li>
+<li>以此类推；<br>注意和百分位数的区别。</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cpu          : usr&#x3D;0.07%, sys&#x3D;0.06%, ctx&#x3D;1293, majf&#x3D;0, minf&#x3D;36</span><br></pre></td></tr></table></figure>
+
+<p>CPU使用情况。usr表示用户态占比；sys表示内核态占比；ctx表示这个job实例/进程(g0-j0)经历的context switch数；majf和minf分别表示major and minor page faults。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">IO depths    : 1&#x3D;0.1%, 2&#x3D;99.9%, 4&#x3D;0.0%, 8&#x3D;0.0%, 16&#x3D;0.0%, 32&#x3D;0.0%, &gt;&#x3D;64&#x3D;0.0%</span><br></pre></td></tr></table></figure>
+
+<p>IO depth的分布。</p>
+<ul>
+<li>1=表示1-2的占比；</li>
+<li>2=表示2-4的占比；</li>
+<li>4=表示4-8的占比；</li>
+<li>以此类推；</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">submit    : 0&#x3D;0.0%, 4&#x3D;100.0%, 8&#x3D;0.0%, 16&#x3D;0.0%, 32&#x3D;0.0%, 64&#x3D;0.0%, &gt;&#x3D;64&#x3D;0.0%</span><br></pre></td></tr></table></figure>
+
+<p>在一个submit调用里，提交了多少I/O。4=表示0-4区间内的占比；8=表示4-8区间内的占比；以此类推；不清楚。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">complete  : 0&#x3D;0.0%, 4&#x3D;100.0%, 8&#x3D;0.0%, 16&#x3D;0.0%, 32&#x3D;0.0%, 64&#x3D;0.0%, &gt;&#x3D;64&#x3D;0.0%</span><br></pre></td></tr></table></figure>
+
+<p>和submit类似；不清楚。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">issued rwts: total&#x3D;768,792,0,0 short&#x3D;0,0,0,0 dropped&#x3D;0,0,0,0</span><br></pre></td></tr></table></figure>
+
+<p>总共发出了多少read/write/trim/x请求，有多少short(read, write, send, recv等返回大小小于请求大小)，有多少被dropped。这一行需要和后面的<code>Disk stats (read/write)</code>里的<code>sdd: ios=1637/4947</code>对照来看：在本例中，g0-j0的读是768；g0-j1的读是757；g1-j0,g1-j1,g1-j2没有读操作，所以加在一起是1525，接近<code>sdd: ios=1637/4947</code>里面的1637。<br>注意：1. 写操作加起来(g0-j0,g0-j1,g1-j0,g1-j1,g1-j2)并不相等，因为g1写的是1m大小，可能分成多个I/O进行的；2. 另外，在文件系统中测试时，这个关系也不一样，可能有元数据操作；</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">latency   : target&#x3D;0, window&#x3D;0, percentile&#x3D;100.00%, depth&#x3D;3</span><br></pre></td></tr></table></figure>
+
+<p>和latency_target相关，暂忽略。</p>
+<h3 id="group统计-4-2-2"><a href="#group统计-4-2-2" class="headerlink" title="group统计 (4.2.2)"></a>group统计 (4.2.2)</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">Run status group 0 (all jobs):</span><br><span class="line">   READ: bw&#x3D;203KiB&#x2F;s (208kB&#x2F;s), 101KiB&#x2F;s-102KiB&#x2F;s (103kB&#x2F;s-105kB&#x2F;s), io&#x3D;6100KiB (6246kB), run&#x3D;30069-30080msec</span><br><span class="line">  WRITE: bw&#x3D;213KiB&#x2F;s (218kB&#x2F;s), 105KiB&#x2F;s-108KiB&#x2F;s (108kB&#x2F;s-110kB&#x2F;s), io&#x3D;6408KiB (6562kB), run&#x3D;30069-30080msec</span><br><span class="line"></span><br><span class="line">Run status group 1 (all jobs):</span><br><span class="line">  WRITE: bw&#x3D;18.9MiB&#x2F;s (19.8MB&#x2F;s), 6428KiB&#x2F;s-6500KiB&#x2F;s (6582kB&#x2F;s-6656kB&#x2F;s), io&#x3D;570MiB (598MB), run&#x3D;30091-30110msec</span><br></pre></td></tr></table></figure>
+
+<p>group 0 READ：</p>
+<ul>
+<li>bw=203KiB/s (208kB/s)：所有job实例(g0-j0,g0-j1)的聚合带宽(分别以1K=1024和1K=1000计算)；</li>
+<li>101KiB/s-102KiB/s (103kB/s-105kB/s)：所有job实例中的最小带宽和最大带宽(分别以1K=1024和1K=1000计算)；从前面输出可以看出，g0-j0的带宽是102KiB/s；g0-j1的带宽是101KiB/s；</li>
+<li>io=6100KiB (6246kB)：所有job实例的聚合传输量(分别以1K=1024和1K=1000计算)；</li>
+<li>run=30069-30080msec：所有job实例中最短和最长的运行时间；从前面全部输出中可以看出，g0-j0的运行时间是30069msec，g0-j1的运行时间是30080msec；</li>
+</ul>
+<p>group 1 WRITE:</p>
+<ul>
+<li>bw=18.9MiB/s (19.8MB/s)：所有job实例(g1-j0,g1-j1,g1-j2)的聚合带宽(分别以1M=1024*1024和1M=1000*1000计算)；</li>
+<li>6428KiB/s-6500KiB/s (6582kB/s-6656kB/s)：所有job实例中的最小带宽和最大带宽(分别以1K=1024和1K=1000计算)；从前面输出可以看出，g1-j2的带宽是6428KiB/s，最小；g1-j0的带宽是6500KiB/s，最大；</li>
+<li>io=570MiB (598MB)：所有job实例的聚合传输量(分别以1M=1024*1024和1M=1000*1000计算)；</li>
+<li>run=30091-30110msec：所有job实例中最短和最长的运行时间；从前面全部输出中可以看出，g1-j0的运行时间是30091msec，最小；g1-j1和g1-j2都是30110msec，最大；</li>
+</ul>
+<h3 id="磁盘统计-4-2-3"><a href="#磁盘统计-4-2-3" class="headerlink" title="磁盘统计 (4.2.3)"></a>磁盘统计 (4.2.3)</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Disk stats (read&#x2F;write):</span><br><span class="line">  sdd: ios&#x3D;1637&#x2F;4947, merge&#x3D;0&#x2F;140809, ticks&#x3D;107529&#x2F;282374, in_queue&#x3D;391910, util&#x3D;99.77%</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>ios=1637/4947：iostat的<code>r/s</code>和<code>w/s</code>在运行时间上的累积；</li>
+<li>merge=0/140809：iostat的<code>rrqm/s</code>和<code>wrqm/s</code>在运行时间上的累积；</li>
+<li>ticks=107529/282374：disk忙着的ticks数；</li>
+<li>in_queue=391910：所有I/O在disk queue中花费的ticks总数；</li>
+<li>util：iostat的util；</li>
+</ul>
+<p>说明：上例中，为了看清各个job实例的统计信息，没有加group_reporting；实际使用中，同一个job definition产生的job实例特征相同，所以，把它们的统计聚合起来更容易看。new_group=1为每个job definition创建一个分组(它的job实例都属于次分组)；group_reporting=1按组聚合统计；</p>
+<h1 id="小结-5"><a href="#小结-5" class="headerlink" title="小结 (5)"></a>小结 (5)</h1><p>记录了fio常用参数以及输出解读。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/io/" rel="tag"># io</a>
+              <a href="/tags/fio/" rel="tag"># fio</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/01/22/libnetfilter-queue/" rel="prev" title="libnetfilter_queue的使用">
+      <i class="fa fa-chevron-left"></i> libnetfilter_queue的使用
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2019/06/28/linux-block-dump/" rel="next" title="使用block_dump观察block io">
+      使用block_dump观察block io <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E8%A3%85%E6%9C%80%E6%96%B0%E7%9A%84fio-1"><span class="nav-number">1.</span> <span class="nav-text">安装最新的fio (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#job-definition%E5%92%8Cjob-instance-2"><span class="nav-number">2.</span> <span class="nav-text">job definition和job instance (2)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B8%B8%E7%94%A8%E7%9A%84fio%E9%80%89%E9%A1%B9-3"><span class="nav-number">3.</span> <span class="nav-text">常用的fio选项 (3)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#size%E9%80%89%E9%A1%B9-3-1"><span class="nav-number">3.1.</span> <span class="nav-text">size选项(3.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#bs-%E9%80%89%E9%A1%B9-3-2"><span class="nav-number">3.2.</span> <span class="nav-text">bs 选项(3.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#rw%E9%80%89%E9%A1%B9-3-3"><span class="nav-number">3.3.</span> <span class="nav-text">rw选项(3.3)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ioengine%E9%80%89%E9%A1%B9-3-4"><span class="nav-number">3.4.</span> <span class="nav-text">ioengine选项 (3.4)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#libaio-3-4-1"><span class="nav-number">3.4.1.</span> <span class="nav-text">libaio (3.4.1)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#sync-3-4-2"><span class="nav-number">3.4.2.</span> <span class="nav-text">sync (3.4.2)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#psync-3-4-3"><span class="nav-number">3.4.3.</span> <span class="nav-text">psync (3.4.3)</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#iodepth%E9%80%89%E9%A1%B9-3-5"><span class="nav-number">3.5.</span> <span class="nav-text">iodepth选项 (3.5)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#direct%E9%80%89%E9%A1%B9-3-6"><span class="nav-number">3.6.</span> <span class="nav-text">direct选项 (3.6)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#sync%E9%80%89%E9%A1%B9-3-7"><span class="nav-number">3.7.</span> <span class="nav-text">sync选项 (3.7)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#fsync%E5%92%8Cfdatasync%E9%80%89%E9%A1%B9-3-8"><span class="nav-number">3.8.</span> <span class="nav-text">fsync和fdatasync选项 (3.8)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%89%E5%85%B3sync%E7%9A%84%E9%80%89%E9%A1%B9-3-9"><span class="nav-number">3.9.</span> <span class="nav-text">有关sync的选项 (3.9)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%A7%A3%E6%9E%90fio%E7%9A%84%E8%BE%93%E5%87%BA-4"><span class="nav-number">4.</span> <span class="nav-text">解析fio的输出 (4)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%90%E8%A1%8C%E6%97%B6%E8%BE%93%E5%87%BA-4-1"><span class="nav-number">4.1.</span> <span class="nav-text">运行时输出 (4.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%90%E8%A1%8C%E5%90%8E%E8%BE%93%E5%87%BA-4-2"><span class="nav-number">4.2.</span> <span class="nav-text">运行后输出 (4.2)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%80%E4%B8%AAjob%E5%AE%9E%E4%BE%8B%E7%9A%84%E8%BE%93%E5%87%BA-4-2-1"><span class="nav-number">4.2.1.</span> <span class="nav-text">一个job实例的输出 (4.2.1)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#group%E7%BB%9F%E8%AE%A1-4-2-2"><span class="nav-number">4.2.2.</span> <span class="nav-text">group统计 (4.2.2)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%A3%81%E7%9B%98%E7%BB%9F%E8%AE%A1-4-2-3"><span class="nav-number">4.2.3.</span> <span class="nav-text">磁盘统计 (4.2.3)</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93-5"><span class="nav-number">5.</span> <span class="nav-text">小结 (5)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

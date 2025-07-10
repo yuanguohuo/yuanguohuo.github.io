@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="Linux中用户态程序总是preemptible的，内核使用clock tick中断用户态程序切换到别的线程，不用等待用户态程序主动放弃CPU。但在Kernel Preemption被引入之前，一个线程进入内核态，不放弃CPU也不返回用户态就能一直占用CPU。直到linux 2.6才引入Kernel Preemption。本文的主要目的是介绍Linux的三种Kernel Preemption模式。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Linux Preemption模式">
+<meta property="og:url" content="http://yoursite.com/2020/03/31/linux-preemption-mode/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="Linux中用户态程序总是preemptible的，内核使用clock tick中断用户态程序切换到别的线程，不用等待用户态程序主动放弃CPU。但在Kernel Preemption被引入之前，一个线程进入内核态，不放弃CPU也不返回用户态就能一直占用CPU。直到linux 2.6才引入Kernel Preemption。本文的主要目的是介绍Linux的三种Kernel Preemption模式。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2020-03-31T21:14:18.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.516Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="kernel">
+<meta property="article:tag" content="preemption">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2020/03/31/linux-preemption-mode/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>Linux Preemption模式 | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/03/31/linux-preemption-mode/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Linux Preemption模式
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2020-03-31 21:14:18" itemprop="dateCreated datePublished" datetime="2020-03-31T21:14:18+00:00">2020-03-31</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2020/03/31/linux-preemption-mode/" class="post-meta-item leancloud_visitors" data-flag-title="Linux Preemption模式" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2020/03/31/linux-preemption-mode/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2020/03/31/linux-preemption-mode/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>Linux中用户态程序总是preemptible的，内核使用clock tick中断用户态程序切换到别的线程，不用等待用户态程序主动放弃CPU。但在Kernel Preemption被引入之前，一个线程进入内核态，不放弃CPU也不返回用户态就能一直占用CPU。直到linux 2.6才引入Kernel Preemption。本文的主要目的是介绍Linux的三种Kernel Preemption模式。但介绍Voluntary Preemption的时候，也需要把<code>might_sleep</code>搞清楚。</p>
+<a id="more"></a>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+
+<script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+<h1 id="三种Preemption模式-1"><a href="#三种Preemption模式-1" class="headerlink" title="三种Preemption模式 (1)"></a>三种Preemption模式 (1)</h1><p>编译linux kernel 3.19.8，配置的时候（<code>make menuconfig</code>），关于preemption模式（Processor type and features —&gt; Preemption Model），有3个选项：</p>
+<ul>
+<li>No Forced Preemption (Server)  </li>
+<li>Voluntary Kernel Preemption (Desktop) </li>
+<li>Preemptible Kernel (Low-Latency Desktop)  </li>
+</ul>
+<p>选择”No Forced Preemption (Server)”产生的配置项是：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">CONFIG_PREEMPT_NONE&#x3D;y</span><br><span class="line"># CONFIG_PREEMPT_VOLUNTARY is not set</span><br><span class="line"># CONFIG_PREEMPT is not set</span><br></pre></td></tr></table></figure>
+
+<p>选择”Voluntary Kernel Preemption (Desktop)”产生的配置项是：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"># CONFIG_PREEMPT_NONE is not set</span><br><span class="line">CONFIG_PREEMPT_VOLUNTARY&#x3D;y</span><br><span class="line"># CONFIG_PREEMPT is not set</span><br></pre></td></tr></table></figure>
+
+<p>选择”Preemptible Kernel (Low-Latency Desktop)”产生的配置项是：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">CONFIG_PREEMPT_RCU&#x3D;y</span><br><span class="line"># CONFIG_PREEMPT_NONE is not set</span><br><span class="line"># CONFIG_PREEMPT_VOLUNTARY is not set</span><br><span class="line">CONFIG_PREEMPT&#x3D;y</span><br><span class="line">CONFIG_PREEMPT_COUNT&#x3D;y</span><br><span class="line">CONFIG_DEBUG_PREEMPT&#x3D;y</span><br><span class="line"># CONFIG_PREEMPT_TRACER is not set</span><br></pre></td></tr></table></figure>
+
+<p>我们将在这样一个场景中对比三种模式：</p>
+<ul>
+<li>两个线程T1和T2，T1优先级高（50），T2优先级低（30）；</li>
+<li>T1睡眠3秒；</li>
+<li>T2调用一个内核函数，这个内核函数是12秒的纯计算（没有IO）；之后返回用户态；</li>
+</ul>
+<h1 id="No-Forced-Preemption-Server-2"><a href="#No-Forced-Preemption-Server-2" class="headerlink" title="No Forced Preemption (Server) (2)"></a>No Forced Preemption (Server) (2)</h1><p>这是引入”Kernel Preemption”之前的状态（linux 2.6之前），就是没有内核抢占。它提升throughput但交互性差，所以适合server系统。这种模式下kernel不允许在内核模式下进行线程切换；线程切换只能发生在以下两种情形之一：</p>
+<ul>
+<li>a. 从内核态返回用户态的时候；</li>
+<li>b. 在内核模式下主动放弃CPU（等待资源）；</li>
+</ul>
+<p>所以，在前面假定的场景中：T1在内核函中不会被抢占（纯计算12秒），T2在12秒之后被唤醒（它只睡眠3秒，但12秒后才被唤醒，晚了9秒）。</p>
+<p>实验验证一下！实验的代码包括两部分：一个内核模块，其中一个函数持续使用CPU12秒（使用<code>mdelay</code>来模拟）；一个用户态程序，调用这个内核函数。结构如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"># tree preemption-demo&#x2F;</span><br><span class="line">preemption-demo&#x2F;</span><br><span class="line">├── demo-module</span><br><span class="line">│   ├── Makefile</span><br><span class="line">│   └── demo.c</span><br><span class="line">└── userspace</span><br><span class="line">    ├── Makefile</span><br><span class="line">    ├── a.out</span><br><span class="line">    └── read.c</span><br></pre></td></tr></table></figure>
+
+<p>preemption-demo/demo-module/demo.c:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;linux/module.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;linux/init.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;linux/module.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;linux/kernel.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;linux/fs.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;asm/uaccess.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;linux/delay.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> DEVICE_NAME <span class="meta-string">&quot;demo&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">int</span> major_num;</span><br><span class="line"><span class="keyword">static</span> <span class="keyword">int</span> device_open_count = <span class="number">0</span>;</span><br><span class="line"><span class="keyword">static</span> <span class="keyword">char</span>* msg_buffer = <span class="string">&quot;this is a demo&quot;</span>;</span><br><span class="line"><span class="keyword">static</span> <span class="keyword">char</span>* msg_ptr;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">ssize_t</span> <span class="title">device_read</span><span class="params">(struct file *flip, <span class="keyword">char</span> __user *buffer, <span class="keyword">size_t</span> len, <span class="keyword">loff_t</span> *offset)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">int</span> bytes_read = <span class="number">0</span>;</span><br><span class="line">  mdelay(<span class="number">12000</span>);</span><br><span class="line">  <span class="keyword">while</span>(len) &#123;</span><br><span class="line">    <span class="comment">//If we’re at the end, loop back to the beginning</span></span><br><span class="line">    <span class="keyword">if</span> (*msg_ptr == <span class="number">0</span>) &#123;</span><br><span class="line">      msg_ptr = msg_buffer;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">//buffer is in user data, not kernel, so you can’t just reference</span></span><br><span class="line">    <span class="comment">//with a pointer. The function put_user handles this for us */</span></span><br><span class="line">    put_user(*(msg_ptr++), buffer++);</span><br><span class="line">    len--;</span><br><span class="line">    bytes_read++;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> bytes_read;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">ssize_t</span> <span class="title">device_write</span><span class="params">(struct file *flip, <span class="keyword">const</span> <span class="keyword">char</span> __user *buffer, <span class="keyword">size_t</span> len, <span class="keyword">loff_t</span> *offset)</span> </span>&#123;</span><br><span class="line">  printk(KERN_ALERT <span class="string">&quot;This operation is not supported.\n&quot;</span>);</span><br><span class="line">  <span class="keyword">return</span> -EINVAL;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//Called when a process opens our device</span></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">int</span> <span class="title">device_open</span><span class="params">(struct inode *inode, struct file *file)</span> </span>&#123;</span><br><span class="line">  <span class="comment">//if device is open, return busy</span></span><br><span class="line">  <span class="keyword">if</span> (device_open_count) &#123;</span><br><span class="line">    <span class="keyword">return</span> -EBUSY;</span><br><span class="line">  &#125;</span><br><span class="line">  device_open_count++;</span><br><span class="line">  try_module_get(THIS_MODULE);</span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//called when a process closes our device</span></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">int</span> <span class="title">device_release</span><span class="params">(struct inode *inode, struct file *file)</span> </span>&#123;</span><br><span class="line">  <span class="comment">//decrement the open counter and usage count. Without this, the module would not unload</span></span><br><span class="line">  device_open_count--;</span><br><span class="line">  module_put(THIS_MODULE);</span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">static</span> <span class="class"><span class="keyword">struct</span> <span class="title">file_operations</span> <span class="title">file_ops</span> = &#123;</span></span><br><span class="line">  .read = device_read,</span><br><span class="line">  .write = device_write,</span><br><span class="line">  .open = device_open,</span><br><span class="line">  .release = device_release</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">int</span> __init <span class="title">demo_init</span><span class="params">(<span class="keyword">void</span>)</span> </span>&#123;</span><br><span class="line">  msg_ptr = msg_buffer;</span><br><span class="line">  <span class="comment">//try to register character device</span></span><br><span class="line">  major_num = register_chrdev(<span class="number">0</span>, <span class="string">&quot;demo&quot;</span>, &amp;file_ops);</span><br><span class="line">  <span class="keyword">if</span> (major_num &lt; <span class="number">0</span>) &#123;</span><br><span class="line">    printk(KERN_ALERT <span class="string">&quot;Could not register device: %d\n&quot;</span>, major_num);</span><br><span class="line">    <span class="keyword">return</span> major_num;</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    printk(KERN_INFO <span class="string">&quot;demo module loaded with device major number %d\n&quot;</span>, major_num);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> __exit <span class="title">demo_exit</span><span class="params">(<span class="keyword">void</span>)</span> </span>&#123;</span><br><span class="line">  <span class="comment">//Remember — we have to clean up after ourselves. Unregister the character device. */</span></span><br><span class="line">  unregister_chrdev(major_num, DEVICE_NAME);</span><br><span class="line">  printk(KERN_INFO <span class="string">&quot;Goodbye, World!\n&quot;</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//register module functions </span></span><br><span class="line">module_init(demo_init);</span><br><span class="line">module_exit(demo_exit);</span><br><span class="line">MODULE_LICENSE(<span class="string">&quot;GPL&quot;</span>);</span><br></pre></td></tr></table></figure>
+
+<p>preemption-demo/demo-module/Makefile:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">CONFIG_MODULE_SIG&#x3D;n</span><br><span class="line"></span><br><span class="line">obj-m :&#x3D; demo.o</span><br><span class="line"></span><br><span class="line">KERN_PATH &#x3D; &#x2F;home&#x2F;workspace&#x2F;code-reading&#x2F;linux-3.19.8</span><br><span class="line"></span><br><span class="line">all:</span><br><span class="line">    make -C $(KERN_PATH) M&#x3D;$(PWD) modules</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">clean:</span><br><span class="line">    make -C $(KERN_PATH) M&#x3D;$(PWD) clean</span><br></pre></td></tr></table></figure>
+
+<p>preemption-demo/userspace/read.c:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span><span class="meta-string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span><span class="meta-string">&lt;unistd.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span><span class="meta-string">&lt;pthread.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;sys/types.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;sys/stat.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;fcntl.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;errno.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">void</span> *<span class="title">hi_prio_t1</span><span class="params">(<span class="keyword">void</span> *p)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">long</span> startAt, stopAt;</span><br><span class="line"></span><br><span class="line">  startAt = time(<span class="literal">NULL</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;T1 start at %ld\n&quot;</span>,startAt);</span><br><span class="line"></span><br><span class="line">    sleep(<span class="number">3</span>);</span><br><span class="line">  stopAt = time(<span class="literal">NULL</span>);</span><br><span class="line"></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;T1 stop at %ld. elapse: %ld seconds\n&quot;</span>, stopAt, stopAt-startAt);</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">void</span> *<span class="title">low_prio_t2</span><span class="params">(<span class="keyword">void</span> *p)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">char</span> buf[<span class="number">20</span>];</span><br><span class="line">  <span class="keyword">char</span> errmsg[<span class="number">256</span>];</span><br><span class="line">  <span class="keyword">int</span> fd, len;</span><br><span class="line">  <span class="keyword">long</span> startAt, stopAt;</span><br><span class="line"></span><br><span class="line">  startAt = time(<span class="literal">NULL</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;T2 start at %ld\n&quot;</span>,startAt);</span><br><span class="line"></span><br><span class="line">    sleep(<span class="number">1</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span>((fd=open(<span class="string">&quot;/dev/demo&quot;</span>, O_RDONLY))&lt;<span class="number">0</span>) &#123;</span><br><span class="line">    strerror_r(errno, errmsg, <span class="number">256</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;T2 open /dev/demo failed. error:%s\n&quot;</span>, errmsg);</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span>((len=read(fd, buf, <span class="number">19</span>))&lt;<span class="number">0</span>) &#123;</span><br><span class="line">    strerror_r(errno, errmsg, <span class="number">256</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;T2 read failed. error:%s\n&quot;</span>, errmsg);</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  buf[len]=<span class="string">&#x27;\0&#x27;</span>;</span><br><span class="line"></span><br><span class="line">  stopAt = time(<span class="literal">NULL</span>);</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;T2 stop at %ld. elapse: %ld seconds. buf=[%d:\&quot;%s\&quot;]\n&quot;</span>, stopAt, stopAt-startAt, len, buf);</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">pthread_t</span> t1, t2;</span><br><span class="line">    <span class="keyword">pthread_attr_t</span> attr;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">sched_param</span> <span class="title">param</span>;</span></span><br><span class="line">      </span><br><span class="line">    pthread_attr_init(&amp;attr);</span><br><span class="line">    pthread_attr_setinheritsched (&amp;attr, PTHREAD_EXPLICIT_SCHED);</span><br><span class="line">    pthread_attr_setschedpolicy(&amp;attr, SCHED_RR);</span><br><span class="line">    </span><br><span class="line">    param.sched_priority = <span class="number">50</span>;</span><br><span class="line">    pthread_attr_setschedparam(&amp;attr, &amp;param);</span><br><span class="line">    pthread_create(&amp;t1, &amp;attr, hi_prio_t1, <span class="literal">NULL</span>);</span><br><span class="line">    </span><br><span class="line">    param.sched_priority = <span class="number">30</span>;</span><br><span class="line">    pthread_attr_setschedparam(&amp;attr, &amp;param);</span><br><span class="line">    pthread_create(&amp;t2, &amp;attr, low_prio_t2, <span class="literal">NULL</span>);</span><br><span class="line"></span><br><span class="line">    pthread_join(t1, <span class="literal">NULL</span>);</span><br><span class="line">    pthread_join(t2, <span class="literal">NULL</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>preemption-demo/userspace/Makefile:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">.PHONY: all clean test</span><br><span class="line"></span><br><span class="line">all: clean build test</span><br><span class="line"></span><br><span class="line">build:</span><br><span class="line">    gcc read.c -lpthread</span><br><span class="line"></span><br><span class="line">clean:</span><br><span class="line">    rm -f a.out</span><br><span class="line"></span><br><span class="line">test:</span><br><span class="line">    taskset --cpu-list 1 .&#x2F;a.out</span><br></pre></td></tr></table></figure>
+
+<p>编译安装内核（本例中使用linux 3.19.8）, 选择”No Forced Preemption (Server)”，并且禁止模块签名验证（”Enable loadable module support” –&gt; “Module signature verification”）。然后编译内核模块和用户态程序，Makefile如上，不赘述。</p>
+<p>Load内核模块，并且创建设备节点。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"># insmod demo.ko</span><br><span class="line"></span><br><span class="line"># tail -n 4 &#x2F;var&#x2F;log&#x2F;messages</span><br><span class="line">......</span><br><span class="line">Apr  2 23:12:46 devbuild kernel: demo module loaded with device major number 249</span><br><span class="line"></span><br><span class="line"># mknod &#x2F;dev&#x2F;demo c 249 0</span><br></pre></td></tr></table></figure>
+
+<p>运行用户态程序：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"># uname -a </span><br><span class="line">Linux devbuild 3.19.8.hyg.preemption.none+ #4 SMP Thu Apr 2 01:17:08 CST 2020 x86_64 x86_64 x86_64 GNU&#x2F;Linux</span><br><span class="line"></span><br><span class="line"># make test</span><br><span class="line">taskset --cpu-list 1 .&#x2F;a.out</span><br><span class="line">T1 start at 1585840558</span><br><span class="line">T2 start at 1585840558</span><br><span class="line">T1 stop at 1585840571. elapse: 13 seconds</span><br><span class="line">T2 stop at 1585840571. elapse: 13 seconds. buf&#x3D;[19:&quot;this is a demothis &quot;]</span><br></pre></td></tr></table></figure>
+
+<p>有两点需要说明：</p>
+<ul>
+<li><ol>
+<li>Makefile中的<code>taskset --cpu-list 1</code>是为了让进程只使用一个CPU，这很明显，我们就是验证2个线程在一个CPU上的调度；去掉它，若是多核系统，T1在3秒后可以获得其他CPU运行；</li>
+</ol>
+</li>
+<li><ol start="2">
+<li>前面分析T2会在12秒后被唤醒，但这里是13秒。这是因为T1在用户态睡眠了1秒（确保T1先执行T2后执行），然后又占有内核态12秒；</li>
+</ol>
+</li>
+</ul>
+<h1 id="Preemptible-Kernel-Low-Latency-Desktop-3"><a href="#Preemptible-Kernel-Low-Latency-Desktop-3" class="headerlink" title="Preemptible Kernel (Low-Latency Desktop) (3)"></a>Preemptible Kernel (Low-Latency Desktop) (3)</h1><p>这种模式和”No Forced Preemption (Server)”相反，它的目标是提升交互性（即减少内核的latency）而牺牲throughput。它允许在<strong>除临界区之外的所有内核code</strong>中进行线程切换；<strong>临界区也叫做atomic context，主要是</strong>: </p>
+<ul>
+<li>a. spinlock保护的区间；</li>
+<li>b. irq-handler，即中断上下文；</li>
+</ul>
+<p>除了这两种区间的内核code，其他地方都允许线程切换，所以，低优先级的线程，即使在内核中且非自愿的情况下（例如纯CPU计算）也能被抢占，让CPU去服务优先级更高的线程（例如交互性事件）。用代价a. throughput降低；b. 线程切换更多（消耗CPU），换取更高的交互性，<strong>适合于Desktop及嵌入式系统</strong>。</p>
+<p>对于前面假定的场景，T2将在睡眠3秒后“准时”地被唤醒。</p>
+<p>试验（步骤和第2节一样，除了编译安装内核时选择”Preemptible Kernel (Low-Latency Desktop)”）：</p>
+<p>运行用户态程序：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"># uname -a</span><br><span class="line">Linux devbuild 3.19.8.hyg.preemption.preemptible+ #5 SMP PREEMPT Thu Apr 2 13:51:19 CST 2020 x86_64 x86_64 x86_64 GNU&#x2F;Linux</span><br><span class="line"></span><br><span class="line"># make test </span><br><span class="line">taskset --cpu-list 1 .&#x2F;a.out</span><br><span class="line">T1 start at 1585841585</span><br><span class="line">T2 start at 1585841585</span><br><span class="line">T1 stop at 1585841588. elapse: 3 seconds</span><br><span class="line">T2 stop at 1585841598. elapse: 13 seconds. buf&#x3D;[19:&quot;this is a demothis &quot;]</span><br></pre></td></tr></table></figure>
+
+<p>如期望的那样，T1在3秒后被唤醒。</p>
+<h1 id="Voluntary-Kernel-Preemption-4"><a href="#Voluntary-Kernel-Preemption-4" class="headerlink" title="Voluntary Kernel Preemption (4)"></a>Voluntary Kernel Preemption (4)</h1><p>只考虑前述两种preemption模式的时候，内核抢占(Kernel Preemption)的特征是：</p>
+<ul>
+<li>a. 发生在内核态（不是从内核态返回用户态的时候）；</li>
+<li>b. 不是主动放弃CPU（等待资源）；</li>
+</ul>
+<p>同时满足这两点的线程切换是内核抢占。后来，添加了第三种模式，即”Voluntary Kernel Preemption”。这种和”No Forced Preemption”很像，内核不会强制切换线程，而是靠内核函数的开发者主动去放弃CPU：在复杂的代码中，时不时的检查rescheduling是否必要，这些检查点（”explicit preemption point”）就是<code>might_sleep()</code>函数。可以理解为在”No Forced Preemption”的基础上增加了“不等待资源的主动放弃”：</p>
+<ul>
+<li>a. 从内核态返回用户态的时候； 和”No Forced Preemption”一样；</li>
+<li>b. 在内核模式下主动放弃CPU（等待资源）；和”No Forced Preemption”一样；</li>
+<li>c. 在内核模式下主动放弃CPU（不等待资源，<code>might_sleep()</code>主动放弃CPU）；增加；</li>
+</ul>
+<p>第3节的”Preemptible Kernel”是真正的内核抢占，它允许在<strong>除临界区之外的所有内核code</strong>中进行线程切换；而”Voluntary Kernel Preemption”本质上还是非抢占内核。实现真正的内核抢占肯定是有代价的：代码的复杂性增加，运行时开销也增加。<a target="_blank" rel="noopener" href="https://lwn.net/Articles/137259/">引入”Voluntary Kernel Preemption”的patch</a>统计了抢占内核vmlinux.preempt的text段size增加了3.5%，而vmlinux.voluntary只增加了0.2%。</p>
+<p>由于这种模式比”Preemptible Kernel”轻量级，同时也能提供较好的交互性，所以也适合于Desktop，并且是现在内核的默认选择（kernel 3.19.8）。重复之前的实验：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"># uname -a</span><br><span class="line">Linux devbuild 3.19.8.hyg.preemption.voluntary+ #7 SMP Sat Apr 4 08:16:39 CST 2020 x86_64 x86_64 x86_64 GNU&#x2F;Linux</span><br><span class="line"></span><br><span class="line"># make test</span><br><span class="line">taskset --cpu-list 1 .&#x2F;a.out</span><br><span class="line">T1 start at 1585968037</span><br><span class="line">T2 start at 1585968037</span><br><span class="line">T1 stop at 1585968050. elapse: 13 seconds</span><br><span class="line">T2 stop at 1585968050. elapse: 13 seconds. buf&#x3D;[19:&quot;is a demothis is a &quot;]</span><br></pre></td></tr></table></figure>
+
+<p>可见和”No Forced Preemption”行为一致，T1睡眠了13秒（T2在用户态睡眠1秒在内核态占用CPU 12秒）。现在修改一下内核态的代码，增加一个”explicit preemption point”（<code>might_sleep()</code>）：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">ssize_t</span> <span class="title">device_read</span><span class="params">(struct file *flip, <span class="keyword">char</span> __user *buffer, <span class="keyword">size_t</span> len, <span class="keyword">loff_t</span> *offset)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">int</span> bytes_read = <span class="number">0</span>;</span><br><span class="line">  mdelay(<span class="number">6000</span>);</span><br><span class="line">  might_sleep();</span><br><span class="line">  mdelay(<span class="number">6000</span>);</span><br><span class="line">  <span class="keyword">while</span>(len) &#123;</span><br><span class="line">    <span class="comment">//If we’re at the end, loop back to the beginning</span></span><br><span class="line">    <span class="keyword">if</span> (*msg_ptr == <span class="number">0</span>) &#123;</span><br><span class="line">      msg_ptr = msg_buffer;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">//buffer is in user data, not kernel, so you can’t just reference</span></span><br><span class="line">    <span class="comment">//with a pointer. The function put_user handles this for us */</span></span><br><span class="line">    put_user(*(msg_ptr++), buffer++);</span><br><span class="line">    len--;</span><br><span class="line">    bytes_read++;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> bytes_read;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>把占用CPU 12秒改成了两个占用CPU 6秒，中间插入一个<code>might_sleep()</code>检查点。在第一个6秒结束的时候，检查发现有更高优先级的线程T1，所以唤醒T1。按这样的分析，T1应该睡眠7秒（T2在用户态睡眠1秒，然后占用CPU 6秒）。验证一下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"># make test</span><br><span class="line">taskset --cpu-list 1 .&#x2F;a.out</span><br><span class="line">T1 start at 1585968353</span><br><span class="line">T2 start at 1585968353</span><br><span class="line">T1 stop at 1585968360. elapse: 7 seconds</span><br><span class="line">T2 stop at 1585968366. elapse: 13 seconds. buf&#x3D;[19:&quot;this is a demothis &quot;]</span><br></pre></td></tr></table></figure>
+
+<p>可见是符合预期的。然而，如前所述，这种模式不是真正的内核抢占，它依赖于内核程序员的“主动性”。换言之，需要内核代码中存在很多很多的”explicit preemption point”。<a target="_blank" rel="noopener" href="https://lwn.net/Articles/137259/">引入”Voluntary Kernel Preemption”的patch</a>不可能在一个patch中去往内核代码中插入很多”explicit preemption point”吧？这就需要介绍一下<code>might_sleep()</code>函数。</p>
+<p>函数<code>might_sleep()</code>就是我们的”explicit preemption point”，但它不是这个patch中引入的：它之前就存在，并且它广泛存在于内核代码中。它是干什么的呢？在内核编程中（跟本文的主题”Kernel Preemption”无关，或者说无论”Kernel Preemption”出现之前还是之后）有一个共识，那就是在”atomic context”里不能进行上下文切换，即当前execution path不能进入sleep状态。”Preemptible Kernel”也是一样，不能在”atomic context”中进行抢占（见第3节）。临界区是：</p>
+<ul>
+<li>a. spinlock保护的区间；</li>
+<li>b. irq-handler，即中断上下文；</li>
+</ul>
+<p>如何保证这个共识呢？比如我写个函数里面会sleep，我可能在注释中写上”this function may sleep”，但这也不能保证别人不在临界区里调用它啊。函数<code>might_sleep()</code>就是用来解决这个问题的：它会检查当前上下文是不是在临界区里，假如在临界区，就会panic。假如我写一个会sleep的函数，我就在函数开头调用一下<code>might_sleep()</code>，别人在临界区调用我的函数，也就panic了。当然这是在debug（<code>CONFIG_DEBUG_ATOMIC_SLEEP</code>被定义）模式下的行为；假如<code>CONFIG_DEBUG_ATOMIC_SLEEP</code>没被定义，<code>might_sleep()</code>的作用就相当于一个annotation。所以，现在的内核代码中，可能sleep的函数，大都有对<code>might_sleep()</code>的调用。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> CONFIG_DEBUG_ATOMIC_SLEEP</span></span><br><span class="line"><span class="meta"># <span class="meta-keyword">define</span> might_sleep() \</span></span><br><span class="line">    <span class="keyword">do</span> &#123; __might_sleep(__FILE__, __LINE__, <span class="number">0</span>); &#125; <span class="keyword">while</span> (<span class="number">0</span>)</span><br><span class="line"><span class="meta">#<span class="meta-keyword">else</span></span></span><br><span class="line"><span class="meta"># <span class="meta-keyword">define</span> might_sleep() do &#123; &#125; while (0)</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">void</span> __might_sleep(<span class="keyword">const</span> <span class="keyword">char</span> *file, <span class="keyword">int</span> line, <span class="keyword">int</span> preempt_offset)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">     * Blocking primitives will set (and therefore destroy) current-&gt;state,</span></span><br><span class="line"><span class="comment">     * since we will exit with TASK_RUNNING make sure we enter with it,</span></span><br><span class="line"><span class="comment">     * otherwise we will destroy state.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    WARN_ONCE(current-&gt;state != TASK_RUNNING &amp;&amp; current-&gt;task_state_change,</span><br><span class="line">            <span class="string">&quot;do not call blocking ops when !TASK_RUNNING; &quot;</span></span><br><span class="line">            <span class="string">&quot;state=%lx set at [&lt;%p&gt;] %pS\n&quot;</span>,</span><br><span class="line">            current-&gt;state,</span><br><span class="line">            (<span class="keyword">void</span> *)current-&gt;task_state_change,</span><br><span class="line">            (<span class="keyword">void</span> *)current-&gt;task_state_change);</span><br><span class="line"></span><br><span class="line">    ___might_sleep(file, line, preempt_offset);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">void</span> ___might_sleep(<span class="keyword">const</span> <span class="keyword">char</span> *file, <span class="keyword">int</span> line, <span class="keyword">int</span> preempt_offset)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">unsigned</span> <span class="keyword">long</span> prev_jiffy;    <span class="comment">/* ratelimiting */</span></span><br><span class="line"></span><br><span class="line">    rcu_sleep_check(); <span class="comment">/* WARN_ON_ONCE() by default, no rate limit reqd. */</span></span><br><span class="line">    <span class="keyword">if</span> ((preempt_count_equals(preempt_offset) &amp;&amp; !irqs_disabled() &amp;&amp;</span><br><span class="line">         !is_idle_task(current)) ||</span><br><span class="line">        system_state != SYSTEM_RUNNING || oops_in_progress)</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    <span class="keyword">if</span> (time_before(jiffies, prev_jiffy + HZ) &amp;&amp; prev_jiffy)</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    prev_jiffy = jiffies;</span><br><span class="line"></span><br><span class="line">    printk(KERN_ERR</span><br><span class="line">        <span class="string">&quot;BUG: sleeping function called from invalid context at %s:%d\n&quot;</span>,</span><br><span class="line">            file, line);</span><br><span class="line">    printk(KERN_ERR</span><br><span class="line">        <span class="string">&quot;in_atomic(): %d, irqs_disabled(): %d, pid: %d, name: %s\n&quot;</span>,</span><br><span class="line">            in_atomic(), irqs_disabled(),</span><br><span class="line">            current-&gt;pid, current-&gt;comm);</span><br><span class="line"></span><br><span class="line">    debug_show_held_locks(current);</span><br><span class="line">    <span class="keyword">if</span> (irqs_disabled())</span><br><span class="line">        print_irqtrace_events(current);</span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> CONFIG_DEBUG_PREEMPT</span></span><br><span class="line">    <span class="keyword">if</span> (!preempt_count_equals(preempt_offset)) &#123;</span><br><span class="line">        pr_err(<span class="string">&quot;Preemption disabled at:&quot;</span>);</span><br><span class="line">        print_ip_sym(current-&gt;preempt_disable_ip);</span><br><span class="line">        pr_cont(<span class="string">&quot;\n&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line">    dump_stack();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>最主要的工作是在第一个if语句那里，尤其是<code>preempt_count_equals</code>和<code>irqs_disabled</code>，都是用来判断当前的上下文是否是一个”atomic context”:</p>
+<ul>
+<li>只要进程获得了<code>spin_lock</code>的任一个变种形式的lock，那么无论是单处理器系统还是多处理器系统，都会导致<code>preempt_count</code>发生变化。所以<code>preempt_count_equals</code>用来判断是否在spinlock保护的区间里；</li>
+<li><code>irqs_disabled</code>判断当前中断是否开启，即是否在中断上下文；</li>
+</ul>
+<p>顺便提一下，在Linux 2.4（Kernel Preemption引入以前）的单核系统上，spinlock是no-op，因为不需要互斥。这很好理解，因为对同一个变量的竞争访问发生在：1. 多核系统，多个线程在不同的核上并行执行；2. 单核系统，但由于抢占，多个线程并发（交替）执行。</p>
+<p>回到”Voluntary Kernel Preemption”，由于<code>might_sleep()</code>已经广泛存在于内核代码中，且是允许sleep的地方，所以，正好可以在这些地方植入”explicit preemption point”。这个patch就是这么做的：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> CONFIG_DEBUG_ATOMIC_SLEEP</span></span><br><span class="line"><span class="meta"># <span class="meta-keyword">define</span> might_sleep() \</span></span><br><span class="line">    <span class="keyword">do</span> &#123; __might_sleep(__FILE__, __LINE__, <span class="number">0</span>); might_resched(); &#125; <span class="keyword">while</span> (<span class="number">0</span>)</span><br><span class="line"><span class="meta">#<span class="meta-keyword">else</span></span></span><br><span class="line"><span class="meta"># <span class="meta-keyword">define</span> might_sleep() do &#123; might_resched(); &#125; while (0)</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br></pre></td></tr></table></figure>
+
+<p>可见，无论<code>CONFIG_DEBUG_ATOMIC_SLEEP</code>是否定义，<code>might_sleep()</code>都会调用<code>might_resched()</code>，这个函数定义是：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> CONFIG_PREEMPT_VOLUNTARY</span></span><br><span class="line"><span class="meta"># <span class="meta-keyword">define</span> might_resched() _cond_resched()</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">else</span></span></span><br><span class="line"><span class="meta"># <span class="meta-keyword">define</span> might_resched() do &#123; &#125; while (0)</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br></pre></td></tr></table></figure>
+
+<p>当抢占模式是”Voluntary Kernel Preemption”的时候（<code>CONFIG_PREEMPT_VOLUNTARY</code>被定义），<code>might_resched</code>被定义为<code>_cond_resched()</code>；否则定义为空。</p>
+<h1 id="Real-Time-内核-5"><a href="#Real-Time-内核-5" class="headerlink" title="Real Time 内核 (5)"></a>Real Time 内核 (5)</h1><p>除了前述的3中抢占模式外，linux还有一个RT patch（Real Time），对应内核配置项是<code>CONFIG_PREEMPT_RT</code>。如果使用这种模式，所有的代码都可能block别的代码（高优先级一定block低优先级），即使是中断处理程序（ISR）也能够被block。这个patch做了如下修改：</p>
+<ul>
+<li>Converting hardware Interrupts to threads with RT priority 50;</li>
+<li>Converting SoftIRQs to threads with RT 49 priority;</li>
+<li>Converting all spinlocks to mutexes;</li>
+<li>Configuring and using Hi resolution timers;</li>
+<li>some more minor features;</li>
+</ul>
+<p>如果创建一个priority大于50的线程，就会block中断处理。这种模式下，系统将做更多的调度所以浪费更多的CPU，但可以满足毫秒级（1ms）的deadline。</p>
+<h1 id="抢占模式和调度策略-6"><a href="#抢占模式和调度策略-6" class="headerlink" title="抢占模式和调度策略 (6)"></a>抢占模式和调度策略 (6)</h1><p>值得一提的是，前文例子中使用的<code>SCHED_RR</code>（以及<code>SCHED_FIFO</code>）都属于实时调度策略（real-time policy）；然而real-time policy与第5节所讲的Real Time内核并没有关系，不要混淆（虽然它们都有real time的字眼），也不要以为real-time policy（<code>SCHED_RR</code>和<code>SCHED_FIFO</code>）只有在Real Time内核下才工作：</p>
+<ul>
+<li>调度策略：它指定了进程/线程的优先级，谁能抢占谁。</li>
+<li>抢占模式：在内核态的抢占时机。</li>
+</ul>
+<p>首先，根据调度策略确定是否应该进行任务切换：</p>
+<ul>
+<li>若为real-time policy，则有更高优先级的任务变得runable，就应该切换；</li>
+<li>若不是real-time policy, 则根据nice值以及各任务对CPU的占用时间计算出动态优先级，决定是否应该切换。假如需要任务切换，</li>
+</ul>
+<p>然后，进行进行任务切换，若被抢占的的任务正处在内核态，才要涉及到内核抢占模式。前文例子中是使用real-time policy <code>SCHED_RR</code>是因为real-time policy下，可以指定静态的priority（而不是通过nice值计算的动态priority），并且优先级高的一定要抢占优先级低的，如果优先级低的处于内核态，就会涉及到抢占模式。这正好方便我们演示抢占模式的效果。</p>
+<h1 id="参考-7"><a href="#参考-7" class="headerlink" title="参考 (7)"></a>参考 (7)</h1><p><a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/master/kernel/Kconfig.preempt">https://github.com/torvalds/linux/blob/master/kernel/Kconfig.preempt</a><br><a target="_blank" rel="noopener" href="https://kernelnewbies.org/FAQ/Preemption">https://kernelnewbies.org/FAQ/Preemption</a><br><a target="_blank" rel="noopener" href="https://lwn.net/Articles/137259/">https://lwn.net/Articles/137259/</a><br><a target="_blank" rel="noopener" href="https://blog.csdn.net/dayancn/article/details/50844985">https://blog.csdn.net/dayancn/article/details/50844985</a><br><a target="_blank" rel="noopener" href="https://devarea.com/understanding-linux-kernel-preemption/#.XoNhBtMzbVq">https://devarea.com/understanding-linux-kernel-preemption/#.XoNhBtMzbVq</a></p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/kernel/" rel="tag"># kernel</a>
+              <a href="/tags/preemption/" rel="tag"># preemption</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/03/26/linux-file-read/" rel="prev" title="Linux file read">
+      <i class="fa fa-chevron-left"></i> Linux file read
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/04/07/algorithm-backtrack-formula/" rel="next" title="Backtracking算法">
+      Backtracking算法 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%B8%89%E7%A7%8DPreemption%E6%A8%A1%E5%BC%8F-1"><span class="nav-number">1.</span> <span class="nav-text">三种Preemption模式 (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#No-Forced-Preemption-Server-2"><span class="nav-number">2.</span> <span class="nav-text">No Forced Preemption (Server) (2)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Preemptible-Kernel-Low-Latency-Desktop-3"><span class="nav-number">3.</span> <span class="nav-text">Preemptible Kernel (Low-Latency Desktop) (3)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Voluntary-Kernel-Preemption-4"><span class="nav-number">4.</span> <span class="nav-text">Voluntary Kernel Preemption (4)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Real-Time-%E5%86%85%E6%A0%B8-5"><span class="nav-number">5.</span> <span class="nav-text">Real Time 内核 (5)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%8A%A2%E5%8D%A0%E6%A8%A1%E5%BC%8F%E5%92%8C%E8%B0%83%E5%BA%A6%E7%AD%96%E7%95%A5-6"><span class="nav-number">6.</span> <span class="nav-text">抢占模式和调度策略 (6)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83-7"><span class="nav-number">7.</span> <span class="nav-text">参考 (7)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

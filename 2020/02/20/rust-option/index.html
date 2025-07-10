@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="Rust中Option使用细节。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Rust的Option细节">
+<meta property="og:url" content="http://yoursite.com/2020/02/20/rust-option/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="Rust中Option使用细节。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2020-02-20T19:08:21.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.543Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="rust">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2020/02/20/rust-option/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>Rust的Option细节 | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/02/20/rust-option/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Rust的Option细节
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2020-02-20 19:08:21" itemprop="dateCreated datePublished" datetime="2020-02-20T19:08:21+00:00">2020-02-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/rust/" itemprop="url" rel="index"><span itemprop="name">rust</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2020/02/20/rust-option/" class="post-meta-item leancloud_visitors" data-flag-title="Rust的Option细节" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2020/02/20/rust-option/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2020/02/20/rust-option/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>Rust中Option使用细节。</p>
+<a id="more"></a> 
+
+<h1 id="分类"><a href="#分类" class="headerlink" title="分类"></a>分类</h1><h2 id="unwrap系列"><a href="#unwrap系列" class="headerlink" title="unwrap系列"></a>unwrap系列</h2><table>
+<thead>
+<tr>
+<th>函数</th>
+<th>功能</th>
+<th>move</th>
+<th>panic</th>
+<th>evaluate</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>expect</code></td>
+<td>取出<code>v</code>或panic</td>
+<td>Y</td>
+<td>Y</td>
+<td>N/A</td>
+</tr>
+<tr>
+<td><code>unwrap</code></td>
+<td>取出<code>v</code>或panic</td>
+<td>Y</td>
+<td>Y</td>
+<td>N/A</td>
+</tr>
+<tr>
+<td><code>unwrap_or</code></td>
+<td>取出<code>v</code>或默认值</td>
+<td>Y</td>
+<td>N</td>
+<td>eagerly</td>
+</tr>
+<tr>
+<td><code>unwrap_or_else</code></td>
+<td>取出<code>v</code>或默认值</td>
+<td>Y</td>
+<td>N</td>
+<td>lazily</td>
+</tr>
+</tbody></table>
+<h2 id="map系列"><a href="#map系列" class="headerlink" title="map系列"></a>map系列</h2><table>
+<thead>
+<tr>
+<th>函数</th>
+<th>功能</th>
+<th>move</th>
+<th>panic</th>
+<th>evaluate</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>map</code></td>
+<td>把本<code>Option&lt;T&gt;</code>转化成<code>Option&lt;U&gt;</code>或<code>None</code></td>
+<td>Y</td>
+<td></td>
+<td>N/A</td>
+</tr>
+<tr>
+<td><code>map_or</code></td>
+<td>把本<code>Option&lt;T&gt;</code>转化成<code>U</code>或默认值</td>
+<td>Y</td>
+<td></td>
+<td>eagerly</td>
+</tr>
+<tr>
+<td><code>map_or_else</code></td>
+<td>把本<code>Option&lt;T&gt;</code>转化成<code>U</code>或默认值</td>
+<td>Y</td>
+<td></td>
+<td>lazily</td>
+</tr>
+</tbody></table>
+<h2 id="ok系列"><a href="#ok系列" class="headerlink" title="ok系列"></a>ok系列</h2><table>
+<thead>
+<tr>
+<th>函数</th>
+<th>功能</th>
+<th>move</th>
+<th>panic</th>
+<th>evaluate</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ok_or</code></td>
+<td>把本<code>Option&lt;T&gt;</code>转化成<code>Result&lt;T, E&gt;</code></td>
+<td>Y</td>
+<td></td>
+<td>eagerly</td>
+</tr>
+<tr>
+<td><code>ok_or_else</code></td>
+<td>把本<code>Option&lt;T&gt;</code>转化成<code>Result&lt;T, E&gt;</code></td>
+<td>Y</td>
+<td></td>
+<td>lazily</td>
+</tr>
+</tbody></table>
+<h2 id="逻辑运算系列"><a href="#逻辑运算系列" class="headerlink" title="逻辑运算系列"></a>逻辑运算系列</h2><table>
+<thead>
+<tr>
+<th>函数</th>
+<th>功能</th>
+<th>move</th>
+<th>panic</th>
+<th>evaluate</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>and</code></td>
+<td>本<code>Option</code>和参数<code>optb</code>有一个为<code>None</code>结果就为<code>None</code></td>
+<td>Y</td>
+<td></td>
+<td>eagerly</td>
+</tr>
+<tr>
+<td><code>and_then</code></td>
+<td>本<code>Option</code>和参数<code>f()</code>有一个为<code>None</code>结果就为<code>None</code></td>
+<td>Y</td>
+<td></td>
+<td>lazily</td>
+</tr>
+<tr>
+<td><code>or</code></td>
+<td>本<code>Option</code>和参数<code>optb</code>有一个为<code>Some</code>结果就为<code>Some</code></td>
+<td>Y</td>
+<td></td>
+<td>eagerly</td>
+</tr>
+<tr>
+<td><code>or_else</code></td>
+<td>本<code>Option</code>和参数<code>f()</code>有一个为<code>Some</code>结果就为<code>Some</code></td>
+<td>Y</td>
+<td></td>
+<td>lazily</td>
+</tr>
+<tr>
+<td><code>xor</code></td>
+<td>本<code>Option</code>和参数<code>optb</code>有且只有一个为<code>Some</code>结果才为<code>Some</code></td>
+<td>Y</td>
+<td></td>
+<td>N/A</td>
+</tr>
+</tbody></table>
+<h1 id="细节"><a href="#细节" class="headerlink" title="细节"></a>细节</h1><h2 id="expect"><a href="#expect" class="headerlink" title="expect()"></a><code>expect()</code></h2><p>如果本<code>Option</code>是<code>Some</code>，就把值<strong>move</strong>出来；否则就以给定的<code>msg</code>来panic，和<code>unwrap</code>非常类似，只是panic产生的<code>msg</code>不同。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> o: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = <span class="literal">Some</span>(<span class="built_in">String</span>::from(<span class="string">&quot;expect() moves the Option&#x27;s value&quot;</span>));</span><br><span class="line"><span class="keyword">let</span> s = o.expect(<span class="string">&quot;oh no!&quot;</span>); <span class="comment">//moved</span></span><br><span class="line"><span class="built_in">println!</span>(<span class="string">&quot;&#123;&#125;&quot;</span>, s);</span><br><span class="line"><span class="comment">//println!(&quot;&#123;:?&#125;&quot;, o);   //value borrowed here after move</span></span><br></pre></td></tr></table></figure>
+
+<p>输出：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">expect() moves the Option&#39;s value</span><br></pre></td></tr></table></figure>
+
+<h2 id="unwrap"><a href="#unwrap" class="headerlink" title="unwrap()"></a><code>unwrap()</code></h2><p>如果本<code>Option</code>是<code>Some</code>，就把值<strong>move</strong>出来；否则就panic，和<code>expect</code>非常类似，只是panic产生的<code>msg</code>不同。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> o: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = <span class="literal">Some</span>(<span class="built_in">String</span>::from(<span class="string">&quot;unwrap() moves the Option&#x27;s value&quot;</span>));</span><br><span class="line"><span class="keyword">let</span> s = o.unwrap(); <span class="comment">//moved</span></span><br><span class="line"><span class="built_in">println!</span>(<span class="string">&quot;&#123;&#125;&quot;</span>, s);</span><br><span class="line"><span class="comment">//println!(&quot;&#123;:?&#125;&quot;, o);   //value borrowed here after move</span></span><br></pre></td></tr></table></figure>
+
+<p>输出：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">unwrap() moves the Option&#39;s value</span><br></pre></td></tr></table></figure>
+
+<h2 id="unwrap-or"><a href="#unwrap-or" class="headerlink" title="unwrap_or()"></a><code>unwrap_or()</code></h2><p>如果本<code>Option</code>是<code>Some</code>，就把值<strong>move</strong>出来；否则返回<code>default</code>。注意：<code>default</code>会被<strong>eagerly evaluated</strong>，也就是说，无论本<code>Option</code>是<code>Some</code>还是<code>None</code>，<code>default</code>都先被求值。下面的<code>unwrap_or_else</code>与之相反。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">get_string</span></span>() -&gt; <span class="built_in">String</span> &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;get_string() is called&quot;</span>);</span><br><span class="line">    <span class="built_in">String</span>::from(<span class="string">&quot;world&quot;</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> o: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = <span class="literal">Some</span>(<span class="built_in">String</span>::from(</span><br><span class="line">    <span class="string">&quot;unwrap_or() moves the Option&#x27;s value, and the default expression is eagerly evaluated&quot;</span>,</span><br><span class="line">));</span><br><span class="line"><span class="keyword">let</span> s = o.unwrap_or(get_string()); <span class="comment">//moved, eagerly evaluated</span></span><br><span class="line"><span class="built_in">println!</span>(<span class="string">&quot;&#123;&#125;&quot;</span>, s);</span><br><span class="line"><span class="comment">//println!(&quot;&#123;:?&#125;&quot;, o);   //value borrowed here after move</span></span><br></pre></td></tr></table></figure>
+
+<p>输出：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">get_string() is called</span><br><span class="line">unwrap_or() moves the Option&#39;s value, and the default expression is eagerly evaluated</span><br></pre></td></tr></table></figure>
+
+<h2 id="unwrap-or-else"><a href="#unwrap-or-else" class="headerlink" title="unwrap_or_else()"></a><code>unwrap_or_else()</code></h2><p>如果本<code>Option</code>是<code>Some</code>，就把值<strong>move</strong>出来；否则返回<code>f()</code>。注意：<code>f()</code>会被<strong>lazily evaluated</strong>，也就是说，当且仅当本<code>Option</code>是一个<code>None</code>时<code>f()</code>才被求值。上面的<code>unwrap_or</code>与之相反。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> o: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = <span class="literal">Some</span>(<span class="built_in">String</span>::from(</span><br><span class="line">    <span class="string">&quot;unwrap_or_else() moves the Option&#x27;s value, and the default expression is lazily evaluated&quot;</span>,</span><br><span class="line">));</span><br><span class="line"><span class="keyword">let</span> s = o.unwrap_or_else(|| &#123;   <span class="comment">//moved, lazily evaluated</span></span><br><span class="line">    <span class="built_in">panic!</span>(<span class="string">&quot;closure called&quot;</span>);</span><br><span class="line">    <span class="built_in">String</span>::from(<span class="string">&quot;world&quot;</span>)</span><br><span class="line">&#125;);</span><br><span class="line"><span class="built_in">println!</span>(<span class="string">&quot;&#123;&#125;&quot;</span>, s);</span><br><span class="line"><span class="comment">//println!(&quot;&#123;:?&#125;&quot;, o);   //value borrowed here after move</span></span><br></pre></td></tr></table></figure>
+
+<p>输出：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">unwrap_or_else() moves the Option&#39;s value, and the default expression is lazily evaluated</span><br></pre></td></tr></table></figure>
+
+<h2 id="map"><a href="#map" class="headerlink" title="map()"></a><code>map()</code></h2><p>通过一个函数<code>f(T)-&gt;U</code>把本<code>Option&lt;T&gt;</code>转化成<code>Option&lt;U&gt;</code>（**而不是<code>U</code>**）；若本<code>Option</code>为<code>None</code>，则返回<code>None</code>而不panic；</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> o: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = <span class="literal">Some</span>(<span class="built_in">String</span>::from(<span class="string">&quot;map() moves the Option&#x27;s value&quot;</span>));</span><br><span class="line"><span class="keyword">let</span> s: <span class="built_in">Option</span>&lt;<span class="built_in">usize</span>&gt; = o.map(|<span class="built_in">str</span>| &#123; <span class="comment">//moved</span></span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;&#123;&#125;&quot;</span>, <span class="built_in">str</span>);</span><br><span class="line">    <span class="built_in">str</span>.len()</span><br><span class="line">&#125;);</span><br><span class="line"><span class="built_in">println!</span>(<span class="string">&quot;&#123;:?&#125;&quot;</span>, s);</span><br><span class="line"><span class="comment">//println!(&quot;&#123;:?&#125;&quot;, o);   //value borrowed here after move</span></span><br></pre></td></tr></table></figure>
+
+<p>输出：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">map() moves the Option&#39;s value</span><br><span class="line">Some(30)</span><br></pre></td></tr></table></figure>
+
+<h2 id="map-or"><a href="#map-or" class="headerlink" title="map_or()"></a><code>map_or()</code></h2><p>通过一个函数<code>f(T)-&gt;U</code>把本<code>Option&lt;T&gt;</code>转化成<code>U</code>（<strong>而不是<code>Option&lt;U&gt;</code>**）；若本<code>Option</code>为<code>None</code>，则返回<code>default</code>。注意：<code>default</code>会被</strong>eagerly evaluated**，也就是说，无论是本<code>Option</code>是<code>Some</code>还是<code>None</code>，<code>default</code>都先被求值。下面的<code>map_or_else</code>与之相反。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">get_usize</span></span>() -&gt; <span class="built_in">usize</span> &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;get_usize() is called&quot;</span>);</span><br><span class="line">    <span class="number">123</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> o: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = <span class="literal">Some</span>(<span class="built_in">String</span>::from(</span><br><span class="line">    <span class="string">&quot;map_or() moves the Option&#x27;s value, and the default expression is eagerly evaluated&quot;</span>,</span><br><span class="line">));</span><br><span class="line"><span class="keyword">let</span> s: <span class="built_in">usize</span> = o.map_or(get_usize(), |<span class="built_in">str</span>| &#123;  <span class="comment">//moved</span></span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;&#123;&#125;&quot;</span>, <span class="built_in">str</span>);</span><br><span class="line">    <span class="built_in">str</span>.len()</span><br><span class="line">&#125;);</span><br><span class="line"><span class="built_in">println!</span>(<span class="string">&quot;&#123;:?&#125;&quot;</span>, s);</span><br><span class="line"><span class="comment">//println!(&quot;&#123;:?&#125;&quot;, o);   //value borrowed here after move</span></span><br></pre></td></tr></table></figure>
+
+<p>输出：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">get_usize() is called</span><br><span class="line">map_or() moves the Option&#39;s value, and the default expression is eagerly evaluated</span><br><span class="line">82</span><br></pre></td></tr></table></figure>
+
+<h2 id="map-or-else"><a href="#map-or-else" class="headerlink" title="map_or_else()"></a><code>map_or_else()</code></h2><p>通过一个函数<code>f(T)-&gt;U</code>把本<code>Option&lt;T&gt;</code>转化成<code>U</code>（<strong>而不是<code>Option&lt;U&gt;</code>**）；若本<code>Option</code>为<code>None</code>，则返回<code>default</code>。注意：<code>default</code>会被</strong>lazily evaluated**，也就是说，当且仅当本<code>Option</code>是一个<code>None</code>时<code>default</code>才被求值。上面的<code>map_or</code>与之相反。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> o: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = <span class="literal">Some</span>(<span class="built_in">String</span>::from(</span><br><span class="line">    <span class="string">&quot;map_or_else() moves the Option&#x27;s value, and the default expression is lazily evaluated&quot;</span>,</span><br><span class="line">));</span><br><span class="line"><span class="keyword">let</span> s: <span class="built_in">usize</span> = o.map_or_else(</span><br><span class="line">    || &#123;</span><br><span class="line">        <span class="built_in">panic!</span>(<span class="string">&quot;closure called&quot;</span>);</span><br><span class="line">        <span class="number">321</span></span><br><span class="line">    &#125;,</span><br><span class="line">    |<span class="built_in">str</span>| &#123;</span><br><span class="line">        <span class="built_in">println!</span>(<span class="string">&quot;&#123;&#125;&quot;</span>, <span class="built_in">str</span>);</span><br><span class="line">        <span class="built_in">str</span>.len()</span><br><span class="line">    &#125;,</span><br><span class="line">);</span><br><span class="line"><span class="built_in">println!</span>(<span class="string">&quot;&#123;:?&#125;&quot;</span>, s);</span><br><span class="line"><span class="comment">//println!(&quot;&#123;:?&#125;&quot;, o);   //value borrowed here after move</span></span><br></pre></td></tr></table></figure>
+
+<p>输出：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">map_or_else() moves the Option&#39;s value, and the default expression is lazily evaluated</span><br><span class="line">86</span><br></pre></td></tr></table></figure>
+
+<h2 id="ok-or"><a href="#ok-or" class="headerlink" title="ok_or()"></a><code>ok_or()</code></h2><p>把本<code>Option&lt;T&gt;</code>转化成<code>Result&lt;T, E&gt;</code>：若为<code>Some(v)</code>则结果为<code>Ok(v)</code>；若为<code>None</code>则结果为<code>Err(err)</code>。注意：<code>err</code>会被<strong>eagerly evaluated</strong>，也就是说，无论本<code>Option</code>是<code>Some</code>还是<code>None</code>，<code>err</code>都先被求值。下面的<code>ok_or_else</code>与之相反。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">get_usize</span></span>() -&gt; <span class="built_in">usize</span> &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;get_usize() is called&quot;</span>);</span><br><span class="line">    <span class="number">123</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> o: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = <span class="literal">Some</span>(<span class="built_in">String</span>::from(<span class="string">&quot;ok_or() moves the Option&#x27;s value, and the error expression is eagerly evaluated&quot;</span>));</span><br><span class="line"><span class="keyword">let</span> r: <span class="built_in">Result</span>&lt;<span class="built_in">String</span>, <span class="built_in">usize</span>&gt; = o.ok_or(get_usize());</span><br><span class="line"><span class="built_in">println!</span>(<span class="string">&quot;&#123;:?&#125;&quot;</span>, r);</span><br><span class="line"><span class="comment">//println!(&quot;&#123;:?&#125;&quot;, o); //value borrowed here after move</span></span><br></pre></td></tr></table></figure>
+
+<p>输出：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">get_usize() is called</span><br><span class="line">Ok(&quot;ok_or() moves the Option\&#39;s value, and the error expression is eagerly evaluated&quot;)</span><br></pre></td></tr></table></figure>
+
+<h2 id="ok-or-else"><a href="#ok-or-else" class="headerlink" title="ok_or_else()"></a><code>ok_or_else()</code></h2><p>把本<code>Option&lt;T&gt;</code>转化成<code>Result&lt;T, E&gt;</code>：若为<code>Some(v)</code>则结果为<code>Ok(v)</code>；若为<code>None</code>则结果为<code>Err(err)</code>。注意：<code>err</code>会被<strong>lazily evaluated</strong>，也就是说，当且仅当本<code>Option</code>是一个<code>None</code>时<code>err</code>才被求值。上面的<code>ok_or</code>与之相反。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> o: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = <span class="literal">Some</span>(<span class="built_in">String</span>::from(<span class="string">&quot;ok_or_else() moves the Option&#x27;s value, and the error expression is lazily evaluated&quot;</span>));</span><br><span class="line"><span class="keyword">let</span> r: <span class="built_in">Result</span>&lt;<span class="built_in">String</span>, <span class="built_in">usize</span>&gt; = o.ok_or_else(||&#123;</span><br><span class="line">    <span class="built_in">panic!</span>(<span class="string">&quot;closure called&quot;</span>);</span><br><span class="line">    <span class="number">123</span></span><br><span class="line">&#125;);</span><br><span class="line"><span class="built_in">println!</span>(<span class="string">&quot;&#123;:?&#125;&quot;</span>, r);</span><br><span class="line"><span class="comment">//println!(&quot;&#123;:?&#125;&quot;, o); //value borrowed here after move</span></span><br></pre></td></tr></table></figure>
+
+<p>输出：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Ok(&quot;ok_or_else() moves the Option\&#39;s value, and the error expression is lazily evaluated&quot;)</span><br></pre></td></tr></table></figure>
+
+<h2 id="and"><a href="#and" class="headerlink" title="and()"></a><code>and()</code></h2><p>若本<code>Option</code>是<code>Some</code>则返回参数给定的<code>optb</code>；否则，本<code>Option</code>为<code>None</code>，返回<code>None</code>。注意：<code>optb</code>会被<strong>eagerly evaluated</strong>，也就是说，无论本<code>Option</code>是<code>Some</code>还是<code>None</code>，<code>optb</code>都先被求值。下面的<code>and_then</code>与之相反。</p>
+<p>可以理解成：<code>*this &amp;&amp; optb</code>，二者若有一个为<code>None</code>则结果就是<code>None</code>，且逻辑表达式求值时<strong>不短路</strong>，即无论<code>*this</code>的结果是<code>true</code>还是<code>false</code>都要对<code>optb</code>求值。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">get_option</span></span>() -&gt; <span class="built_in">Option</span>&lt;<span class="built_in">usize</span>&gt; &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;get_option() is called&quot;</span>);</span><br><span class="line">    <span class="literal">Some</span>(<span class="number">123</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">let</span> o: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = <span class="literal">Some</span>(<span class="built_in">String</span>::from(<span class="string">&quot;and() moves the Option&#x27;s value, and the expression is eagerly evaluated&quot;</span>));</span><br><span class="line">    <span class="keyword">let</span> u: <span class="built_in">Option</span>&lt;<span class="built_in">usize</span>&gt; = o.and(get_option());</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;&#123;:?&#125;&quot;</span>, u);</span><br><span class="line">    <span class="comment">//println!(&quot;&#123;:?&#125;&quot;, o); //value borrowed here after move</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">let</span> o: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = <span class="literal">None</span>;</span><br><span class="line">    <span class="keyword">let</span> u: <span class="built_in">Option</span>&lt;<span class="built_in">usize</span>&gt; = o.and(get_option());</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;&#123;:?&#125;&quot;</span>, u);</span><br><span class="line">    <span class="comment">//println!(&quot;&#123;:?&#125;&quot;, o); //value borrowed here after move</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>输出：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">get_option() is called</span><br><span class="line">Some(123)</span><br><span class="line">get_option() is called</span><br><span class="line">None</span><br></pre></td></tr></table></figure>
+
+<h2 id="and-then"><a href="#and-then" class="headerlink" title="and_then()"></a><code>and_then()</code></h2><p>若本<code>Option</code>是<code>Some(v)</code>则返回参数给定的<code>f(v)</code>；否则，本<code>Option</code>为<code>None</code>，返回<code>None</code>。注意：<code>f()</code>会被<strong>lazily evaluated</strong>，也就是说，当且仅当本<code>Option</code>是一个<code>Some</code>时<code>f()</code>才被求值。上面的<code>and</code>与之相反。</p>
+<p>可以理解成：<code>*this &amp;&amp; f()</code>，二者若有一个为<code>None</code>则结果就是<code>None</code>，且逻辑表达式求值时<strong>会短路</strong>，即若<code>*this</code>为<code>false</code>，则不调用<code>f()</code>，直接返回；</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    <span class="keyword">let</span> o: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = <span class="literal">Some</span>(<span class="built_in">String</span>::from(<span class="string">&quot;and_then() moves the Option&#x27;s value&quot;</span>));</span><br><span class="line">    <span class="keyword">let</span> u: <span class="built_in">Option</span>&lt;<span class="built_in">usize</span>&gt; = o.and_then(|<span class="built_in">str</span>|&#123;</span><br><span class="line">        <span class="literal">Some</span>(<span class="built_in">str</span>.len())</span><br><span class="line">    &#125;);</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;&#123;:?&#125;&quot;</span>, u);</span><br><span class="line">    <span class="comment">//println!(&quot;&#123;:?&#125;&quot;, o); //value borrowed here after move</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">let</span> o: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = <span class="literal">None</span>;</span><br><span class="line">    <span class="keyword">let</span> u: <span class="built_in">Option</span>&lt;<span class="built_in">usize</span>&gt; = o.and_then(|<span class="built_in">str</span>|&#123;</span><br><span class="line">        <span class="built_in">panic!</span>(<span class="string">&quot;closure called&quot;</span>);</span><br><span class="line">        <span class="literal">Some</span>(<span class="built_in">str</span>.len())</span><br><span class="line">    &#125;);</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;&#123;:?&#125;&quot;</span>, u);</span><br><span class="line">    <span class="comment">//println!(&quot;&#123;:?&#125;&quot;, o); //value borrowed here after move</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>输出：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Some(35)</span><br><span class="line">None</span><br></pre></td></tr></table></figure>
+
+<h2 id="or"><a href="#or" class="headerlink" title="or()"></a><code>or()</code></h2><p>若本<code>Option</code>是<code>Some</code>则返回本<code>Option</code>；否则，返回参数给定的<code>optb</code>。注意：<code>optb</code>会被<strong>eagerly evaluated</strong>，也就是说，无论本<code>Option</code>是<code>Some</code>还是<code>None</code>，<code>optb</code>都先被求值。下面的<code>or_else</code>与之相反。</p>
+<p>可以理解成：<code>*this || optb</code>，二者若有一个为<code>Some</code>则结果就是<code>Some</code>，且逻辑表达式求值时<strong>不短路</strong>，即无论<code>*this</code>的结果是<code>true</code>还是<code>false</code>都要对<code>optb</code>求值。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">get_str_option</span></span>() -&gt; <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;get_str_option() is called&quot;</span>);</span><br><span class="line">    <span class="literal">Some</span>(<span class="built_in">String</span>::from(<span class="string">&quot;world&quot;</span>))</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">let</span> o: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = <span class="literal">Some</span>(<span class="built_in">String</span>::from(<span class="string">&quot;or() moves the Option&#x27;s value, and the expression is eagerly evaluated&quot;</span>));</span><br><span class="line">    <span class="keyword">let</span> u: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = o.or(get_str_option());</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;&#123;:?&#125;&quot;</span>, u);</span><br><span class="line">    <span class="comment">//println!(&quot;&#123;:?&#125;&quot;, o); //value borrowed here after move</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">let</span> o: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = <span class="literal">None</span>;</span><br><span class="line">    <span class="keyword">let</span> u: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = o.or(get_str_option());</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;&#123;:?&#125;&quot;</span>, u);</span><br><span class="line">    <span class="comment">//println!(&quot;&#123;:?&#125;&quot;, o); //value borrowed here after move</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>输出：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">get_str_option() is called</span><br><span class="line">Some(&quot;or() moves the Option\&#39;s value, and the expression is eagerly evaluated&quot;)</span><br><span class="line">get_str_option() is called</span><br><span class="line">Some(&quot;world&quot;)</span><br></pre></td></tr></table></figure>
+
+<h2 id="or-else"><a href="#or-else" class="headerlink" title="or_else()"></a><code>or_else()</code></h2><p>若本<code>Option</code>是<code>Some</code>则返回本<code>Option</code>；否则，返回参数给定的<code>f()</code>。注意：<code>f()</code>会被<strong>lazily evaluated</strong>，也就是说，当且仅当本<code>Option</code>是一个<code>None</code>时<code>f()</code>才被求值。上面的<code>or</code>与之相反。</p>
+<p>可以理解成：<code>*this || f()</code>，二者若有一个为<code>Some</code>则结果就是<code>Some</code>，且逻辑表达式求值时<strong>会短路</strong>，即若<code>*this</code>为<code>true</code>，则不调用<code>f()</code>，直接返回；</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    <span class="keyword">let</span> o: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = <span class="literal">Some</span>(<span class="built_in">String</span>::from(<span class="string">&quot;or_else() moves the Option&#x27;s value, and the expression is lazily evaluated&quot;</span>));</span><br><span class="line">    <span class="keyword">let</span> u: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = o.or_else(||&#123;</span><br><span class="line">        <span class="built_in">panic!</span>(<span class="string">&quot;closure is called&quot;</span>);</span><br><span class="line">        <span class="literal">Some</span>(<span class="built_in">String</span>::from(<span class="string">&quot;world&quot;</span>))</span><br><span class="line">    &#125;);</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;&#123;:?&#125;&quot;</span>, u);</span><br><span class="line">    <span class="comment">//println!(&quot;&#123;:?&#125;&quot;, o); //value borrowed here after move</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">let</span> o: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = <span class="literal">None</span>;</span><br><span class="line">    <span class="keyword">let</span> u: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = o.or_else(||&#123;</span><br><span class="line">        <span class="literal">Some</span>(<span class="built_in">String</span>::from(<span class="string">&quot;world&quot;</span>))</span><br><span class="line">    &#125;);</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;&#123;:?&#125;&quot;</span>, u);</span><br><span class="line">    <span class="comment">//println!(&quot;&#123;:?&#125;&quot;, o); //value borrowed here after move</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>输出：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Some(&quot;or_else() moves the Option\&#39;s value, and the expression is lazily evaluated&quot;)</span><br><span class="line">Some(&quot;world&quot;)</span><br></pre></td></tr></table></figure>
+
+<h2 id="xor"><a href="#xor" class="headerlink" title="xor()"></a><code>xor()</code></h2><p>当且仅当本<code>Option</code>和参数<code>optb</code>二者之中有一个<code>Some</code>，才返回这个<code>Some</code>；否则返回<code>None</code>。注意，<code>optb</code>一定会被求值，因为只有求值才知道它是<code>Some</code>还是<code>None</code>。</p>
+<p>可以理解成：<code>*this ^ optb</code>。</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">fn</span> <span class="title">get_str_option</span></span>() -&gt; <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; &#123;</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;get_str_option() is called&quot;</span>);</span><br><span class="line">    <span class="literal">Some</span>(<span class="built_in">String</span>::from(<span class="string">&quot;world&quot;</span>))</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">let</span> o: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = <span class="literal">Some</span>(<span class="built_in">String</span>::from(<span class="string">&quot;xor() moves the Option&#x27;s value&quot;</span>));</span><br><span class="line">    <span class="keyword">let</span> u: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = o.xor(get_str_option());</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;&#123;:?&#125;&quot;</span>, u);</span><br><span class="line">    <span class="comment">//println!(&quot;&#123;:?&#125;&quot;, o); //value borrowed here after move</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">let</span> o: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = <span class="literal">None</span>;</span><br><span class="line">    <span class="keyword">let</span> u: <span class="built_in">Option</span>&lt;<span class="built_in">String</span>&gt; = o.xor(get_str_option());</span><br><span class="line">    <span class="built_in">println!</span>(<span class="string">&quot;&#123;:?&#125;&quot;</span>, u);</span><br><span class="line">    <span class="comment">//println!(&quot;&#123;:?&#125;&quot;, o); //value borrowed here after move</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>输出：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">get_str_option() is called</span><br><span class="line">None</span><br><span class="line">get_str_option() is called</span><br><span class="line">Some(&quot;world&quot;)</span><br></pre></td></tr></table></figure>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/rust/" rel="tag"># rust</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/02/14/tikv-batch-system/" rel="prev" title="TiKV的BatchSystem">
+      <i class="fa fa-chevron-left"></i> TiKV的BatchSystem
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/03/24/linux-read-ahead/" rel="next" title="Linux read ahead">
+      Linux read ahead <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%88%86%E7%B1%BB"><span class="nav-number">1.</span> <span class="nav-text">分类</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#unwrap%E7%B3%BB%E5%88%97"><span class="nav-number">1.1.</span> <span class="nav-text">unwrap系列</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#map%E7%B3%BB%E5%88%97"><span class="nav-number">1.2.</span> <span class="nav-text">map系列</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ok%E7%B3%BB%E5%88%97"><span class="nav-number">1.3.</span> <span class="nav-text">ok系列</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%80%BB%E8%BE%91%E8%BF%90%E7%AE%97%E7%B3%BB%E5%88%97"><span class="nav-number">1.4.</span> <span class="nav-text">逻辑运算系列</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%BB%86%E8%8A%82"><span class="nav-number">2.</span> <span class="nav-text">细节</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#expect"><span class="nav-number">2.1.</span> <span class="nav-text">expect()</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#unwrap"><span class="nav-number">2.2.</span> <span class="nav-text">unwrap()</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#unwrap-or"><span class="nav-number">2.3.</span> <span class="nav-text">unwrap_or()</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#unwrap-or-else"><span class="nav-number">2.4.</span> <span class="nav-text">unwrap_or_else()</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#map"><span class="nav-number">2.5.</span> <span class="nav-text">map()</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#map-or"><span class="nav-number">2.6.</span> <span class="nav-text">map_or()</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#map-or-else"><span class="nav-number">2.7.</span> <span class="nav-text">map_or_else()</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ok-or"><span class="nav-number">2.8.</span> <span class="nav-text">ok_or()</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ok-or-else"><span class="nav-number">2.9.</span> <span class="nav-text">ok_or_else()</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#and"><span class="nav-number">2.10.</span> <span class="nav-text">and()</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#and-then"><span class="nav-number">2.11.</span> <span class="nav-text">and_then()</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#or"><span class="nav-number">2.12.</span> <span class="nav-text">or()</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#or-else"><span class="nav-number">2.13.</span> <span class="nav-text">or_else()</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#xor"><span class="nav-number">2.14.</span> <span class="nav-text">xor()</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

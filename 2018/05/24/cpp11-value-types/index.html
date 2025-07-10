@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="本文介绍了C++11引入的值的类型：lvalue, xvalue, prvalue, glvalue, rvalue，以及如何划分。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="C++11中的值的类型">
+<meta property="og:url" content="http://yoursite.com/2018/05/24/cpp11-value-types/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="本文介绍了C++11引入的值的类型：lvalue, xvalue, prvalue, glvalue, rvalue，以及如何划分。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2018-05-24T11:45:11.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.489Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="move">
+<meta property="article:tag" content="lvalue">
+<meta property="article:tag" content="xvalue">
+<meta property="article:tag" content="prvalue">
+<meta property="article:tag" content="glvalue">
+<meta property="article:tag" content="rvalue">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2018/05/24/cpp11-value-types/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>C++11中的值的类型 | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/24/cpp11-value-types/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          C++11中的值的类型
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2018-05-24 11:45:11" itemprop="dateCreated datePublished" datetime="2018-05-24T11:45:11+00:00">2018-05-24</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/c/" itemprop="url" rel="index"><span itemprop="name">c++</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2018/05/24/cpp11-value-types/" class="post-meta-item leancloud_visitors" data-flag-title="C++11中的值的类型" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2018/05/24/cpp11-value-types/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2018/05/24/cpp11-value-types/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>本文介绍了C++11引入的值的类型：lvalue, xvalue, prvalue, glvalue, rvalue，以及如何划分。</p>
+<a id="more"></a>
+
+<h1 id="C-11之前-1"><a href="#C-11之前-1" class="headerlink" title="C++11之前 (1)"></a>C++11之前 (1)</h1><p>在C++11之前，左值右值（lvalue和rvalue）的概念已经流淌在C/C++人的血液之中。如何划分左值右值呢？有的书上通过列举的方式，把所有左值右值列出来。但一个更容易的规则：</p>
+<ul>
+<li>一个表达式，如果能对它进行&amp;运算(取地址)，则它是左值；</li>
+<li>一个表达式，若果它是左值的引用(T&amp;或者const T&amp;)，则它是左值；</li>
+<li>否则，它是右值;</li>
+</ul>
+<p>这样：</p>
+<ul>
+<li>每一个值，都能被定性为左值或者右值（覆盖所有）；</li>
+<li>一个值，若为左值，它就不是右值；若是右值，它就不是左值（没有交集）；</li>
+</ul>
+<p>也就是说，左值右值，既能覆盖所有值，又不存在交集。这样的分类还是比较理想的。但C++11把事情搞的复杂了。</p>
+<h1 id="C-11之后-2"><a href="#C-11之后-2" class="headerlink" title="C++11之后 (2)"></a>C++11之后 (2)</h1><h2 id="五种类型-2-1"><a href="#五种类型-2-1" class="headerlink" title="五种类型 (2.1)"></a>五种类型 (2.1)</h2><p>C++11出现了以下五个名词：</p>
+<ul>
+<li>lvalue</li>
+<li>xvalue</li>
+<li>prvalue</li>
+<li>glvalue</li>
+<li>rvalue</li>
+</ul>
+<p>简直傻傻分不清楚。看看它们的定义（个人认为还是不清楚，所以就不翻译了）：</p>
+<ul>
+<li>An lvalue (so called, historically, because lvalues could appear on the left-hand side of an assignment expression) designates a function or an object. [ Example: If E is an expression of pointer type, then *E is an lvalue expression referring to the object or function to which E points. As another example, the result of calling a function whose return type is an lvalue reference is an lvalue. —end example ]</li>
+<li>An xvalue (an “eXpiring” value) also refers to an object, usually near the end of its lifetime (so that its resources may be moved, for example). An xvalue is the result of certain kinds of expressions involving rvalue references (8.3.2). [ Example: The result of calling a function whose return type is an rvalue reference is an xvalue. —end example ]</li>
+<li>A glvalue (“generalized” lvalue) is an lvalue or an xvalue.</li>
+<li>An rvalue (so called, historically, because rvalues could appear on the right-hand side of an assignment expressions) is an xvalue, a temporary object (12.2) or subobject thereof, or a value that is not associated with an object.</li>
+<li>A prvalue (“pure” rvalue) is an rvalue that is not an xvalue. [ Example: The result of calling a function whose return type is not a reference is a prvalue. The value of a literal such as 12, 7.3e5, or true is also a prvalue. —end example ]</li>
+</ul>
+<h2 id="如何区分-2-2"><a href="#如何区分-2-2" class="headerlink" title="如何区分 (2.2)"></a>如何区分 (2.2)</h2><p>那如何分清它们呢？其实一个变量只有两个独立的属性：</p>
+<ul>
+<li>是否有身份：是否占用一定的内存，程序员可以判断两个值是否就是同一个。比如局部变量有身份，而临时变量没有身份。</li>
+<li>是否可移动：自己的资源允许被move。关于move语义，见<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2018/05/24/cpp11-std-move/">C++11的std::move</a>。</li>
+</ul>
+<p>这样就可以分成4类：</p>
+<ol>
+<li>有身份，不可以移动；</li>
+<li>有身份，可以移动；</li>
+<li>没有身份，可以移动；</li>
+<li>没有身份，不可以移动；</li>
+</ol>
+<p>但是，第4类是没有意义的(因为没有身份，一定可以移动)。所以，就剩3类：</p>
+<ol>
+<li>有身份，不可以移动；</li>
+<li>有身份，可以移动；</li>
+<li>没有身份，可以移动；</li>
+</ol>
+<p>如何给它们命名呢？</p>
+<ul>
+<li>前两个，<strong>接近于</strong>左值，因为有身份； </li>
+<li>后两个，<strong>接近于</strong>右值，因为可移动；</li>
+</ul>
+<p>但是，之前说过，C++11之前，左值右值的分类已经深入人心，并且：</p>
+<ul>
+<li>每一个值，都能被定性为左值或者右值（覆盖所有）。 </li>
+<li>一个值，若为左值，它就不是右值；若是右值，它就不是左值（没有交集）。</li>
+</ul>
+<p>所以，命名的时候，还必须保留这一性质。</p>
+<ul>
+<li>由于标准库中，rvalue这一词是指可移动，所以，后2和3加在一起应该叫rvalue。</li>
+<li>左值和右值没有交集，并且要覆盖所有，所以，1应该叫lvalue。</li>
+<li>1和2加在一起，都有身份，<strong>接近于</strong>左值，叫做generalized lvalue，简称glvalue。</li>
+<li>3没有身份，比如字面量，临时变量，是一类rvalue，并且是非常纯粹的右值，叫做pure rvalue，简称prvalue。</li>
+<li>好了，就剩2了，它有身份，又可以被move，叫做将亡值(eXpiring value)，简称xvalue。</li>
+</ul>
+<p>总结来说，基础类型只有3类：</p>
+<ul>
+<li>有身份不可以移动：lvalue，例如局部变量，全局变量，函数参数等；</li>
+<li>有身份可以移动：xvalue，见下文；</li>
+<li>没有身份可以移动：prvalue，例如字面量，临时对象；</li>
+</ul>
+<p>基于这3种基础类型，又衍生出来两种：</p>
+<ul>
+<li>1+2 = glvalue </li>
+<li>2+3 = rvalue</li>
+</ul>
+<p>真是够烦的。所幸，这个分类里，lvalue和rvalue和C++11之前还能保持一致，能进行&amp;（取值运算）的是左值，否则为右值。并且，它们全覆盖，且没交集。还有，我们又多了一个理解rvalue的角度：可移动。</p>
+<p>总结一下(非常重要)：</p>
+<ul>
+<li><strong>C++11之前的lvalue = C++11之后的lvalue；</strong></li>
+<li><strong>C++11之前的rvalue = C++11之后的prvalue；</strong></li>
+<li><strong>C++11之前没有xvalue；</strong></li>
+</ul>
+<p>那么哪些是xvalue呢？</p>
+<h2 id="列举xvalue-2-3"><a href="#列举xvalue-2-3" class="headerlink" title="列举xvalue (2.3)"></a>列举xvalue (2.3)</h2><ul>
+<li><p>Case1: 对右值引用函数的调用</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">std</span>::move(x);</span><br><span class="line">func(); <span class="comment">//func的声明：Foo&amp;&amp; func();</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p>Case2: 把一个左值强制转换为右值引用.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static_cast</span>&lt;Foo&amp;&amp;&gt;(x);</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>Case3: xvalue的成员</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">std::move(x).m_data;</span><br><span class="line">func().m_data;  &#x2F;&#x2F;func的声明：Foo&amp;&amp; func();</span><br><span class="line">static_cast&lt;Foo&amp;&amp;&gt;(x).m_data;</span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<p>可见，Case1和Case2是等价的，std::move()就是通过static_cast实现的。它们都是把一个左值(有身份)变得可移动，得到一个<strong>有身份且可移动</strong>的值。Case3得到的也是<strong>有身份</strong>(因为它所属对象有身份)<strong>且可移动</strong>(因为它所属对象可移动)的值。<strong>有身份且可移动的值</strong>就是xvalue。</p>
+<p>记住，只有这些是xvalue；C++11之前，右值引用都不存在，更别提xvalue了；</p>
+<p>另外，再重复一遍，下例中<code>std::move(x)</code>是xvalue，但<code>f</code>是<strong>右值引用类型的左值</strong>，不是右值，更不是xvalue————它们的区别是，前者没有名字，后者有名字。详见<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2018/05/25/cpp11-rvalue-ref/">C++11中的右值引用</a>。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Foo&amp;&amp; f = <span class="built_in">std</span>::move(x);</span><br></pre></td></tr></table></figure>
+
+<h1 id="小结-3"><a href="#小结-3" class="headerlink" title="小结 (3)"></a>小结 (3)</h1><p>本文介绍了如何区分C++11引入的五中值的类型。并且列举了xvalue。</p>
+<p>参考：<a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/3601602/what-are-rvalues-lvalues-xvalues-glvalues-and-prvalues">https://stackoverflow.com/questions/3601602/what-are-rvalues-lvalues-xvalues-glvalues-and-prvalues</a></p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/move/" rel="tag"># move</a>
+              <a href="/tags/lvalue/" rel="tag"># lvalue</a>
+              <a href="/tags/xvalue/" rel="tag"># xvalue</a>
+              <a href="/tags/prvalue/" rel="tag"># prvalue</a>
+              <a href="/tags/glvalue/" rel="tag"># glvalue</a>
+              <a href="/tags/rvalue/" rel="tag"># rvalue</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2018/05/24/cpp11-std-move/" rel="prev" title="C++11的std::move">
+      <i class="fa fa-chevron-left"></i> C++11的std::move
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2018/05/25/cpp11-rvalue-ref/" rel="next" title="C++11中的右值引用">
+      C++11中的右值引用 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#C-11%E4%B9%8B%E5%89%8D-1"><span class="nav-number">1.</span> <span class="nav-text">C++11之前 (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#C-11%E4%B9%8B%E5%90%8E-2"><span class="nav-number">2.</span> <span class="nav-text">C++11之后 (2)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%94%E7%A7%8D%E7%B1%BB%E5%9E%8B-2-1"><span class="nav-number">2.1.</span> <span class="nav-text">五种类型 (2.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E5%8C%BA%E5%88%86-2-2"><span class="nav-number">2.2.</span> <span class="nav-text">如何区分 (2.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%97%E4%B8%BExvalue-2-3"><span class="nav-number">2.3.</span> <span class="nav-text">列举xvalue (2.3)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93-3"><span class="nav-number">3.</span> <span class="nav-text">小结 (3)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

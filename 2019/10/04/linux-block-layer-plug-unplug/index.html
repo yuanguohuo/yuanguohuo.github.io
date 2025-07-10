@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="Block层的请求在device的queue里会发生reorder与merge以提高效率，然而，在进入device的queue之前也会做同样的努力，这就是plug机制。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="block layer的plug">
+<meta property="og:url" content="http://yoursite.com/2019/10/04/linux-block-layer-plug-unplug/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="Block层的请求在device的queue里会发生reorder与merge以提高效率，然而，在进入device的queue之前也会做同样的努力，这就是plug机制。">
+<meta property="og:locale">
+<meta property="og:image" content="http://yoursite.com/2019/10/04/linux-block-layer-plug-unplug/plug-unplug.jpg">
+<meta property="article:published_time" content="2019-10-04T23:29:09.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.514Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="block">
+<meta property="article:tag" content="kernel">
+<meta property="article:tag" content="io">
+<meta property="article:tag" content="plug">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2019/10/04/linux-block-layer-plug-unplug/plug-unplug.jpg">
+
+<link rel="canonical" href="http://yoursite.com/2019/10/04/linux-block-layer-plug-unplug/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>block layer的plug | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/10/04/linux-block-layer-plug-unplug/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          block layer的plug
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2019-10-04 23:29:09" itemprop="dateCreated datePublished" datetime="2019-10-04T23:29:09+00:00">2019-10-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2019/10/04/linux-block-layer-plug-unplug/" class="post-meta-item leancloud_visitors" data-flag-title="block layer的plug" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2019/10/04/linux-block-layer-plug-unplug/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2019/10/04/linux-block-layer-plug-unplug/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>Block层的请求在device的queue里会发生reorder与merge以提高效率，然而，在进入device的queue之前也会做同样的努力，这就是plug机制。</p>
+<a id="more"></a>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+
+<script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+<h1 id="增大merge的机会-1"><a href="#增大merge的机会-1" class="headerlink" title="增大merge的机会 (1)"></a>增大merge的机会 (1)</h1><p>通常，减小per-request开销（例如HDD的寻道时间）的有效方式是merge：把几个小的request合并成一个连续的、大的request。每个device都会有一个（对于single-queue而言）queue；IO scheduler在这个queue上做各种reorder和merge，以提高效率。这里的merge有一些缺点：</p>
+<ul>
+<li>当device比较快，或者device虽然不快但比较闲，那么merge的机会就会比较小。这不是大问题，虽然从整体上看device的效率不高，但是能满足请求；</li>
+<li>device的queue需要lock来保证一致性，这在多CPU的情况下会增大竞争开销；</li>
+</ul>
+<p>Linux 2.6.39之前也有plug机制，但它是在device的queue上进行的，所以只能解决第一点。Linux 2.6.39引入per-process的plug机制。本文讨论的是后者，所引用的代码来自linux 3.19.8。</p>
+<h1 id="per-process-plug-2"><a href="#per-process-plug-2" class="headerlink" title="per-process plug (2)"></a>per-process plug (2)</h1><p>文件系统（或者block device的其它客户端）提交一批请求之前：</p>
+<ul>
+<li>调用<code>blk_start_plug()</code>在<code>task_struct</code>上安装一个list；</li>
+<li>多次调用<code>generic_make_request()</code>提交这一批请求；请求在list中reorder与merge；</li>
+<li>调用<code>blk_finish_plug()</code>把list中的合并得到的大请求flush到device的queue；调用<code>schedule()</code>也会触发这样的flush；</li>
+</ul>
+<p>下图简单的表示了这个过程，其中<code>mq_list</code>用于multi-queue（blk-mq），<code>cb_list</code>用于md，暂时忽略，只看<code>list</code>。</p>
+<img src="/2019/10/04/linux-block-layer-plug-unplug/plug-unplug.jpg" class="" title="plug and unplug">
+
+<p>在<code>task_struct</code>中维护这个list有一个好处：进程在调用<code>blk_start_plug()</code>和<code>blk_finish_plug()</code>之间若发生block，即调用<code>schedule()</code>，可以在block住之前<strong>方便地</strong>找到pending的请求（就在<code>task_struct</code>的list中），并flush它们。在进程block之前flush掉pending的请求非常重要：</p>
+<ul>
+<li>提高性能：IO请求不会被delay到block之后；</li>
+<li>避免死锁：比如，进程block就是为了等待pending的请求；再如，进程block是为了分配内存，进而需要reclaim，而reclaim又要等待pending的请求占用的内存页。这些情况下，block之前若不把pending的请求发下去就会死锁。</li>
+</ul>
+<h2 id="开始plug-2-1"><a href="#开始plug-2-1" class="headerlink" title="开始plug (2.1)"></a>开始plug (2.1)</h2><p>代码引自linux 3.19.8:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">blk_start_plug</span><span class="params">(struct blk_plug *plug)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">task_struct</span> *<span class="title">tsk</span> = <span class="title">current</span>;</span></span><br><span class="line"></span><br><span class="line">    INIT_LIST_HEAD(&amp;plug-&gt;<span class="built_in">list</span>);</span><br><span class="line">    INIT_LIST_HEAD(&amp;plug-&gt;mq_list);</span><br><span class="line">    INIT_LIST_HEAD(&amp;plug-&gt;cb_list);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">     * If this is a nested plug, don&#x27;t actually assign it. It will be</span></span><br><span class="line"><span class="comment">     * flushed on its own.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">if</span> (!tsk-&gt;plug) &#123;</span><br><span class="line">        <span class="comment">/*</span></span><br><span class="line"><span class="comment">         * Store ordering should not be needed here, since a potential</span></span><br><span class="line"><span class="comment">         * preempt will imply a full memory barrier</span></span><br><span class="line"><span class="comment">         */</span></span><br><span class="line">        tsk-&gt;plug = plug;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>blk_start_plug()</code>非常简单，把一个<code>struct blk_plug</code>对象安装到<code>struct task_struct</code>中。另外从代码上看，plug还可以嵌套的（注意只有最底层的<code>plug</code>才会安装到<code>struct task_struct</code>）：</p>
+<ul>
+<li>调用<code>blk_start_plug(plug1)</code></li>
+<li>提交请求req1，req1被pending在plug1上；</li>
+<li>调用<code>blk_start_plug(plug2)</code></li>
+<li>提交请求req2，req2被pending在plug2上；</li>
+<li>调用<code>blk_finish_plug(plug2)</code> flush pending在plug2上的req2；</li>
+<li>提交请求req3，req3被pending在plug1上；</li>
+<li>调用<code>blk_finish_plug(plug1)</code> flush pending在plug1上的req1和req3；</li>
+</ul>
+<h2 id="pending请求-2-2"><a href="#pending请求-2-2" class="headerlink" title="pending请求 (2.2)"></a>pending请求 (2.2)</h2><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">generic_make_request(bio)</span><br><span class="line">    make_request_fn  (以blk_queue_bio为例)</span><br><span class="line">        blk_queue_bio</span><br><span class="line">            blk_attempt_plug_merge <span class="comment">//尝试merge到plug中，成功则返回</span></span><br><span class="line">            <span class="comment">//尝试失败</span></span><br><span class="line">            <span class="comment">//尝试合并到device的queue，成功则返回</span></span><br><span class="line">            <span class="comment">//尝试失败</span></span><br><span class="line">            <span class="comment">//为bio生成一个struct request实例req</span></span><br><span class="line">            plug = current-&gt;plug;</span><br><span class="line">            <span class="keyword">if</span> (plug) &#123; <span class="comment">//client安装了plug</span></span><br><span class="line">                <span class="keyword">if</span> (!request_count)  <span class="comment">//plug中没有任何请求，此为第一个，blktrace中生成&#x27;P(plug)&#x27;事件</span></span><br><span class="line">                  trace_block_plug(q);</span><br><span class="line">                <span class="keyword">else</span> &#123;</span><br><span class="line">                  <span class="keyword">if</span> (request_count &gt;= BLK_MAX_REQUEST_COUNT) &#123; <span class="comment">//plug中有足够多的请求，结束它，重新开始；</span></span><br><span class="line">                    blk_flush_plug_list(plug, <span class="literal">false</span>);</span><br><span class="line">                    trace_block_plug(q);</span><br><span class="line">                  &#125;</span><br><span class="line">                &#125;</span><br><span class="line">                </span><br><span class="line">                list_add_tail(&amp;req-&gt;queuelist, &amp;plug-&gt;<span class="built_in">list</span>); <span class="comment">//把req放入plug中；</span></span><br><span class="line">            &#125;</span><br><span class="line">            <span class="comment">//......</span></span><br></pre></td></tr></table></figure>
+
+<p>两点值得注意一下：</p>
+<ul>
+<li>当plug中pending的请求数到达<code>BLK_MAX_REQUEST_COUNT</code>（默认是16）时，就会触发flush；然后重新开始新一轮的plug；</li>
+<li>plug开始和结束（即flush）的时候，分别生成<code>P(plug)</code>和<code>U(unplug)</code>事件。见<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2019/08/28/linux-blktrace/">blktrace</a>.</li>
+</ul>
+<h2 id="结束plug-2-3"><a href="#结束plug-2-3" class="headerlink" title="结束plug (2.3)"></a>结束plug (2.3)</h2><p>结束plug时，会flush掉pending的请求。如前所述，大致有3个flush时机（没有找到timeout导致的flush，per-process的plug机制没有这种方式？）：</p>
+<ul>
+<li>文件系统（或者block device的其它客户端）显式地调用<code>blk_finish_plug()</code>；</li>
+<li>pending的请求数到达<code>BLK_MAX_REQUEST_COUNT</code>；</li>
+<li>进程block，即调用<code>schedule()</code>；</li>
+</ul>
+<p>其中第2种前面已经展示。<code>blk_finish_plug()</code>代码如下（linux 3.19.8）：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">blk_finish_plug</span><span class="params">(struct blk_plug *plug)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  blk_flush_plug_list(plug, <span class="literal">false</span>);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (plug == current-&gt;plug)</span><br><span class="line">    current-&gt;plug = <span class="literal">NULL</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>schedule()</code>在block之前（<code>__schedule()</code>）的调用关系是这样的：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">asmlinkage __visible <span class="keyword">void</span> __sched <span class="title">schedule</span><span class="params">(<span class="keyword">void</span>)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">task_struct</span> *<span class="title">tsk</span> = <span class="title">current</span>;</span></span><br><span class="line"></span><br><span class="line">  sched_submit_work(tsk);</span><br><span class="line">      blk_schedule_flush_plug(tsk);    </span><br><span class="line">          blk_flush_plug_list(plug, <span class="literal">true</span>);</span><br><span class="line"></span><br><span class="line">  __schedule();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可见，flush是由<code>blk_flush_plug_list()</code>函数完成的，其中第2个参数表明flush是不是schedule触发的，若是，则以异步的方式处理pending的请求。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">blk_flush_plug_list</span><span class="params">(struct blk_plug *plug, <span class="keyword">bool</span> from_schedule)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">request_queue</span> *<span class="title">q</span>;</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> flags;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">request</span> *<span class="title">rq</span>;</span></span><br><span class="line">    LIST_HEAD(<span class="built_in">list</span>);</span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">int</span> depth;</span><br><span class="line"></span><br><span class="line">    flush_plug_callbacks(plug, from_schedule);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!list_empty(&amp;plug-&gt;mq_list))   <span class="comment">//对于multi-queue, plug-&gt;mq_list不为空</span></span><br><span class="line">        blk_mq_flush_plug_list(plug, from_schedule);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//核心是flush plug-&gt;list中的请求</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">//若plug-&gt;list中无请求，则返回</span></span><br><span class="line">    <span class="keyword">if</span> (list_empty(&amp;plug-&gt;<span class="built_in">list</span>))</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//把pending的请求拷贝到临时变量，并sort</span></span><br><span class="line">    list_splice_init(&amp;plug-&gt;<span class="built_in">list</span>, &amp;<span class="built_in">list</span>);</span><br><span class="line"></span><br><span class="line">    list_sort(<span class="literal">NULL</span>, &amp;<span class="built_in">list</span>, plug_rq_cmp);</span><br><span class="line"></span><br><span class="line">    q = <span class="literal">NULL</span>;</span><br><span class="line">    depth = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">     * Save and disable interrupts here, to avoid doing it for every</span></span><br><span class="line"><span class="comment">     * queue lock we have to take.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    local_irq_save(flags);</span><br><span class="line">    <span class="keyword">while</span> (!list_empty(&amp;<span class="built_in">list</span>)) &#123;</span><br><span class="line">        rq = list_entry_rq(<span class="built_in">list</span>.next);</span><br><span class="line">        list_del_init(&amp;rq-&gt;queuelist);</span><br><span class="line">        BUG_ON(!rq-&gt;q);</span><br><span class="line">        <span class="keyword">if</span> (rq-&gt;q != q) &#123;</span><br><span class="line">            <span class="comment">//不考虑第一次进入循环q为NULL的情况，这时，已经把一些请求</span></span><br><span class="line">            <span class="comment">//插入q(device的queue)中了，而下一个pending的请求不属于这</span></span><br><span class="line">            <span class="comment">//个device(因为queue不同)，就运行(见queue_unplugged)这个</span></span><br><span class="line">            <span class="comment">//device的queue；</span></span><br><span class="line"></span><br><span class="line">            <span class="comment">/*</span></span><br><span class="line"><span class="comment">             * This drops the queue lock</span></span><br><span class="line"><span class="comment">             */</span></span><br><span class="line">            <span class="keyword">if</span> (q)</span><br><span class="line">                queue_unplugged(q, depth, from_schedule);</span><br><span class="line">            q = rq-&gt;q;</span><br><span class="line">            depth = <span class="number">0</span>;</span><br><span class="line">            spin_lock(q-&gt;queue_lock);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">/*</span></span><br><span class="line"><span class="comment">         * Short-circuit if @q is dead</span></span><br><span class="line"><span class="comment">         */</span></span><br><span class="line">        <span class="keyword">if</span> (unlikely(blk_queue_dying(q))) &#123;</span><br><span class="line">            __blk_end_request_all(rq, -ENODEV);</span><br><span class="line">            <span class="keyword">continue</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">//把请求插入device的queue</span></span><br><span class="line">        <span class="comment">/*</span></span><br><span class="line"><span class="comment">         * rq is already accounted, so use raw insert</span></span><br><span class="line"><span class="comment">         */</span></span><br><span class="line">        <span class="keyword">if</span> (rq-&gt;cmd_flags &amp; (REQ_FLUSH | REQ_FUA))</span><br><span class="line">            __elv_add_request(q, rq, ELEVATOR_INSERT_FLUSH);</span><br><span class="line">        <span class="keyword">else</span></span><br><span class="line">            __elv_add_request(q, rq, ELEVATOR_INSERT_SORT_MERGE);</span><br><span class="line"></span><br><span class="line">        depth++;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//最后一个device的queue，在前面while循环中没有运行，这里运行它；</span></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">     * This drops the queue lock</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">if</span> (q)</span><br><span class="line">        queue_unplugged(q, depth, from_schedule);</span><br><span class="line"></span><br><span class="line">    local_irq_restore(flags);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>运行device的queue的代码如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">queue_unplugged</span><span class="params">(struct request_queue *q, <span class="keyword">unsigned</span> <span class="keyword">int</span> depth,</span></span></span><br><span class="line"><span class="function"><span class="params">          <span class="keyword">bool</span> from_schedule)</span></span></span><br><span class="line"><span class="function">  __<span class="title">releases</span><span class="params">(q-&gt;queue_lock)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="comment">//blktrace的&#x27;U(unplug)&#x27;事件</span></span><br><span class="line">  trace_block_unplug(q, depth, !from_schedule);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (from_schedule)</span><br><span class="line">    blk_run_queue_async(q);  <span class="comment">//flush来自于schedule，异步运行</span></span><br><span class="line">  <span class="keyword">else</span></span><br><span class="line">    __blk_run_queue(q);      <span class="comment">//flush不是来自于schedule，同步运行</span></span><br><span class="line">  spin_unlock(q-&gt;queue_lock);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里运行queue就是调用queue的<code>request_fn()</code>函数来处理queue中的请求。<code>request_fn</code>是一个函数指针，指向driver的请求处理函数，对scsi driver而言，就是<code>scsi_request_fn</code>。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/block/" rel="tag"># block</a>
+              <a href="/tags/kernel/" rel="tag"># kernel</a>
+              <a href="/tags/io/" rel="tag"># io</a>
+              <a href="/tags/plug/" rel="tag"># plug</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/10/04/linux-block-layer-avoid-recursion/" rel="prev" title="避免block device stack中的递归">
+      <i class="fa fa-chevron-left"></i> 避免block device stack中的递归
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/01/13/rust-pattern-match/" rel="next" title="Rust的pattern match">
+      Rust的pattern match <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%A2%9E%E5%A4%A7merge%E7%9A%84%E6%9C%BA%E4%BC%9A-1"><span class="nav-number">1.</span> <span class="nav-text">增大merge的机会 (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#per-process-plug-2"><span class="nav-number">2.</span> <span class="nav-text">per-process plug (2)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%80%E5%A7%8Bplug-2-1"><span class="nav-number">2.1.</span> <span class="nav-text">开始plug (2.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#pending%E8%AF%B7%E6%B1%82-2-2"><span class="nav-number">2.2.</span> <span class="nav-text">pending请求 (2.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BB%93%E6%9D%9Fplug-2-3"><span class="nav-number">2.3.</span> <span class="nav-text">结束plug (2.3)</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="NFS-Ganesha对接CephFS时iops很低，记录排查过程。Ceph版本14.2.11；NFS-Ganesha版本2.8.4。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="NFS-Ganesha对接CephFS时iops很低">
+<meta property="og:url" content="http://yoursite.com/2024/07/17/ganesha-on-cephfs-low-iops/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="NFS-Ganesha对接CephFS时iops很低，记录排查过程。Ceph版本14.2.11；NFS-Ganesha版本2.8.4。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2024-07-17T17:01:33.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.501Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="ganesha">
+<meta property="article:tag" content="nfs">
+<meta property="article:tag" content="cephfs">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2024/07/17/ganesha-on-cephfs-low-iops/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>NFS-Ganesha对接CephFS时iops很低 | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2024/07/17/ganesha-on-cephfs-low-iops/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          NFS-Ganesha对接CephFS时iops很低
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2024-07-17 17:01:33" itemprop="dateCreated datePublished" datetime="2024-07-17T17:01:33+00:00">2024-07-17</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/nas/" itemprop="url" rel="index"><span itemprop="name">nas</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2024/07/17/ganesha-on-cephfs-low-iops/" class="post-meta-item leancloud_visitors" data-flag-title="NFS-Ganesha对接CephFS时iops很低" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/07/17/ganesha-on-cephfs-low-iops/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/07/17/ganesha-on-cephfs-low-iops/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>NFS-Ganesha对接CephFS时iops很低，记录排查过程。Ceph版本14.2.11；NFS-Ganesha版本2.8.4。</p>
+<a id="more"></a>
+
+<h1 id="现象-1"><a href="#现象-1" class="headerlink" title="现象 (1)"></a>现象 (1)</h1><p>Nfs-ganesha对接cephfs。使用两种挂载方式(fuse和nfsv4)，分别压测:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">[global]</span><br><span class="line">    ioengine&#x3D;libaio</span><br><span class="line">    buffered&#x3D;0</span><br><span class="line">    direct&#x3D;1</span><br><span class="line">    iodepth&#x3D;128</span><br><span class="line">    rw&#x3D;randwrite</span><br><span class="line">    bs&#x3D;4k</span><br><span class="line">    numjobs&#x3D;1</span><br><span class="line">    thread</span><br><span class="line">    size&#x3D;300G</span><br><span class="line">    runtime&#x3D;120</span><br><span class="line"></span><br><span class="line">[file1]</span><br><span class="line">    filename&#x3D;&#x2F;mnt&#x2F;test&#x2F;testfile.empty102</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>ceph-fuse: iops=1500</li>
+<li>nfsv4: iops=955</li>
+</ul>
+<h1 id="排查-2"><a href="#排查-2" class="headerlink" title="排查 (2)"></a>排查 (2)</h1><h2 id="pool的状态-ceph-osd-pool-stats"><a href="#pool的状态-ceph-osd-pool-stats" class="headerlink" title="pool的状态(ceph osd pool stats)"></a>pool的状态(<code>ceph osd pool stats</code>)</h2><pre><code>- fuse压测时，cephfs data pool的写带宽6MiB/s；metadata pool几乎没有写(1.6K，或者nothing is going on)；
+- nfsv4压测时，cephfs data pool的写带宽3.8MiB/s；metadata pool的写带宽1.9MiB/s；</code></pre>
+<p>注意到data pool写带宽(3.8)是metadata pool写带宽(1.9)的2倍；设置<code>bs=512k</code>，重新压测nfsv4发现data pool的写带宽是metadata pool的256倍；设置<code>bs=1024k</code>，data pool的写带宽是metadata pool的512倍，以此类推。</p>
+<h2 id="OSD日志"><a href="#OSD日志" class="headerlink" title="OSD日志"></a>OSD日志</h2><p>鉴于上面data pool和metadata pool写带宽的比例关系，猜测：nfsv4压测时，假如data pool和metadata pool的iops是1:1的话，那么metadata pool的io-size应该是2K左右。<br>所以，统计所有OSD的日志，grep包含<code>&#39; lat &#39;</code>的行(级别为15)，然后按pool分类，再相加，发现总数基本一样，相差不超过1%。也就是说：<strong>data pool和metadata pool的iops确实是1:1</strong>。并且metadata pool的io-size是1930字节左右，接近2K。</p>
+<h2 id="MDS-perf统计"><a href="#MDS-perf统计" class="headerlink" title="MDS perf统计"></a>MDS perf统计</h2><p>nfs压测前：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ceph daemon  &#x2F;var&#x2F;run&#x2F;ceph&#x2F;mds.&#123;name&#125;.asok perf reset all</span><br></pre></td></tr></table></figure>
+
+<p>nfs压测后：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ceph daemon  &#x2F;var&#x2F;run&#x2F;ceph&#x2F;mds.&#123;name&#125;.asok perf dump</span><br></pre></td></tr></table></figure>
+
+<p>发现MDS基本没有什么写操作，<strong>可以排除attr修改的可能</strong>。</p>
+<h2 id="MDS日志"><a href="#MDS日志" class="headerlink" title="MDS日志"></a>MDS日志</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">5 mds.0.log _submit_thread 154413621245~1910 : EUpdate cap update [metablob 0x1, 2 dirs]</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>fuse压测：<code>_submit_thread</code>日志只有38行。</li>
+<li>nfsv4压测：<code>_submit_thread</code>日志有114243行，除以压测时间120秒，得每秒952行，和iops基本一致。再次证明：<strong>data pool和metadata pool的iops是1:1，每进行一次数据写，MDS都会写一次journal，大小1910字节，接近2K</strong>。</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">mds.0.locker handle_client_caps  on 0x1000000002e tid 1097259 follows 1 op update flags 0x1</span><br><span class="line">...</span><br><span class="line">mds.0.locker _do_cap_update dirty Fw issued pAsxLsXsxFsxcrwb wanted pAsxXsxFsxcrwb on [inode 0x1000000002e [2,head] &#x2F;perf-test-13&#x2F;testfile.empty102</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+
+<p>这个日志出现的次数和<code>_submit_thread</code>基本一样。</p>
+<h2 id="设置mds-log-pause"><a href="#设置mds-log-pause" class="headerlink" title="设置mds_log_pause"></a>设置<code>mds_log_pause</code></h2><p>可以通过<code>mds_log_pause</code>命令MDS是否写journal:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ceph daemon &#x2F;var&#x2F;run&#x2F;ceph&#x2F;mds.&#123;name&#125;.asok config set mds_log_pause &#123;true or false&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>nfsv4压测：设置true，fio的iops立即跌到0，设置false，iops立即增长，可反复验证。</li>
+<li>fuse压测：设置为true，fio压测可以继续。</li>
+</ul>
+<p>再次说明：<strong>nfsv4压测时，每进行一次数据写，MDS都会写一次journal，不让写journal就不能正常写文件。data pool和metadata pool的iops是1:1</strong></p>
+<h2 id="dump-journal-events"><a href="#dump-journal-events" class="headerlink" title="dump journal events"></a>dump journal events</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">cephfs-journal-tool --rank&#x3D;&lt;fs&gt;:&lt;rank&gt; event get list &gt; journal.events</span><br><span class="line"></span><br><span class="line">tail journal.events</span><br><span class="line"></span><br><span class="line">2024-07-16 11:49:02.641177 0x24357f3b04 UPDATE:  (cap update)</span><br><span class="line">  testfile.empty102</span><br><span class="line">2024-07-16 11:49:02.643862 0x24357f4170 UPDATE:  (cap update)</span><br><span class="line">  testfile.empty102</span><br><span class="line">2024-07-16 11:49:20.385734 0x24357f47dc UPDATE:  (cap update)</span><br><span class="line">  testfile.empty102</span><br><span class="line">2024-07-16 11:49:35.607546 0x24357f4e22 SESSION:  ()</span><br><span class="line">2024-07-16 11:49:35.618058 0x24357f4fe8 SESSION:  ()</span><br><span class="line">2024-07-16 11:50:02.584154 0x24357f5067 SESSION:  ()</span><br><span class="line">2024-07-16 11:50:02.595054 0x24357f522d SESSION:  ()</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>nfsv4压测：压测时间段内，有非常多的<code>UPDATE:  (cap update)</code>，因为list截断了统计不完全，也有92640之多；总共应该也是114243。</li>
+<li>fuse压测：只有几十行<code>UPDATE:  (cap update)</code>。</li>
+</ul>
+<p>所以至此可以断定：<strong>nfsv4 iops低就是频繁flush journal导致的；而journal event就是cap update</strong>。</p>
+<h2 id="cap-update处理流程"><a href="#cap-update处理流程" class="headerlink" title="cap update处理流程"></a>cap update处理流程</h2><p>Cephfs的客户端(nfs-ganesha)发来capability update (<code>CEPH_CAP_OP_UPDATE</code>)请求。</p>
+<ul>
+<li>生成EUpdate并放入<code>MDLog::pending_events</code> (代码摘自ceph-14.2.11 mds)</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">void Locker::dispatch(const Message::const_ref &amp;m) --&gt;</span><br><span class="line">void Locker::handle_client_caps(const MClientCaps::const_ref &amp;m) --&gt;</span><br><span class="line"><span class="keyword">bool</span> Locker::_do_cap_update(CInode *in, Capability *cap, </span><br><span class="line">                            <span class="keyword">int</span> dirty, <span class="keyword">snapid_t</span> follows,</span><br><span class="line">                            <span class="keyword">const</span> MClientCaps::const_ref &amp;m, <span class="keyword">const</span> MClientCaps::ref &amp;ack,</span><br><span class="line">                            <span class="keyword">bool</span> *need_flush)  --&gt;</span><br><span class="line">&#123;</span><br><span class="line">    <span class="comment">// ......</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// do the update.</span></span><br><span class="line">    EUpdate *le = <span class="keyword">new</span> EUpdate(mds-&gt;mdlog, <span class="string">&quot;cap update&quot;</span>);</span><br><span class="line">    mds-&gt;mdlog-&gt;start_entry(le);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ......</span></span><br><span class="line"></span><br><span class="line">    mds-&gt;mdlog-&gt;submit_entry(le, <span class="keyword">new</span> C_Locker_FileUpdate_finish(<span class="keyword">this</span>, in, mut, update_flags,</span><br><span class="line">                                                                ack, client));</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>处理EUpdate：生成journal entry，并flush到journal，journal是存在metadata pool上的 (代码摘自ceph-14.2.11 mds)</li>
+</ul>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> MDLog::_submit_thread()</span><br><span class="line">&#123;</span><br><span class="line">  <span class="keyword">while</span> (!mds-&gt;is_daemon_stopping()) &#123;</span><br><span class="line">      <span class="comment">// ......</span></span><br><span class="line"></span><br><span class="line">      <span class="built_in">map</span>&lt;<span class="keyword">uint64_t</span>,<span class="built_in">list</span>&lt;PendingEvent&gt; &gt;::iterator it = pending_events.begin();</span><br><span class="line"></span><br><span class="line">      <span class="comment">// ......</span></span><br><span class="line"></span><br><span class="line">      PendingEvent data = it-&gt;second.front();</span><br><span class="line"></span><br><span class="line">      <span class="comment">// ......</span></span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (data.le) &#123;</span><br><span class="line">        LogEvent *le = data.le;</span><br><span class="line">        LogSegment *ls = le-&gt;_segment;</span><br><span class="line">        <span class="comment">// encode it, with event type</span></span><br><span class="line">        bufferlist bl;</span><br><span class="line">        le-&gt;encode_with_header(bl, features);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">uint64_t</span> write_pos = journaler-&gt;get_write_pos();</span><br><span class="line"></span><br><span class="line">        le-&gt;set_start_off(write_pos);</span><br><span class="line">        <span class="keyword">if</span> (le-&gt;get_type() == EVENT_SUBTREEMAP)</span><br><span class="line">          ls-&gt;offset = write_pos;</span><br><span class="line"></span><br><span class="line">        dout(<span class="number">5</span>) &lt;&lt; <span class="string">&quot;_submit_thread &quot;</span> &lt;&lt; write_pos &lt;&lt; <span class="string">&quot;~&quot;</span> &lt;&lt; bl.length()</span><br><span class="line">                &lt;&lt; <span class="string">&quot; : &quot;</span> &lt;&lt; *le &lt;&lt; dendl;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// journal it.</span></span><br><span class="line">        <span class="keyword">const</span> <span class="keyword">uint64_t</span> new_write_pos = journaler-&gt;append_entry(bl);  <span class="comment">// bl is destroyed.</span></span><br><span class="line">        ls-&gt;end = new_write_pos;</span><br><span class="line"></span><br><span class="line">        MDSLogContextBase *fin;</span><br><span class="line">        <span class="keyword">if</span> (data.fin) &#123;</span><br><span class="line">          fin = <span class="keyword">dynamic_cast</span>&lt;MDSLogContextBase*&gt;(data.fin);</span><br><span class="line">          ceph_assert(fin);</span><br><span class="line">          fin-&gt;set_write_pos(new_write_pos);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">          fin = <span class="keyword">new</span> C_MDL_Flushed(<span class="keyword">this</span>, new_write_pos);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        journaler-&gt;wait_for_flush(fin);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (data.flush)</span><br><span class="line">          journaler-&gt;flush();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (logger)</span><br><span class="line">          logger-&gt;<span class="built_in">set</span>(l_mdl_wrpos, ls-&gt;end);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">delete</span> le;</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// ......</span></span><br><span class="line"></span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// ......</span></span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="谁发的capability-update-CEPH-CAP-OP-UPDATE-请求"><a href="#谁发的capability-update-CEPH-CAP-OP-UPDATE-请求" class="headerlink" title="谁发的capability update (CEPH_CAP_OP_UPDATE)请求"></a>谁发的capability update (<code>CEPH_CAP_OP_UPDATE</code>)请求</h2><p>打开nfs-ganesha端的libcephfs的日志(ceph.conf里设置<code>debug_client=20</code>)，可以看到：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">2024-07-16 19:22:07.468 7f0b003e8700 10 client.230209841 get_caps 0x10000000031.head(...) have pAsxLsXsxFsxcrwb need AsFw want Fb revoking -</span><br><span class="line">2024-07-16 19:22:07.468 7f0b003e8700 10 client.230209841  snaprealm snaprealm(0x1 nref&#x3D;3 c&#x3D;0 seq&#x3D;1 parent&#x3D;0x0 my_snaps&#x3D;[] cached_snapc&#x3D;1&#x3D;[])</span><br><span class="line">2024-07-16 19:22:07.468 7f0b003e8700  7 client.230209841 wrote to 4674625536, leaving file size at 23498956800</span><br><span class="line">2024-07-16 19:22:07.468 7f0b003e8700 10 mark_caps_dirty 0x10000000031.head(...) - -&gt; Fw</span><br><span class="line">2024-07-16 19:22:07.468 7f0b003e8700  3 client.230209841 ll_write 0x7f0b0ce62cc0 4674621440~4096 &#x3D; 4096</span><br><span class="line">2024-07-16 19:22:07.468 7f0b003e8700  3 client.230209841 ll_fsync 0x7f0b0ce62cc0 0x10000000031</span><br><span class="line">2024-07-16 19:22:07.468 7f0b003e8700  8 client.230209841 _fsync(0x7f0b0ce62cc0, data+metadata)</span><br><span class="line">2024-07-16 19:22:07.468 7f0b003e8700  8 client.230209841 _fsync on 0x10000000031.head(...) (data+metadata)</span><br><span class="line">2024-07-16 19:22:07.468 7f0b003e8700 15 inode.get on 0x7f0b14457f00 0x10000000031.head now 11</span><br><span class="line">2024-07-16 19:22:07.468 7f0b003e8700 10 client.230209841 _flush 0x10000000031.head(...)</span><br><span class="line">2024-07-16 19:22:07.468 7f0b003e8700 15 client.230209841 using return-valued form of _fsync</span><br><span class="line">2024-07-16 19:22:07.468 7f0b003e8700 10 client.230209841 check_caps on 0x10000000031.head(...) wanted pAsxXsxFsxcrwb used Fcb issued pAsxLsXsxFsxcrwb revoking - flags&#x3D;3</span><br><span class="line">2024-07-16 19:22:07.468 7f0b003e8700 10 client.230209841  cap mds.0 issued pAsxLsXsxFsxcrwb implemented pAsxLsXsxFsxcrwb revoking -</span><br><span class="line">2024-07-16 19:22:07.468 7f0b003e8700 10 client.230209841 mark_caps_flushing (more) Fw 0x10000000031.head(...)</span><br><span class="line">2024-07-16 19:22:07.468 7f0b003e8700 10 mark_caps_clean 0x10000000031.head(...)</span><br><span class="line">2024-07-16 19:22:07.468 7f0b003e8700 10 client.230209841 send_cap 0x10000000031.head(...) mds.0 seq 2 used Fcb want pAsxXsxFsxcrwb flush Fw retain pAsxLsxXsxFsxcrwbl held pAsxLsXsxFsxcrwb revoking - dropping -</span><br><span class="line">2024-07-16 19:22:07.468 7f0b003e8700 15 client.230209841 auth cap, requesting max_size 320360443904</span><br><span class="line">2024-07-16 19:22:07.468 7f0b003e8700 15 client.230209841 waiting on data to flush</span><br></pre></td></tr></table></figure>
+
+<p>从log可知，<code>ceph_ll_fsync()</code>的参数<code>syncdataonly=false</code>，因为要sync <code>data+metadata</code>。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="keyword">int</span> Client::_fsync(Inode *in, <span class="keyword">bool</span> syncdataonly)</span><br><span class="line">&#123;</span><br><span class="line">  <span class="comment">// ......</span></span><br><span class="line"></span><br><span class="line">  ldout(cct, <span class="number">8</span>) &lt;&lt; <span class="string">&quot;_fsync on &quot;</span> &lt;&lt; *in &lt;&lt; <span class="string">&quot; &quot;</span> &lt;&lt; (syncdataonly ? <span class="string">&quot;(dataonly)&quot;</span>:<span class="string">&quot;(data+metadata)&quot;</span>) &lt;&lt; dendl;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (!syncdataonly &amp;&amp; in-&gt;dirty_caps) &#123;</span><br><span class="line">    check_caps(in, CHECK_CAPS_NODELAY|CHECK_CAPS_SYNCHRONOUS);</span><br><span class="line">    <span class="keyword">if</span> (in-&gt;flushing_caps)</span><br><span class="line">      flush_tid = last_flush_tid;</span><br><span class="line">  &#125; <span class="keyword">else</span> ldout(cct, <span class="number">10</span>) &lt;&lt; <span class="string">&quot;no metadata needs to commit&quot;</span> &lt;&lt; dendl;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// ......</span></span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>可见<code>syncdataonly=false</code>，会调用<code>check_caps</code>:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">void Client::check_caps(Inode *in, unsigned flags) --&gt;</span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">Client::send_cap</span><span class="params">(Inode *in, MetaSession *session, Cap *cap,</span></span></span><br><span class="line"><span class="function"><span class="params">                      <span class="keyword">int</span> flags, <span class="keyword">int</span> used, <span class="keyword">int</span> want, <span class="keyword">int</span> retain,</span></span></span><br><span class="line"><span class="function"><span class="params">                      <span class="keyword">int</span> flush, <span class="keyword">ceph_tid_t</span> flush_tid)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">int</span> op = CEPH_CAP_OP_UPDATE;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ......</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">auto</span> m = MClientCaps::create(op,</span><br><span class="line">                                     in-&gt;ino,</span><br><span class="line">                                     <span class="number">0</span>,</span><br><span class="line">                                     cap-&gt;cap_id, cap-&gt;seq,</span><br><span class="line">                                     cap-&gt;implemented,</span><br><span class="line">                                     want,</span><br><span class="line">                                     flush,</span><br><span class="line">                                     cap-&gt;mseq,</span><br><span class="line">                                     cap_epoch_barrier);</span><br><span class="line">    <span class="comment">// ......</span></span><br><span class="line"></span><br><span class="line">    session-&gt;con-&gt;send_message2(<span class="built_in">std</span>::move(m));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="根因-3"><a href="#根因-3" class="headerlink" title="根因 (3)"></a>根因 (3)</h1><p>所以，根因是ganesha调用libcephfs的<code>ceph_ll_fsync</code>时传入<code>syncdataonly=false</code>。尝试通过fio的<code>fsync</code>和<code>fdatasync</code>选项来控制这个参数，也不起作用。而ceph-fuse是可以通过这两个选项控制的。具体对比：</p>
+<table>
+<thead>
+<tr>
+<th>fio选项</th>
+<th>nfs-ganesha</th>
+<th>ceph-fuse</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>–direct=1</td>
+<td>sync data+metadata</td>
+<td>no sync</td>
+</tr>
+<tr>
+<td>–direct=1 –fsync=1</td>
+<td>sync data+metadata</td>
+<td>sync data+metadata</td>
+</tr>
+<tr>
+<td>–direct=1 –fdatasync=1</td>
+<td>sync data+metadata</td>
+<td>sync data-only</td>
+</tr>
+</tbody></table>
+<p>并且，ceph-fuse在<code>--direct=1 --fsync=1</code>时(也要sync data+metadata)，表现的和nfsv4一模一样：metadata pool上有很大的带宽，iops很低…</p>
+<p>看ganesha的代码发现，所有对<code>ceph_ll_fsync</code>的调用参数<code>syncdataonly</code>都为false。暴力修改src/FSAL/FSAL_CEPH/handle.c中<code>ceph_fsal_write2()</code>函数中的调用参数为true，iops就会达到ceph-fuse的水平，并且metadata pool上没有带宽。问题是这么修改安全吗？</p>
+<h1 id="下一步-4"><a href="#下一步-4" class="headerlink" title="下一步 (4)"></a>下一步 (4)</h1><ul>
+<li>评估上述修改是否安全；</li>
+<li>看ceph-fuse是如何支持fdatasync的；</li>
+<li>libcephfs给mds发capability update请求，mds的perf统计中为什么体现不出来？</li>
+<li>capability update为什么有1900多字节之多？</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/ganesha/" rel="tag"># ganesha</a>
+              <a href="/tags/nfs/" rel="tag"># nfs</a>
+              <a href="/tags/cephfs/" rel="tag"># cephfs</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2024/07/02/ceph-rgw-cross-bucket-copy-problem/" rel="prev" title="Ceph-RGW跨Bucket拷贝引发OSD耗尽内存">
+      <i class="fa fa-chevron-left"></i> Ceph-RGW跨Bucket拷贝引发OSD耗尽内存
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/07/17/ganesha-code-reading/" rel="next" title="NFS-Ganesha代码阅读笔记">
+      NFS-Ganesha代码阅读笔记 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%8E%B0%E8%B1%A1-1"><span class="nav-number">1.</span> <span class="nav-text">现象 (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%8E%92%E6%9F%A5-2"><span class="nav-number">2.</span> <span class="nav-text">排查 (2)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#pool%E7%9A%84%E7%8A%B6%E6%80%81-ceph-osd-pool-stats"><span class="nav-number">2.1.</span> <span class="nav-text">pool的状态(ceph osd pool stats)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#OSD%E6%97%A5%E5%BF%97"><span class="nav-number">2.2.</span> <span class="nav-text">OSD日志</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#MDS-perf%E7%BB%9F%E8%AE%A1"><span class="nav-number">2.3.</span> <span class="nav-text">MDS perf统计</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#MDS%E6%97%A5%E5%BF%97"><span class="nav-number">2.4.</span> <span class="nav-text">MDS日志</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BE%E7%BD%AEmds-log-pause"><span class="nav-number">2.5.</span> <span class="nav-text">设置mds_log_pause</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#dump-journal-events"><span class="nav-number">2.6.</span> <span class="nav-text">dump journal events</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#cap-update%E5%A4%84%E7%90%86%E6%B5%81%E7%A8%8B"><span class="nav-number">2.7.</span> <span class="nav-text">cap update处理流程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%B0%81%E5%8F%91%E7%9A%84capability-update-CEPH-CAP-OP-UPDATE-%E8%AF%B7%E6%B1%82"><span class="nav-number">2.8.</span> <span class="nav-text">谁发的capability update (CEPH_CAP_OP_UPDATE)请求</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%A0%B9%E5%9B%A0-3"><span class="nav-number">3.</span> <span class="nav-text">根因 (3)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%B8%8B%E4%B8%80%E6%AD%A5-4"><span class="nav-number">4.</span> <span class="nav-text">下一步 (4)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

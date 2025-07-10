@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="详细介绍eBPF的实现原理。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Linux eBPF BCC">
+<meta property="og:url" content="http://yoursite.com/2024/02/01/bcc-ebpf/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="详细介绍eBPF的实现原理。">
+<meta property="og:locale">
+<meta property="og:image" content="http://yoursite.com/2024/02/01/bcc-ebpf/Brendan-Gregg-eBPF.png">
+<meta property="og:image" content="http://yoursite.com/2024/02/01/bcc-ebpf/BPF-Compiler-Collection.png">
+<meta property="og:image" content="http://yoursite.com/2024/02/01/bcc-ebpf/BCC-implement-details.png">
+<meta property="og:image" content="http://yoursite.com/2024/02/01/bcc-ebpf/BCC-rewrite-compile.png">
+<meta property="og:image" content="http://yoursite.com/2024/02/01/bcc-ebpf/BCC-rewrite-compile-details.png">
+<meta property="article:published_time" content="2024-02-01T20:57:12.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.480Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="linux">
+<meta property="article:tag" content="trace">
+<meta property="article:tag" content="eBPF">
+<meta property="article:tag" content="bcc">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2024/02/01/bcc-ebpf/Brendan-Gregg-eBPF.png">
+
+<link rel="canonical" href="http://yoursite.com/2024/02/01/bcc-ebpf/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>Linux eBPF BCC | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2024/02/01/bcc-ebpf/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Linux eBPF BCC
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2024-02-01 20:57:12" itemprop="dateCreated datePublished" datetime="2024-02-01T20:57:12+00:00">2024-02-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/tracing/" itemprop="url" rel="index"><span itemprop="name">tracing</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2024/02/01/bcc-ebpf/" class="post-meta-item leancloud_visitors" data-flag-title="Linux eBPF BCC" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/02/01/bcc-ebpf/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/02/01/bcc-ebpf/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>详细介绍eBPF的实现原理。</p>
+<a id="more"></a>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+
+<script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+<h1 id="前言-1"><a href="#前言-1" class="headerlink" title="前言 (1)"></a>前言 (1)</h1><p>读Brendan Gregg的BPF Performance Tools这本书有一段时间了，但一直感觉没有深入理解：一方面工作中接触的内核版本比较低所以很少有机会用得上，另一方面此书洋洋洒洒七八百页，大部分篇幅讲的是如何使用作者开发的BPF工具，对工具是如何开发出来的，以及如何在系统上跑起来，只是作原理上的描述，没有体感。所以，“纸上来得终觉浅”，要想搞得更深入一点，还是要看代码，做实验。本文通过“解剖一只麻雀”，来揭开BPF的神秘面纱。</p>
+<p>本文的实验环境:</p>
+<ul>
+<li>Linux kernel 5.10.161；BTF（TODO：第几节）是在kernel 5.2以后引入的，所以选择了5.2之后的版本；</li>
+<li>LLVM/Clang 15.0.0；</li>
+<li>BCC 0.26.0（<a target="_blank" rel="noopener" href="https://github.com/iovisor/bcc/releases%EF%BC%89%EF%BC%8C%E8%BF%99%E6%98%AF%E5%BD%93%E5%89%8D%EF%BC%882022.12.30%EF%BC%89%E7%9A%84%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC%EF%BC%9B">https://github.com/iovisor/bcc/releases），这是当前（2022.12.30）的最新版本；</a></li>
+<li>TODO: bpftrace ??</li>
+</ul>
+<h1 id="BPF的原理-2"><a href="#BPF的原理-2" class="headerlink" title="BPF的原理 (2)"></a>BPF的原理 (2)</h1><p>BPF(Berkeley Packet Filter)，如其名字所示，最早是为了优化抓包工具的性能而开发的。BPF是一个执行引擎（也就是VM: Virtual Machine），可以执行mini程序。用户的包过滤表达式被编译成BPF指令来执行。我们常用的tcpdump就是使用BPF实现的；可以使用tcpdump -d选项打印出BPF指令。不过，这时的BPF只用于网络抓包方面，VM寄存器和内存也都比较小。</p>
+<p>Alexei Starovoitov在2013年重写了BPF并在2014年被发布到linux内核。这次重写把BPF变成了一个通用的VM（general-purpose VM），不只能执行网络相关的指令，还能执行其他程序，同时也扩充了寄存器和内存，加入了一种叫map的storage（后面会看到）。此外，BPF指令还能够被JITed (Just In Time)，即编译成本地native指令，然后优化并执行。这真正让内核变得可编程（programmable）了。此时BPF也被叫做Extended BPF，即eBPF。和社区习惯一样，本文不特意区分，BPF就是指eBPF。</p>
+<p>到网上搜BPF的话，极有可能搜到Brendan Gregg的这张图：</p>
+<p><img src="Brendan-Gregg-eBPF.png" alt="figure1"></p>
+<div style="text-align: center;"><em>图1</em></div>
+
+<p>从这张图可以看出，“要把大象装冰箱”总共分3步：</p>
+<ul>
+<li>写BPF程序；</li>
+<li>把BPF程序加载到内核；</li>
+<li>BPF程序被event触发执行并输出结果；</li>
+</ul>
+<p>原理很清晰，但要实施起码要解决或者回答以下问题：</p>
+<ul>
+<li>BPF程序用什么语言写？长啥样？</li>
+<li>如何编译成BPF字节码（BPF bytecode）？用什么编译器来编译？</li>
+<li>如何加载到内核？</li>
+<li>如何和event绑定，以至于被触发运行？</li>
+<li>如何从用户态获取到BPF程序的输出？</li>
+</ul>
+<p>其实有些问题不止一个答案，比如BPF程序用什么语言写，可以用C语言，也可以用LLVM IR，还可以用bpftrace（一种类似DTrace或者SystemTap的语言）。至于如何加载、运行等，则需要一整套基础设施来配合完成。如果把上述原理看做一个抽象架构的话，则BCC（BPF Compiler Collection）就是这个架构的一个具体实现（bpftrace是另一个实现）。</p>
+<h1 id="BCC-3"><a href="#BCC-3" class="headerlink" title="BCC (3)"></a>BCC (3)</h1><p>如下图所示，从本质上讲，BCC（BPF Compiler Collection）是为BPF工具的开发者提供的一整套基础设施，使得BPF工具开发者能够：</p>
+<p><img src="BPF-Compiler-Collection.png" alt="figure2"></p>
+<div style="text-align: center;"><em>图2</em></div>
+
+<ul>
+<li>使用C语言写BPF程序；</li>
+<li>在编译之前，对BPF程序进行rewrite（例如把<code>pid_t pid = task-&gt;pid;</code>重写成<code>pid_t pid; bpf_probe_read(&amp;pid, sizeof(pid), &amp;task-&gt;pid);</code>）。Rewrite能力是BCC的特色。</li>
+<li>把BPF程序编译成BPF字节码；</li>
+<li>把编译出的（以及rewritten）BPF字节码加载到内核；</li>
+<li>把BPF program（就是BPF程序中的函数）attach到events（例如kprobe）；</li>
+<li>从BPF map storage读取BPF的输出；</li>
+</ul>
+<p>也就是说，这些基础设施是一些库、编译器、脚本等东西，使用这些东西能够完成上面的步骤。除此之外，BCC的发布中还包含很多基于这些基础设施开发的BPF工具，biolatency就是其中的一个，用于统计block层request的延迟。它就是我们要解剖的“麻雀”。接下来我们通过研究它来看BCC基础设施如何配合工作，目的是了解BPF原理如何落地，以便在必要的时候，有能力开发自己的BPF工具。</p>
+<p>首先，针对biolatency这个特例，我把BCC的架构图细化一下（图中绿色部分属于BCC范畴，LLVM/Clang和libbpf是BCC的依赖库）:</p>
+<p><img src="BCC-implement-details.png" alt="figure3"></p>
+<div style="text-align: center;"><em>图3</em></div>
+
+<h2 id="从BPF-C程序开始-3-1"><a href="#从BPF-C程序开始-3-1" class="headerlink" title="从BPF C程序开始 (3.1)"></a>从BPF C程序开始 (3.1)</h2><p>BPF工具biolatency是一个python脚本。首先，把BPF C语言程序片段保存存在一个str变量里：<code>bpf_text=C语言程序</code>。</p>
+<p>然后对<code>bpf_text</code>进行整理：C程序里包含一些Place Holder，根据命令行选项来替换这些Place Holder。例如当命令行中有<code>-d sdb</code>这样的选项时，<code>DISK_FILTER</code>这个Place Holder被替换成（假设/dev/sdb的major为253，minor为0）:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">gendisk</span> *<span class="title">disk</span> = <span class="title">req</span>-&gt;<span class="title">rq_disk</span>;</span></span><br><span class="line"><span class="keyword">if</span> (!(disk-&gt;major == <span class="number">253</span> &amp;&amp; disk-&gt;first_minor == <span class="number">0</span>)) &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>当然，这些都是细节，是工具开发者为使用者提供的便利，若是我们自己开发这个BPF工具，可以查到/dev/sdb的major/minor并直接写在程序里，或者把major/minor作为命令行参数。</p>
+<p>然而，有一个替换不得不提：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> BPF.kernel_struct_has_field(<span class="string">b&#x27;request&#x27;</span>, <span class="string">b&#x27;rq_disk&#x27;</span>) == <span class="number">1</span>:</span><br><span class="line">    store_str += disks_str.replace(<span class="string">&#x27;__RQ_DISK__&#x27;</span>, <span class="string">&#x27;rq_disk&#x27;</span>)</span><br><span class="line"><span class="keyword">else</span>:</span><br><span class="line">    store_str += disks_str.replace(<span class="string">&#x27;__RQ_DISK__&#x27;</span>, <span class="string">&#x27;q-&gt;disk&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>意思是，若内核结构体<code>struct request</code>有<code>rq_disk</code>字段，就把<code>__RQ_DISK__</code>替换为<code>rq_disk</code>；否则替换为<code>q-&gt;disk</code>。这个替换和上面对<code>DISK_FILTER</code>的替换可不是一码事，因为这里涉及到“可移植性”这个话题，并且利用了BTF（BPF Type Format）。BPF的先驱们为“BPF程序的可移植性”做了很多努力，他们的终极目的是CO-RE（Compile Once – Run Everywhere：编译一次，到处运行；见第TODO节）。我们正在研究的biolatency没有达到CO-RE，它每次执行都要重新编译（使用LLVM/Clang编译，见后文），但它也在为“可移植性”而努力：通过这个替换，可以达到编写一次，到处编译。若没有这个自动替换，我们将不得不为不同版本的kernel编写不同的代码，<code>struct request</code>定义不同，BPF C程序也要相应地写做<code>rq_disk</code>或<code>q-&gt;disk</code>.</p>
+<p>经过这些替换，最终生成合法的BPF C程序。我们可以使用<code>--ebpf</code>选项打印出来：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta"># generated by: python3.6 /usr/share/bcc/tools/biolatency -d sdb -e -Q --ebpf</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;uapi/linux/ptrace.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;linux/blk-mq.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">disk_key</span> &#123;</span></span><br><span class="line">    <span class="keyword">char</span> disk[DISK_NAME_LEN];</span><br><span class="line">    u64 slot;</span><br><span class="line">&#125; <span class="keyword">disk_key_t</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">flag_key</span> &#123;</span></span><br><span class="line">    u64 flags;</span><br><span class="line">    u64 slot;</span><br><span class="line">&#125; <span class="keyword">flag_key_t</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">ext_val</span> &#123;</span></span><br><span class="line">    u64 total;</span><br><span class="line">    u64 count;</span><br><span class="line">&#125; <span class="keyword">ext_val_t</span>;</span><br><span class="line"></span><br><span class="line">BPF_HASH(start, struct request *);</span><br><span class="line">BPF_HISTOGRAM(dist);</span><br><span class="line">BPF_ARRAY(extension, <span class="keyword">ext_val_t</span>, <span class="number">1</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// time block I/O</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">trace_req_start</span><span class="params">(struct pt_regs *ctx, struct request *req)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">gendisk</span> *<span class="title">disk</span> = <span class="title">req</span>-&gt;<span class="title">rq_disk</span>;</span></span><br><span class="line">    <span class="keyword">if</span> (!(disk-&gt;major == <span class="number">253</span> &amp;&amp; disk-&gt;first_minor == <span class="number">0</span>)) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    u64 ts = bpf_ktime_get_ns();</span><br><span class="line">    start.update(&amp;req, &amp;ts);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// output</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">trace_req_done</span><span class="params">(struct pt_regs *ctx, struct request *req)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    u64 *tsp, delta;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// fetch timestamp and calculate delta</span></span><br><span class="line">    tsp = start.lookup(&amp;req);</span><br><span class="line">    <span class="keyword">if</span> (tsp == <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;   <span class="comment">// missed issue</span></span><br><span class="line">    &#125;</span><br><span class="line">    delta = bpf_ktime_get_ns() - *tsp;</span><br><span class="line"></span><br><span class="line">    delta /= <span class="number">1000</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// store as histogram</span></span><br><span class="line">    dist.atomic_increment(bpf_log2l(delta));</span><br><span class="line">    u32 index = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">ext_val_t</span> *ext_val = extension.lookup(&amp;index);</span><br><span class="line">    <span class="keyword">if</span> (ext_val) &#123;</span><br><span class="line">        lock_xadd(&amp;ext_val-&gt;total, delta);</span><br><span class="line">        lock_xadd(&amp;ext_val-&gt;count, <span class="number">1</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    start.<span class="keyword">delete</span>(&amp;req);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这就是BPF程序的庐山真面目了，它将被编译成BPF字节码并加载到内核执行。可能从函数的名字<code>trace_req_start</code>和<code>trace_req_done</code>你也能猜出，这两个函数将被attach到block-IO的开始和结束处，用以统计block-IO的执行latency。如何统计的呢？看这两个函数的逻辑。</p>
+<ul>
+<li><code>trace_req_start</code>：block-IO开始时，把<code>req</code>的指针以及当前系统时间记录到<code>start</code>中（从其声明可以看出，<code>start</code>应该是一个哈希表）；</li>
+<li><code>trace_req_done</code>：block-IO结束时，从<code>start</code>哈希表查出<code>req</code>的开始时间，用当前时间（结束时间）减去开始时间便得到结果delta；然后把delta存到<code>dist</code>（从声明可以看出它是一个直方图），并累加<code>extension</code>（它是一个长度为1的数组，类型是<code>ext_val_t</code>）；</li>
+</ul>
+<p>值得一提的是，这里用到的<code>start</code>、<code>dist</code>和<code>extension</code>都是<code>map storage</code>，后面将介绍它们。这两个函数相当简单。不过，下面就进入BCC的难点了。</p>
+<h2 id="Rewrite和编译-3-2"><a href="#Rewrite和编译-3-2" class="headerlink" title="Rewrite和编译 (3.2)"></a>Rewrite和编译 (3.2)</h2><p>我们需要把BPF C程序编译成BPF字节码，这样BPF VM才能够执行，这很容易理解。但在编译之前BCC还会对程序进行rewrite：因为这些程序员眼中看似合法的C程序，对于BPF VM这个特殊的执行引擎来说不一定合法，例如不能直接dereference指针而要通过<code>bpf_probe_read</code>函数。BCC的核心能力之一就是能够对程序进行rewrite。Rewrite和编译的过程如图4所示：</p>
+<p><img src="BCC-rewrite-compile.png" alt="figure4"></p>
+<div style="text-align: center;"><em>图4</em></div>
+
+<p>BPF C程序的rewrite和编译全被封装在biolatency的这一行:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">b = BPF(text=bpf_text)</span><br></pre></td></tr></table></figure>
+
+<p>它构造一个BPF对象，输入参数正是上一节我们看到的C程序。Python类<code>class BPF</code>定义在<code>src/python/bcc/__init__.py</code>中。从前面的图3可知，python库python-bcc是C++库libbcc的一个封装。</p>
+<p>Python <code>class BPF</code>的主要函数：</p>
+<ul>
+<li><code>__init__</code>：调用<code>bpf_module_create_c_from_string</code>。这个函数封装了从C代码到BPF字节码转化的全过程：对C程序进行rewrite，然后编译生成LLVIM IR，最后编译成BPF字节码。下文很大篇幅讲的都是<code>bpf_module_create_c_from_string</code>内部的细节。最终，这个函数返回一个BPFModule对象。它是一个C++类，里面封装一个<code>llvm::Module</code>对象，其中有BPF字节码程序。所以，这一步之后，我们就有了BPF程序，剩下的就是加载、执行了。若C程序中的函数名符合特定规则，<code>BPF::__init__</code>还会自动加载；biolatency中的<code>trace_req_start</code>和<code>trace_req_done</code>都不符合，所以不自动加载。</li>
+<li><code>load_func</code> ：加载BPF函数（biolatency中的<code>trace_req_start</code>和<code>trace_req_done</code>）到内核；细节见第3.4节。</li>
+<li><code>attach_*</code>：把BPF函数attach到event；从图1可以看到，支持多种类型的event：kprobe, uprobe, tracepoints等；biolatency只用到kprobe；所以第3.5节我将介绍<code>attach_kprobe</code>。</li>
+<li><code>get_table</code>：table即前面所说的BPF map storage，从它可以读取BPF程序的输出。第3.3节将介绍map storage是如何创建的。</li>
+</ul>
+<p>Python <code>class BPF</code>的主要字段：我们知道，linux中内核把很多东西抽象成文件，用户态程序与之交互的一个重要手段是<code>fd</code>，或者说内核把很多东西作为<code>fd</code>暴露给用户态程序。这里也不例外，BPF函数（<code>trace_req_start</code>和<code>trace_req_done</code>）加载之后返回prog或者func<code>fd</code>；map storage创建返回map<code>fd</code>；Attach BPF函数之后也得到一个perf_event<code>fd</code>；<code>class BPF</code>实例的主要字段就是这些<code>fd</code>。</p>
+<p>本小节我们只看<code>BPF.__init__</code>：调用C++库函数<code>bpf_module_create_c_from_string</code>来rewrite和编译BPF C程序。</p>
+<h3 id="BPFModule类-3-2-1"><a href="#BPFModule类-3-2-1" class="headerlink" title="BPFModule类 (3.2.1)"></a>BPFModule类 (3.2.1)</h3><p>函数<code>bpf_module_create_c_from_string</code>的第一个事情就是构造一个<code>class BPFModule</code>的对象。<code>BPFModule</code>是C++库libbcc中的最重要的类，它的重要数据成员是：</p>
+<ul>
+<li><code>std::unique_ptr&lt;llvm::Module&gt; mod_</code>：这个Module是LLVM领域的概念，它是LLVM IR Objects（全局变量、函数及符号表）的顶层容器；多个Module又构成LLVM程序。所以这个<code>mod_</code>就是3.1节的BPF C程序编译出的LLVM IR程序（我们的C程序只有一个模块，所以也只有一个LLVM Module）。从名字上看<code>class BPFModule</code>是对<code>llvm::Module</code>的封装，但事实上<code>class BPFModule</code>涵盖的内容要广的多：因为<code>mod_</code>还不是BPF字节码，而是LLVM IR程序；所以<code>class BPFModule</code>还要把LLVM IR转化成BPF字节码，并且还负责加载及读取输出等诸多事情。从BPF C程序到LLVM IR的转化是在<code>ClangLoader::do_compile</code>中完成的。</li>
+<li><code>std::unique_ptr&lt;ProgFuncInfo&gt; prog_func_info_</code>：如上所述，<code>mod_</code>是LLVM IR程序，下一步是把它转化成BPF字节码，这是在<code>BPFModule::finalize</code>中完成的。<code>BPFModule::finalize</code>把<code>trace_req_start</code>和<code>trace_req_done</code>的LLVM IR指令转化成BPF字节码，并把BPF字节码的起始地址和size保存到<code>prog_func_info_</code>中。以后加载这2个函数到内核（第3.4节）就从<code>prog_func_info_</code>查找BPF字节码的起始地址和size。</li>
+<li><code>sec_map_def sections_</code>：如上所说，<code>prog_func_info_</code>中保存着<code>trace_req_start</code>和<code>trace_req_done</code>的起始地址和size，但<code>prog_func_info_</code>并不own这些内存空间；真正own这些空间的是<code>sections_</code>。也就是说，起始地址和size指向的空间在<code>sections_</code>中；<code>sections_</code>由<code>MyMemoryManager</code>管理。<code>BPFModule::finalize</code>把LLVM IR程序转化成BPF自己码之后，<code>ExecutionEngine engine_</code>回调<code>MyMemoryManager</code>，填入BPF字节码。</li>
+<li><code>TableStorage *ts_</code>：前面提到BPF map storage；这些东西在书中叫map，在代码中叫table。第3.1节的C程序中的<code>start</code>，<code>dist</code>和<code>extension</code>都是storage，它们被分别声明为<code>BPF_HASH</code>，<code>BPF_HISTOGRAM</code>和<code>BPF_ARRAY</code>类型；从名字可以猜测，分别是哈希表、直方图和数组。这是BPF程序在内核里执行时用到的数据结构。例如<code>trace_req_start</code>把请求<code>req</code>的地址保存在<code>start</code>哈希表中，<code>trace_req_done</code>又从中查询出来，这和我们利用<code>std::map</code>写用户态程序是一样的。而<code>dist</code>和<code>extension</code>是用来保存程序输出数据的。在编译时，会生成这些变量的描述信息，并通过callback机制向<code>ts_</code>填入这些数据结构的描述。</li>
+</ul>
+<h3 id="Rewrite并编译成LLVM-IR程序-3-2-2"><a href="#Rewrite并编译成LLVM-IR程序-3-2-2" class="headerlink" title="Rewrite并编译成LLVM IR程序 (3.2.2)"></a>Rewrite并编译成LLVM IR程序 (3.2.2)</h3><p>继续说<code>bpf_module_create_c_from_string</code>，它构造<code>class BPFModule</code>对象之后，就调用其<code>load_string</code>函数，输入的就是第3.1节的C程序文本：</p>
+<ul>
+<li><code>load_cfile()</code>：把C程序编译成LLVM IR程序，中途进行rewrite；这是本小节的内容。</li>
+<li><code>finalize()</code>：把LLVM IR程序翻译成BPF字节码；我们将在第3.2.5节介绍。</li>
+</ul>
+<p><code>BPFModule::load_cfile</code>构造一个<code>ClangLoader</code>对象，然后调用<code>parse</code>，进而调用<code>do_compile</code>，这里就是rewrite和编译的核心代码。抛开纷繁的细节，主要流程是3阶段翻译：每个阶段构造一个<code>clang::CompilerInstance</code>实例，上一个阶段的output是下一个阶段的input，并且每个阶段都有一些callback；如上一节所述，<code>BPFModule</code>中的一些字段就是通过这里的callback动作填值的（如图5红线所示）；BCC的rewrite也是通过callback实现的。</p>
+<p><img src="BCC-rewrite-compile-details.png" alt="figure5"></p>
+<div style="text-align: center;"><em>图5</em></div>
+
+<p>第0阶段（compiler0），即<code>TracepointFrontendAction</code>中所做的事情是: 检查每个函数的每个参数，若参数的类型符合pattern <code>(?:struct|class)\s+tracepoint__(\S+)__(\S+)</code>，就在该函数前插入<code>struct tracepoint__&#123;category&#125;__event &#123;...&#125;;</code>. 我们的biolatency没有这样的函数，暂不深究。</p>
+<p>第1阶段（compiler1），<code>BFrontendAction</code>中有3种（4个）visitor：a. ProbeVisitor; b. MapVisitor; c. BTypeVisitor; 它们所做的事分别是：a. ProbeVisitor把指针dereference（即*ptr）rewrite成<code>bpf_probe_read_xxx(ptr)</code>；b. MapVisitor把<code>start.update(...)</code>这的map/storage访问rewrite成<code>bpf_map_update_elem(...)</code>；c. BTypeVisitor</p>
+<p>Callback类<code>TracepointFrontendAction</code>和<code>BFrontendAction</code>都实现<code>clang::ASTFrontendAction</code>接口，override函数<code>CreateASTConsumer</code>和<code>EndSourceFileAction</code>；所以<code>clang::CompilerInstance</code>才知道如何回调它们：</p>
+<ul>
+<li>首先，调用<code>CreateASTConsumer</code>函数获取consumer，<code>TracepointTypeConsumer</code>或者<code>BTypeConsumer</code>，这些consumer又实现<code>clang::ASTConsumer</code>接口，override接口中的<code>Handle*</code>系函数，例如<code>HandleTopLevelDecl</code>和<code>HandleTranslationUnit</code>。</li>
+<li>有了consumer，<code>clang::CompilerInstance</code>在处理C程序的过程中，遇到函数声明、函数调用、函数参数，变量，表达式等单元的时候，就调用consumer的对应的<code>Handle*</code>系函数；</li>
+<li>同时consumer又持有一些visitor：它们都实现<code>clang::RecursiveASTVisitor</code>接口，override接口中的<code>Visit*</code>系函数；<code>Handle*</code>函数被调用时，就会调用visitor的<code>Visit*</code>函数；</li>
+<li>最后，当前<code>clane::CompilerInstance</code>处理过的程序文本，作为下一个<code>CompilerInstance</code>的输入。</li>
+</ul>
+<p>BCC的rewrite能力就是在这些<code>Visit*</code>函数中实现的，其中最主要的是：</p>
+<ul>
+<li>如果一个BPF函数要被probe触发执行，则它们都有<code>struct pt_regs* ctx</code>参数（probe通过<code>struct pt_regs* ctx</code>传递参数）；否则，函数没有<code>struct pt_regs* ctx</code>参数，它肯定不能被probe调用，故而只能被模块内其他函数调用，所以Rewriter为其加上<code>__attribute__((always_inline))</code>属性，作为优化。</li>
+<li>BPF VM是一个特殊的执行环境，由于安全性，不能直接dereference指针，所以要替换成<code>bpf_probe_read</code>或者<code>bpf_probe_read_kernel</code>等；</li>
+<li>一些语法糖（syntax sugar）：例如第<code>trace_req_start</code>中的<code>start.update()</code>，要替换成真正面目，如下written的C代码所示，<code>bpf_map_update_elem(...)</code>;</li>
+</ul>
+<p>对biolatency做简单修改，加上<code>debug=DEBUG_PREPROCESSOR</code>，就可以打印出rewrite之后的C程序：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">b = BPF(text=bpf_text, debug=DEBUG_PREPROCESSOR)</span><br></pre></td></tr></table></figure>
+
+<p>输出如下，对比第3.1节，主要变化发生在对变量的访问上：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">if</span> defined(BPF_LICENSE)</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">error</span> BPF_LICENSE cannot be specified through cflags</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">if</span> !defined(CONFIG_CC_STACKPROTECTOR)</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">if</span> defined(CONFIG_CC_STACKPROTECTOR_AUTO) \</span></span><br><span class="line">    || defined(CONFIG_CC_STACKPROTECTOR_REGULAR) \</span><br><span class="line">    || defined(CONFIG_CC_STACKPROTECTOR_STRONG)</span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> CONFIG_CC_STACKPROTECTOR</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;uapi/linux/ptrace.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;linux/blk-mq.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">disk_key</span> &#123;</span></span><br><span class="line">    <span class="keyword">char</span> disk[DISK_NAME_LEN];</span><br><span class="line">    u64 slot;</span><br><span class="line">&#125; <span class="keyword">disk_key_t</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">flag_key</span> &#123;</span></span><br><span class="line">    u64 flags;</span><br><span class="line">    u64 slot;</span><br><span class="line">&#125; <span class="keyword">flag_key_t</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">ext_val</span> &#123;</span></span><br><span class="line">    u64 total;</span><br><span class="line">    u64 count;</span><br><span class="line">&#125; <span class="keyword">ext_val_t</span>;</span><br><span class="line"></span><br><span class="line">BPF_HASH(start, struct request *);</span><br><span class="line">BPF_HISTOGRAM(dist);</span><br><span class="line">BPF_ARRAY(extension, <span class="keyword">ext_val_t</span>, <span class="number">1</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// time block I/O</span></span><br><span class="line">__attribute__((section(<span class="string">&quot;.bpf.fn.trace_req_start&quot;</span>)))</span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">trace_req_start</span><span class="params">(struct pt_regs *ctx)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">request</span> *<span class="title">req</span> = (<span class="title">struct</span> <span class="title">request</span> *)<span class="title">ctx</span>-&gt;<span class="title">di</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">gendisk</span> *<span class="title">disk</span> = (&#123;</span> typeof(struct gendisk *) _val; __builtin_memset(&amp;_val, <span class="number">0</span>, <span class="keyword">sizeof</span>(_val)); bpf_probe_read(&amp;_val, <span class="keyword">sizeof</span>(_val), (<span class="keyword">void</span> *)&amp;req-&gt;rq_disk); _val; &#125;);</span><br><span class="line">    <span class="keyword">if</span> (!((&#123; typeof(<span class="keyword">int</span>) _val; __builtin_memset(&amp;_val, <span class="number">0</span>, <span class="keyword">sizeof</span>(_val)); bpf_probe_read(&amp;_val, <span class="keyword">sizeof</span>(_val), (<span class="keyword">void</span> *)&amp;disk-&gt;major); _val; &#125;) == <span class="number">253</span> &amp;&amp; (&#123; typeof(<span class="keyword">int</span>) _val; __builtin_memset(&amp;_val, <span class="number">0</span>, <span class="keyword">sizeof</span>(_val)); bpf_probe_read(&amp;_val, <span class="keyword">sizeof</span>(_val), (<span class="keyword">void</span> *)&amp;disk-&gt;first_minor); _val; &#125;) == <span class="number">0</span>)) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    u64 ts = bpf_ktime_get_ns();</span><br><span class="line">    bpf_map_update_elem((<span class="keyword">void</span> *)bpf_pseudo_fd(<span class="number">1</span>, <span class="number">-1</span>), &amp;req, &amp;ts, BPF_ANY);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// output</span></span><br><span class="line">__attribute__((section(<span class="string">&quot;.bpf.fn.trace_req_done&quot;</span>)))</span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">trace_req_done</span><span class="params">(struct pt_regs *ctx)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">request</span> *<span class="title">req</span> = (<span class="title">struct</span> <span class="title">request</span> *)<span class="title">ctx</span>-&gt;<span class="title">di</span>;</span></span><br><span class="line">    u64 *tsp, delta;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// fetch timestamp and calculate delta</span></span><br><span class="line">    tsp = bpf_map_lookup_elem((<span class="keyword">void</span> *)bpf_pseudo_fd(<span class="number">1</span>, <span class="number">-1</span>), &amp;req);</span><br><span class="line">    <span class="keyword">if</span> (tsp == <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;   <span class="comment">// missed issue</span></span><br><span class="line">    &#125;</span><br><span class="line">    delta = bpf_ktime_get_ns() - *tsp;</span><br><span class="line"></span><br><span class="line">    delta /= <span class="number">1000</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// store as histogram</span></span><br><span class="line">    (&#123; typeof(dist.key) _key = bpf_log2l(delta); typeof(dist.leaf) *_leaf = bpf_map_lookup_elem_(bpf_pseudo_fd(<span class="number">1</span>, <span class="number">-2</span>), &amp;_key); <span class="keyword">if</span> (_leaf) lock_xadd(_leaf, <span class="number">1</span>);&#125;);</span><br><span class="line">    u32 index = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">ext_val_t</span> *ext_val = bpf_map_lookup_elem((<span class="keyword">void</span> *)bpf_pseudo_fd(<span class="number">1</span>, <span class="number">-3</span>), &amp;index);</span><br><span class="line">    <span class="keyword">if</span> (ext_val) &#123;</span><br><span class="line">        lock_xadd(&amp;ext_val-&gt;total, delta);</span><br><span class="line">        lock_xadd(&amp;ext_val-&gt;count, <span class="number">1</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    bpf_map_delete_elem((<span class="keyword">void</span> *)bpf_pseudo_fd(<span class="number">1</span>, <span class="number">-1</span>), &amp;req);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;bcc/footer.h&gt;</span></span></span><br></pre></td></tr></table></figure>
+
+<p>打印发生在<code>compiler1</code>的callback <code>BFrontendAction::EndSourceFileAction</code>中；也就是说，经过<code>compiler0</code>和<code>compiler1</code>，结果还是C程序，只是发生了rewrite。最后由<code>compiler2</code>把rewritten的C程序编译成LLVM IR程序；这是clang的事，我们不深入了。</p>
+<h3 id="生成map-storage的描述信息-3-2-3"><a href="#生成map-storage的描述信息-3-2-3" class="headerlink" title="生成map storage的描述信息 (3.2.3)"></a>生成map storage的描述信息 (3.2.3)</h3><p>如图5所示，在callback中还有做了一些重要的事，其中之一就是生成map的描述信息并存到<code>BPFModule::ts_</code>字段中；这是在函数<code>BTypeVisitor::VisitVarDecl(VarDecl *Decl)</code>中完成的。看参数可知，这个callback是<code>clang::CompilerInstance</code>在处理过程中遇到变量声明的时候触发的；所声明的变量自然是<code>start</code>, <code>dist</code>和<code>extension</code>:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">BPF_HASH(start, struct request *);</span><br><span class="line">BPF_HISTOGRAM(dist);</span><br><span class="line">BPF_ARRAY(extension, <span class="keyword">ext_val_t</span>, <span class="number">1</span>);</span><br></pre></td></tr></table></figure>
+<p>此函数处理一个map（在代码中叫table）变量声明：构造一个<code>TableDesc</code>对象，它描述一个BPF map/table的信息:</p>
+<ul>
+<li><code>name</code>就是<code>start</code>，<code>dist</code>或者<code>extension</code>；</li>
+<li><code>fd</code>暂时不填（除非用户设置了pinned fd），到3.3节，真正在内核里创建它们的时候，才返回fd；</li>
+<li>其他就是map/table字段的描述信息；</li>
+</ul>
+<p>生成之后，调用<code>Insert</code>保存到<code>BPFModule::ts_</code>中。</p>
+<h3 id="生成func描述信息-3-2-4"><a href="#生成func描述信息-3-2-4" class="headerlink" title="生成func描述信息 (3.2.4)"></a>生成func描述信息 (3.2.4)</h3><p>和生成map storage的描述信息类似，在callback中还生成了函数（<code>trace_req_start</code>和<code>trace_req_done</code>）的描述信息，并存到<code>BPFModule::prog_func_info_</code>字段中。这是在函数<code>BTypeVisitor::VisitFunctionDecl(FunctionDecl *D)</code>中完成的。从参数可看出，这个callback是<code>clang::CompilerInstance</code>遇到函数声明的时候触发的。这里把函数的信息填到<code>BPFModule::prog_func_info_</code>中，并把函数的C语言源代码（未rewrite之前的）保存在<code>FuncInfo::src_</code>中。</p>
+<p>到<code>compiler1</code>结束时，调用callback <code>BFrontendAction::EndSourceFileAction</code>，还会把rewritten的C语言源代码保存在<code>FuncInfo::src_rewritten_</code>中。</p>
+<p>值得强调的是，<strong>此时BPF字节码程序还没有生成，自然也没有填写</strong>；我们将在下一节看到，BPF字节码生成之后，起始地址和size也被保存在<code>BPFModule::prog_func_info_</code>中。</p>
+<h3 id="从LLVM-IR到BPF字节码-3-2-5"><a href="#从LLVM-IR到BPF字节码-3-2-5" class="headerlink" title="从LLVM IR到BPF字节码 (3.2.5)"></a>从LLVM IR到BPF字节码 (3.2.5)</h3><p>回到<code>BPFModule::load_string</code>函数，生成LLVM IR以及map/table的描述信息之后，就调用<code>BPFModule::finalize</code>，这里继续编译工作：</p>
+<ul>
+<li>首先生成一个<code>ExecutionEngine</code>实例，它就是编译LLVM IR的引擎；编译成什么呢？一般而言，是编译成某种architecture（如x86, ia64）的汇编，这里当然是编译成BPF字节码。注意：这是LLVM对BPF提供的支持。所以，它通过如下代码把architecture设置成<strong>bpf</strong>:</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">builder.setMArch(<span class="string">&quot;bpf&quot;</span>);</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>然后调用<code>run_pass_manager</code>进行编译。我们也可以对biolatency做简单修改，加上<code>debug=DEBUG_LLVM_IR</code>，让它在编译之前打印出LLVM IR程序：</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">b = BPF(text=bpf_text, debug=DEBUG_LLVM_IR)</span><br></pre></td></tr></table></figure>
+
+<p>输出的LLVM IR程序（截取<code>trace_req_start</code>）如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br></pre></td><td class="code"><pre><span class="line">define dso_local i32 @trace_req_start(ptr nocapture noundef readonly %0) local_unnamed_addr #0 section &quot;.bpf.fn.trace_req_start&quot; !dbg !5370 &#123;</span><br><span class="line">  %2 &#x3D; alloca ptr, align 8</span><br><span class="line">  %3 &#x3D; alloca ptr, align 8</span><br><span class="line">  %4 &#x3D; alloca i32, align 4</span><br><span class="line">  %5 &#x3D; alloca i32, align 4</span><br><span class="line">  %6 &#x3D; alloca i64, align 8</span><br><span class="line">  call void @llvm.dbg.value(metadata ptr %0, metadata !5374, metadata !DIExpression()), !dbg !5385</span><br><span class="line">  call void @llvm.lifetime.start.p0(i64 8, ptr nonnull %2) #4, !dbg !5386</span><br><span class="line">  %7 &#x3D; getelementptr inbounds %struct.pt_regs, ptr %0, i64 0, i32 14, !dbg !5387</span><br><span class="line">  %8 &#x3D; load i64, ptr %7, align 8, !dbg !5387, !tbaa !5388</span><br><span class="line">  %9 &#x3D; inttoptr i64 %8 to ptr, !dbg !5393</span><br><span class="line">  call void @llvm.dbg.value(metadata ptr %9, metadata !5375, metadata !DIExpression()), !dbg !5385</span><br><span class="line">  store ptr %9, ptr %2, align 8, !dbg !5394, !tbaa !5395</span><br><span class="line">  call void @llvm.lifetime.start.p0(i64 8, ptr nonnull %3) #4, !dbg !5397</span><br><span class="line">  call void @llvm.dbg.value(metadata ptr %3, metadata !5377, metadata !DIExpression(DW_OP_deref)), !dbg !5398</span><br><span class="line">  store i64 0, ptr %3, align 8, !dbg !5399</span><br><span class="line">  call void @llvm.dbg.value(metadata ptr %9, metadata !5375, metadata !DIExpression()), !dbg !5385</span><br><span class="line">  %10 &#x3D; getelementptr inbounds %struct.request, ptr %9, i64 0, i32 15, !dbg !5400</span><br><span class="line">  %11 &#x3D; call i32 inttoptr (i64 4 to ptr)(ptr noundef nonnull %3, i64 noundef 8, ptr noundef nonnull %10) #4, !dbg !5401</span><br><span class="line">  %12 &#x3D; load ptr, ptr %3, align 8, !dbg !5402, !tbaa !5395</span><br><span class="line">  call void @llvm.dbg.value(metadata ptr %12, metadata !5377, metadata !DIExpression()), !dbg !5398</span><br><span class="line">  call void @llvm.lifetime.end.p0(i64 8, ptr nonnull %3) #4, !dbg !5403</span><br><span class="line">  call void @llvm.dbg.value(metadata ptr %12, metadata !5376, metadata !DIExpression()), !dbg !5385</span><br><span class="line">  call void @llvm.lifetime.start.p0(i64 4, ptr nonnull %4) #4, !dbg !5404</span><br><span class="line">  call void @llvm.dbg.value(metadata ptr %4, metadata !5379, metadata !DIExpression(DW_OP_deref)), !dbg !5405</span><br><span class="line">  store i32 0, ptr %4, align 4, !dbg !5406</span><br><span class="line">  %13 &#x3D; call i32 inttoptr (i64 4 to ptr)(ptr noundef nonnull %4, i64 noundef 4, ptr noundef %12) #4, !dbg !5407</span><br><span class="line">  %14 &#x3D; load i32, ptr %4, align 4, !dbg !5408, !tbaa !5409</span><br><span class="line">  call void @llvm.dbg.value(metadata i32 %14, metadata !5379, metadata !DIExpression()), !dbg !5405</span><br><span class="line">  call void @llvm.lifetime.end.p0(i64 4, ptr nonnull %4) #4, !dbg !5411</span><br><span class="line">  %15 &#x3D; icmp eq i32 %14, 253, !dbg !5412</span><br><span class="line">  br i1 %15, label %16, label %26, !dbg !5413</span><br><span class="line"></span><br><span class="line">16:                                               ; preds &#x3D; %1</span><br><span class="line">  call void @llvm.lifetime.start.p0(i64 4, ptr nonnull %5) #4, !dbg !5414</span><br><span class="line">  call void @llvm.dbg.value(metadata ptr %5, metadata !5382, metadata !DIExpression(DW_OP_deref)), !dbg !5415</span><br><span class="line">  store i32 0, ptr %5, align 4, !dbg !5416</span><br><span class="line">  %17 &#x3D; getelementptr inbounds %struct.gendisk, ptr %12, i64 0, i32 1, !dbg !5417</span><br><span class="line">  %18 &#x3D; call i32 inttoptr (i64 4 to ptr)(ptr noundef nonnull %5, i64 noundef 4, ptr noundef nonnull %17) #4, !dbg !5418</span><br><span class="line">  %19 &#x3D; load i32, ptr %5, align 4, !dbg !5419, !tbaa !5409</span><br><span class="line">  call void @llvm.dbg.value(metadata i32 %19, metadata !5382, metadata !DIExpression()), !dbg !5415</span><br><span class="line">  call void @llvm.lifetime.end.p0(i64 4, ptr nonnull %5) #4, !dbg !5420</span><br><span class="line">  %20 &#x3D; icmp eq i32 %19, 0, !dbg !5421</span><br><span class="line">  br i1 %20, label %21, label %26, !dbg !5422</span><br><span class="line"></span><br><span class="line">21:                                               ; preds &#x3D; %16</span><br><span class="line">  call void @llvm.lifetime.start.p0(i64 8, ptr nonnull %6) #4, !dbg !5423</span><br><span class="line">  %22 &#x3D; call i64 inttoptr (i64 5 to ptr)() #4, !dbg !5424</span><br><span class="line">  call void @llvm.dbg.value(metadata i64 %22, metadata !5384, metadata !DIExpression()), !dbg !5385</span><br><span class="line">  store i64 %22, ptr %6, align 8, !dbg !5425, !tbaa !5426</span><br><span class="line">  %23 &#x3D; call i64 @llvm.bpf.pseudo(i64 noundef 1, i64 noundef -1), !dbg !5428</span><br><span class="line">  %24 &#x3D; inttoptr i64 %23 to ptr, !dbg !5429</span><br><span class="line">  call void @llvm.dbg.value(metadata ptr %2, metadata !5375, metadata !DIExpression(DW_OP_deref)), !dbg !5385</span><br><span class="line">  call void @llvm.dbg.value(metadata ptr %6, metadata !5384, metadata !DIExpression(DW_OP_deref)), !dbg !5385</span><br><span class="line">  %25 &#x3D; call i32 inttoptr (i64 2 to ptr)(ptr noundef %24, ptr noundef nonnull %2, ptr noundef nonnull %6, i64 noundef 0) #4, !dbg !5430</span><br><span class="line">  call void @llvm.lifetime.end.p0(i64 8, ptr nonnull %6) #4, !dbg !5431</span><br><span class="line">  br label %26</span><br><span class="line"></span><br><span class="line">26:                                               ; preds &#x3D; %1, %16, %21</span><br><span class="line">  call void @llvm.lifetime.end.p0(i64 8, ptr nonnull %2) #4, !dbg !5431</span><br><span class="line">  ret i32 0, !dbg !5431</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>真正的编译工作是LLVM的事，我们不涉及。编译之后得到的BPF字节码也可以通过修改biolatency（加上<code>debug=DEBUG_SOURCE</code>）来打印：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">b = BPF(text=bpf_text, debug=DEBUG_SOURCE)</span><br></pre></td></tr></table></figure>
+
+<p>输出的BPF字节码程序（截取<code>trace_req_start</code>）如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line">Disassembly of function trace_req_start</span><br><span class="line">; struct request *req &#x3D; (struct request *)ctx-&gt;di; &#x2F;&#x2F; Line  37</span><br><span class="line">   0:    79 13 70 00 00 00 00 00    r3 &#x3D; *(u64 *)(r1 + 112)</span><br><span class="line">   1:    7b 3a f8 ff 00 00 00 00    *(u64 *)(r10 - 8) &#x3D; r3</span><br><span class="line">   2:    b7 07 00 00 00 00 00 00    r7 &#x3D; 0</span><br><span class="line">; struct gendisk *disk &#x3D; (&#123; typeof(struct gendisk *) _val; __builtin_memset(&amp;_val, 0, sizeof(_val)); bpf_probe_read(&amp;_val, sizeof(_val), (void *)&amp;req-&gt;rq_disk); _val; &#125;); &#x2F;&#x2F; Line  39</span><br><span class="line">   3:    7b 7a f0 ff 00 00 00 00    *(u64 *)(r10 - 16) &#x3D; r7</span><br><span class="line">   4:    07 03 00 00 a0 00 00 00    r3 +&#x3D; 160</span><br><span class="line">   5:    bf a1 00 00 00 00 00 00    r1 &#x3D; r10</span><br><span class="line">   6:    07 01 00 00 f0 ff ff ff    r1 +&#x3D; -16</span><br><span class="line">   7:    b7 02 00 00 08 00 00 00    r2 &#x3D; 8</span><br><span class="line">   8:    85 00 00 00 04 00 00 00    call 4</span><br><span class="line">   9:    79 a6 f0 ff 00 00 00 00    r6 &#x3D; *(u64 *)(r10 - 16)</span><br><span class="line">; if (!((&#123; typeof(int) _val; __builtin_memset(&amp;_val, 0, sizeof(_val)); bpf_probe_read(&amp;_val, sizeof(_val), (void *)&amp;disk-&gt;major); _val; &#125;) &#x3D;&#x3D; 253 &amp;&amp; (&#123; typeof(int) _val; __builtin_memset(&amp;_val, 0, sizeof(_val)); bpf_probe_read(&amp;_val, sizeof(_val), (void *)&amp;disk-&gt;first_minor); _val; &#125;) &#x3D;&#x3D; 0)) &#123; &#x2F;&#x2F; Line  40</span><br><span class="line">  10:    63 7a f0 ff 00 00 00 00    *(u32 *)(r10 - 16) &#x3D; r7</span><br><span class="line">  11:    bf a1 00 00 00 00 00 00    r1 &#x3D; r10</span><br><span class="line">  12:    07 01 00 00 f0 ff ff ff    r1 +&#x3D; -16</span><br><span class="line">  13:    b7 02 00 00 04 00 00 00    r2 &#x3D; 4</span><br><span class="line">  14:    bf 63 00 00 00 00 00 00    r3 &#x3D; r6</span><br><span class="line">  15:    85 00 00 00 04 00 00 00    call 4</span><br><span class="line">  16:    61 a1 f0 ff 00 00 00 00    r1 &#x3D; *(u32 *)(r10 - 16)</span><br><span class="line">  17:    55 01 13 00 fd 00 00 00    if r1 !&#x3D; 253 goto +19</span><br><span class="line">  18:    63 7a f0 ff 00 00 00 00    *(u32 *)(r10 - 16) &#x3D; r7</span><br><span class="line">  19:    07 06 00 00 04 00 00 00    r6 +&#x3D; 4</span><br><span class="line">  20:    bf a1 00 00 00 00 00 00    r1 &#x3D; r10</span><br><span class="line">  21:    07 01 00 00 f0 ff ff ff    r1 +&#x3D; -16</span><br><span class="line">  22:    b7 02 00 00 04 00 00 00    r2 &#x3D; 4</span><br><span class="line">  23:    bf 63 00 00 00 00 00 00    r3 &#x3D; r6</span><br><span class="line">  24:    85 00 00 00 04 00 00 00    call 4</span><br><span class="line">  25:    61 a1 f0 ff 00 00 00 00    r1 &#x3D; *(u32 *)(r10 - 16)</span><br><span class="line">  26:    55 01 0a 00 00 00 00 00    if r1 !&#x3D; 0 goto +10</span><br><span class="line">; u64 ts &#x3D; bpf_ktime_get_ns(); &#x2F;&#x2F; Line  45</span><br><span class="line">  27:    85 00 00 00 05 00 00 00    call 5</span><br><span class="line">  28:    7b 0a f0 ff 00 00 00 00    *(u64 *)(r10 - 16) &#x3D; r0</span><br><span class="line">; bpf_map_update_elem((void *)bpf_pseudo_fd(1, -1), &amp;req, &amp;ts, BPF_ANY); &#x2F;&#x2F; Line  46</span><br><span class="line">  29:    18 11 00 00 ff ff ff ff 00 00 00 00 00 00 00 00    ld_pseudo    r1, 1, 4294967295</span><br><span class="line">  31:    bf a2 00 00 00 00 00 00    r2 &#x3D; r10</span><br><span class="line">; u64 ts &#x3D; bpf_ktime_get_ns(); &#x2F;&#x2F; Line  45</span><br><span class="line">  32:    07 02 00 00 f8 ff ff ff    r2 +&#x3D; -8</span><br><span class="line">  33:    bf a3 00 00 00 00 00 00    r3 &#x3D; r10</span><br><span class="line">  34:    07 03 00 00 f0 ff ff ff    r3 +&#x3D; -16</span><br><span class="line">; bpf_map_update_elem((void *)bpf_pseudo_fd(1, -1), &amp;req, &amp;ts, BPF_ANY); &#x2F;&#x2F; Line  46</span><br><span class="line">  35:    b7 04 00 00 00 00 00 00    r4 &#x3D; 0</span><br><span class="line">  36:    85 00 00 00 02 00 00 00    call 2</span><br><span class="line">; &#125; &#x2F;&#x2F; Line  48</span><br><span class="line">  37:    b7 00 00 00 00 00 00 00    r0 &#x3D; 0</span><br><span class="line">  38:    95 00 00 00 00 00 00 00    exit</span><br></pre></td></tr></table></figure>
+
+<p>如图5所示，生成的BPF字节码，以及各种section（例如<code>.text</code>, <code>.symtab</code>, <code>.debug_info</code>, <code>.BTF</code>, <code>.BTF.ext</code>, <code>.maps.start</code>, <code>.maps.dist</code>, <code>.maps.extension</code>，和ELF类似），被保存到<code>BPFModule::sections_</code>中。这是通过<code>ExecutionEngine</code>回调<code>MyMemoryManager</code>完成的。</p>
+<p>至此，“把大象装冰箱”的第1步算是完成了：终于得到了BPF字节码。如图5所示，函数<code>trace_req_start</code>和<code>trace_req_done</code>的BPF字节码起始地址和size被保存在<code>BPFModule::prog_func_info_</code>中（<code>FuncInfo</code>结构的<code>start_</code>和<code>size_</code>成员）。我们将在第3.4节看到，要加载函数到内核，要先到<code>BPFModule::prog_func_info_</code>中查函数BPF字节码的起始地址和size。</p>
+<h2 id="创建map-storage-3-3"><a href="#创建map-storage-3-3" class="headerlink" title="创建map storage (3.3)"></a>创建map storage (3.3)</h2><p>生成BPF字节码之后，就要为加载运行做准备了。所以<code>BPFModule::finalize</code>还做了2个事情：</p>
+<ul>
+<li>一个是处理BPF字节码程序中的BTF section（<code>.BTF</code>和<code>.BTF.ext</code>）；这个是为可移植性而做的锦上添花的工作，我们留待后文介绍CO-RE（见第TODO节）时再说。</li>
+<li>另一个就是创建map，代码中也叫table；这是本小节的内容。</li>
+</ul>
+<p>第3.2.3节生成了map storage（<code>start</code>，<code>dist</code>和<code>extension</code>）的描述信息并存储到<code>BPFModule::ts_</code>字段；第3.2.5节中生成了这样一些section：<code>.maps.start</code>， <code>.maps.dist</code>和<code>.maps.extension</code>；这些都是死的东西，就像保存在ELF文件中或者读到内存中的可执行文件或者库文件。要在运行时使用它们，就要在内核中创建它们。它们有点类似于socket，创建之后返回一个fd，以后使用fd以及配套的系统调用来与内核交互。所以，这一部分不是BCC提供的能力，而是linux内核以及BPF库（图3中的libbpf）提供的。</p>
+<p>BCC层（<code>BPFModule::create_maps</code>即被调用的函数）所做的事情不多，很快调用到libbpf库的<code>bpf_map_create</code>函数。这里代码风格有点眼熟，它和创建线程<code>pthread_create</code>类似，初始化一个<code>bpf_attr attr</code>，然后调用syscall：<code>syscall(__NR_bpf, BPF_MAP_CREATE, attr, size)</code>类似风格的syscall很常见。返回的map fd被保存在<code>BPFModule::ts_</code>中，如图5所示。</p>
+<p>以后和map的交互都要通过fd来完成了。例如要在用户态更新map，可以调用libbpf库的<code>bpf_map_update_elem</code>函数，它最终对应的系统调用是：<code>syscall(__NR_bpf, BPF_MAP_UPDATE_ELEM, ...)</code>；再如，我们将在第3.6节读程序的输出，会调用<code>bpf_map_lookup_elem</code>，对应的系统调用是：<code>syscall(__NR_bpf, BPF_MAP_LOOKUP_ELEM, ...)</code>。此乃后话，现在程序还没被加载到内核，更别提运行乃至输出结果了。</p>
+<h2 id="加载函数到内核-3-4"><a href="#加载函数到内核-3-4" class="headerlink" title="加载函数到内核 (3.4)"></a>加载函数到内核 (3.4)</h2><p>现在，我们有了BPF程序的字节码，并且在程序运行要用的数据变量（map）也创建好了，接下来就是加载了。回到最上层<code>biolatency</code>，加载和attach到events是在这一行完成的（以<code>trace_req_start</code>为例）：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">b.attach_kprobe(event=<span class="string">&quot;blk_account_io_start&quot;</span>, fn_name=<span class="string">&quot;trace_req_start&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>我们把attach留到3.5节，这里只看加载，即python库<code>class BPF</code>的<code>load_func</code>函数，输入的是函数名（以<code>trace_req_start</code>为例）：</p>
+<ul>
+<li><code>lib.bpf_function_start</code>：从C++库<code>BPFModule::prog_func_info_</code>中查<code>trace_req_start</code>的BPF字节码的起始地址；</li>
+<li><code>lib.bpf_function_size</code>：同上，查size；</li>
+<li>调用C++库<code>lib.bcc_func_load</code>；输入参数是BPF字节码的起始地址和size；</li>
+</ul>
+<p>和创建map storage类似，通过系统调用，把函数BPF字节码加载到内核。其实BCC的核心功能是rewrite和编译，其他的流程借助BPF库（图3中的libbpf）完成，干预较少。所以，这里很快走到libbpf库<code>bpf_prog_load</code>函数，这里还是熟悉的配方：初始化一个<code>bpf_attr attr</code>，然后进行系统调用；<code>syscall(__NR_bpf, BPF_PROG_LOAD, attr, size)</code>。返回的是函数的fd（prog fd或者func fd），下面attach会用到它。</p>
+<h2 id="attach函数到events-3-5"><a href="#attach函数到events-3-5" class="headerlink" title="attach函数到events (3.5)"></a>attach函数到events (3.5)</h2><p>这一节我们要把函数（<code>trace_req_start</code>和<code>trace_req_done</code>）关联（attach）到对应的event上。显然，我们是想在内核函数<code>blk_account_io_start</code>被调用时触发<code>trace_req_start</code>；<code>blk_account_io_done</code>被调用时触发<code>trace_req_done</code>。因为<code>blk_account_io_start/done</code>都是内核函数，我们这里使用的event是kprobe。</p>
+<p>上一节加载函数返回的prog fd（或叫func fd，记作progfd）是函数的抓手；event是<code>blk_account_io_start/done</code>；有了这两方，就可以进行关联（attach）了：</p>
+<ul>
+<li>python库<code>class BPF</code>的<code>attach_kprobe</code>调用C++库函数<code>bpf_attach_kprobe</code>，输入prog fd和event name（<code>p_blk_</code>拼接内核函数名，即<code>p_blk_account_io_start/done</code>）；</li>
+<li>调用系统调用<code>syscall(__NR_perf_event_open, &amp;attr, ...)</code>创建一个<code>perf_event</code>，返回<code>perf_event_fd</code>；</li>
+<li>调用系统调用<code>ioctl(perf_event_fd, PERF_EVENT_IOC_SET_BPF, progfd)</code>和<code>ioctl(perf_event_fd, PERF_EVENT_IOC_ENABLE, 0)</code>完成关联；</li>
+</ul>
+<h2 id="从BPF-map-storage读取输出-3-6"><a href="#从BPF-map-storage读取输出-3-6" class="headerlink" title="从BPF map storage读取输出 (3.6)"></a>从BPF map storage读取输出 (3.6)</h2><h2 id="运行与观察-3-7"><a href="#运行与观察-3-7" class="headerlink" title="运行与观察 (3.7)"></a>运行与观察 (3.7)</h2><h1 id="BTF-4"><a href="#BTF-4" class="headerlink" title="BTF (4)"></a>BTF (4)</h1><p>抽象地说，BTF(BPF Type Format)是一个specification，用于定义和BPF program/map相关的debug-info的metadata format，最初只包括data types，后来又加入了function-info和line-info。BTF specification有两个部分:</p>
+<ul>
+<li>BTF kernel API</li>
+<li>BTF ELF file format<br>后者是描述ELF文件格式。</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/linux/" rel="tag"># linux</a>
+              <a href="/tags/trace/" rel="tag"># trace</a>
+              <a href="/tags/eBPF/" rel="tag"># eBPF</a>
+              <a href="/tags/bcc/" rel="tag"># bcc</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/08/19/cpu-mpstat/" rel="prev" title="CPU mpstat命令">
+      <i class="fa fa-chevron-left"></i> CPU mpstat命令
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/02/15/python3-metaclass/" rel="next" title="Python3 Metaclass">
+      Python3 Metaclass <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%89%8D%E8%A8%80-1"><span class="nav-number">1.</span> <span class="nav-text">前言 (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#BPF%E7%9A%84%E5%8E%9F%E7%90%86-2"><span class="nav-number">2.</span> <span class="nav-text">BPF的原理 (2)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#BCC-3"><span class="nav-number">3.</span> <span class="nav-text">BCC (3)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%8EBPF-C%E7%A8%8B%E5%BA%8F%E5%BC%80%E5%A7%8B-3-1"><span class="nav-number">3.1.</span> <span class="nav-text">从BPF C程序开始 (3.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Rewrite%E5%92%8C%E7%BC%96%E8%AF%91-3-2"><span class="nav-number">3.2.</span> <span class="nav-text">Rewrite和编译 (3.2)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#BPFModule%E7%B1%BB-3-2-1"><span class="nav-number">3.2.1.</span> <span class="nav-text">BPFModule类 (3.2.1)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Rewrite%E5%B9%B6%E7%BC%96%E8%AF%91%E6%88%90LLVM-IR%E7%A8%8B%E5%BA%8F-3-2-2"><span class="nav-number">3.2.2.</span> <span class="nav-text">Rewrite并编译成LLVM IR程序 (3.2.2)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%94%9F%E6%88%90map-storage%E7%9A%84%E6%8F%8F%E8%BF%B0%E4%BF%A1%E6%81%AF-3-2-3"><span class="nav-number">3.2.3.</span> <span class="nav-text">生成map storage的描述信息 (3.2.3)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%94%9F%E6%88%90func%E6%8F%8F%E8%BF%B0%E4%BF%A1%E6%81%AF-3-2-4"><span class="nav-number">3.2.4.</span> <span class="nav-text">生成func描述信息 (3.2.4)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BB%8ELLVM-IR%E5%88%B0BPF%E5%AD%97%E8%8A%82%E7%A0%81-3-2-5"><span class="nav-number">3.2.5.</span> <span class="nav-text">从LLVM IR到BPF字节码 (3.2.5)</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%9B%E5%BB%BAmap-storage-3-3"><span class="nav-number">3.3.</span> <span class="nav-text">创建map storage (3.3)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8A%A0%E8%BD%BD%E5%87%BD%E6%95%B0%E5%88%B0%E5%86%85%E6%A0%B8-3-4"><span class="nav-number">3.4.</span> <span class="nav-text">加载函数到内核 (3.4)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#attach%E5%87%BD%E6%95%B0%E5%88%B0events-3-5"><span class="nav-number">3.5.</span> <span class="nav-text">attach函数到events (3.5)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%8EBPF-map-storage%E8%AF%BB%E5%8F%96%E8%BE%93%E5%87%BA-3-6"><span class="nav-number">3.6.</span> <span class="nav-text">从BPF map storage读取输出 (3.6)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%90%E8%A1%8C%E4%B8%8E%E8%A7%82%E5%AF%9F-3-7"><span class="nav-number">3.7.</span> <span class="nav-text">运行与观察 (3.7)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#BTF-4"><span class="nav-number">4.</span> <span class="nav-text">BTF (4)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

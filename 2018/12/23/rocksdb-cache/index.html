@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="本文简要介绍一下RocksDB中LRUCache的实现。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="RocksDB中的LRUCache">
+<meta property="og:url" content="http://yoursite.com/2018/12/23/rocksdb-cache/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="本文简要介绍一下RocksDB中LRUCache的实现。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2018-12-23T19:10:05.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.542Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="lru">
+<meta property="article:tag" content="cache">
+<meta property="article:tag" content="rocksdb">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2018/12/23/rocksdb-cache/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>RocksDB中的LRUCache | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/12/23/rocksdb-cache/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          RocksDB中的LRUCache
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2018-12-23 19:10:05" itemprop="dateCreated datePublished" datetime="2018-12-23T19:10:05+00:00">2018-12-23</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/leveldb/" itemprop="url" rel="index"><span itemprop="name">leveldb</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2018/12/23/rocksdb-cache/" class="post-meta-item leancloud_visitors" data-flag-title="RocksDB中的LRUCache" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2018/12/23/rocksdb-cache/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2018/12/23/rocksdb-cache/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>本文简要介绍一下RocksDB中LRUCache的实现。</p>
+<a id="more"></a>
+
+<h1 id="LRUHandle结构体-1"><a href="#LRUHandle结构体-1" class="headerlink" title="LRUHandle结构体 (1)"></a>LRUHandle结构体 (1)</h1><p>LRUHandle结构是对cache元素的封装，即cache中存的是LRUHandle的实例。它实现了一个key-value对。它的字段的含义显而易见，这里只说明以下几点：</p>
+<ul>
+<li>它没有使用模板，value通过void指针(<code>void*</code>)来表示；</li>
+<li>key是一个char数组(<code>char key_data[]</code>)，但结构体中只存储第一个char，后续部分紧跟着结构体。所以，一方面需要一个成员表示key的长度(<code>size_t key_length</code>)，另一方面要求<code>char key_data</code>是结构体的最后一个数据成员；</li>
+<li>Free()是实例的destructor，但它不是通过<code>delete this</code>来实现(调用析构函数<code>~LRUHandle</code>)，而是调用使用者提供的<code>deleter</code>来销毁<code>value</code>，并通过<code>delete[] reinterpret_cast&lt;char*&gt;(this)</code>来销毁实例本身。这是因为：1.本类并不知道如何销毁<code>value</code>(因为它是void指针)，需要使用者提供<code>deleter</code>; 2.实例本身是通过<code>reinterpret_cast&lt;LRUHandle*&gt;(new char[...])</code>分配的(见<code>LRUCacheShard::Insert</code>)，需要对应的<code>delete[] char*</code>来销毁。注意：<code>delete[] reinterpret_cast&lt;char*&gt;(this)</code>不调用this的析构函数。</li>
+</ul>
+<h1 id="LRUHandleTable类-2"><a href="#LRUHandleTable类-2" class="headerlink" title="LRUHandleTable类 (2)"></a>LRUHandleTable类 (2)</h1><p>这个类更简单，就是实现一个hash表。不赘述。</p>
+<h1 id="LRUCacheShard类-3"><a href="#LRUCacheShard类-3" class="headerlink" title="LRUCacheShard类 (3)"></a>LRUCacheShard类 (3)</h1><p>这个类比较麻烦。LRUCache包含多个shard，每个shard就是一个本类的实例。也就是说，把这个类搞清楚，LRUCache就清楚了。</p>
+<h2 id="内存对齐-3-1"><a href="#内存对齐-3-1" class="headerlink" title="内存对齐 (3.1)"></a>内存对齐 (3.1)</h2><p>首先要说的是，这个类使用c++11提供的<code>alignas</code>关键字对齐到<code>CACHE_LINE_SIZE</code>。shard的实现，一般都会对齐到<code>CACHE_LINE_SIZE</code>，因为高频访问才需要引入shard。高频情况下，对齐到<code>CACHE_LINE_SIZE</code>更高效。</p>
+<h2 id="LRU列表与LRUHandle的状态-3-2"><a href="#LRU列表与LRUHandle的状态-3-2" class="headerlink" title="LRU列表与LRUHandle的状态 (3.2)"></a>LRU列表与LRUHandle的状态 (3.2)</h2><p>LRUCacheShard本质是一个LRUHandleTable的实例加上一个LRU列表。常见的LRU cache的实现方式是一个hash，然后用一个LRU列表把hash中的所有元素串联起来。一个元素被访问就被移动到LRU列表的头部(这样热的元素在头部，冷的元素在尾部)，淘汰时从尾部移除。然而，这里的实现方式稍有不同：</p>
+<ul>
+<li>LRU列表<code>lru_</code>并不串联所有的元素(一个元素就是一个LRUHandle的实例)，而只串联<strong>可以被淘汰</strong>的元素；</li>
+<li>什么是<strong>可以被淘汰</strong>的元素呢？答案是满足这两个条件的元素：1.被cache引用(在cache里，即LRUHandle的InCache()==true); 2.只被cache引用(即LRUHandle的refs==1)。所以，如果一个元素的refs为1，但这个引用不是由cache持有，它就不在LRU列表里(元素都不在cache里，谈何淘汰呢)；或者，被cache引用，同时也被外部使用者引用(refs&gt;1)，它也不在LRU列表里(虽然元素在cache里，但还正被使用着，不能淘汰)。总之，LRU用来记录cache中的可以被淘汰的元素，当cache的大小超过设定值时，就从LRU中找元素进行淘汰。</li>
+</ul>
+<p>基于上面的描述，可以发现一个元素(LRUHandle实例)可能处于以下3种状态之一：</p>
+<ul>
+<li>状态A: 同时被cache和外部使用者引用(InCache()==true并且refs&gt;1)；</li>
+<li>状态B: 只被cache引用(InCache()==true并且refs==1)；</li>
+<li>状态C: 只被外部使用者引用(InCache()==false)；</li>
+</ul>
+<p>可见：只有处于状态B的元素才在LRU列表里。我们看一个典型的元素的生命周期：</p>
+<ul>
+<li>user-a调用<code>LRUCacheShard::Insert</code>创建元素并返回引用：这时元素有两个引用(refs==2)，一个由cache持有，另一个由user-a持有。元素在cache中但不在LRU列表里；</li>
+<li>user-b调用<code>LRUCacheShard::Lookup</code>得到这个元素，refs==3；元素在cache中但不在LRU列表里；</li>
+<li>user-a调用<code>LRUCacheShard::Release</code>释放这个元素，refs==2；元素在cache中但不在LRU列表里；</li>
+<li>user-b调用<code>LRUCacheShard::Release</code>释放这个元素，refs==1；这时把元素插入LRU列表，表示在必要时可以淘汰它；</li>
+<li>user-c调用<code>LRUCacheShard::Lookup</code>得到这个元素，refs==2；从LRU列表中移除。元素在cache中但不在LRU列表里；</li>
+<li>user-c调用<code>LRUCacheShard::Release</code>释放这个元素，refs==1；这时把元素插入LRU列表，表示在必要时可以淘汰它；</li>
+<li>user-d新插入一个元素，导致cache的大小超过预置值，<code>LRUCacheShard::EvictFromLRU()</code>被调用，淘汰这个元素(从cache和LRU列表中移除，然后其Free函数被调用)；</li>
+</ul>
+<p>当一个元素被cache和外部使用者同时引用时(InCache()==true并且refs==2)，外部使用者可以直接调用<code>LRUCacheShard::Erase</code>。这时：元素直接从cache中移除(InCache()==false并且refs==1)，注意它这时候本来就不在LRU中，所以无需从LRU移除。另外注意，cache的usage中还记着它的charge，当外部使用者调用<code>LRUCacheShard::Release</code>时，refs==0，才从usage中扣除。</p>
+<p>当一个元素在cache中(InCache()==true)，若被另一个key相同的元素覆盖时，和Erase类似：元素从cache中移除。若之前只有cache引用(在LRU里)，也从LRU里移除，并调用Free()销毁；否则不在LRU里，说明还有外部引用，refs–，处于状态C。</p>
+<h2 id="LRU的高低优先级-3-3"><a href="#LRU的高低优先级-3-3" class="headerlink" title="LRU的高低优先级 (3.3)"></a>LRU的高低优先级 (3.3)</h2><p>LRU是一个双向链表，其中由一个dummy元素<code>lru_</code>，可以把它看作双向链表的尾。另外还有一个<code>lru_low_pri_</code>指针，它和<code>lru_</code>把这个双向链表分成两部分：一部分是高优先级的；另一部分是低优先级的。淘汰时，从低优先级的开始。什么样的是高优先级的呢？一种是显示设置为为高优先级(<code>LRUHandle::SetInHighPriPool(true)</code>)，另一种是被命中过的元素(<code>LRUHandle::SetHit</code>)重新进入LRU时。</p>
+<h2 id="LRUCache-4"><a href="#LRUCache-4" class="headerlink" title="LRUCache (4)"></a>LRUCache (4)</h2><p>如前所述，LRUCache就是把多个LRUCacheShard组合起来。不细说了。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/lru/" rel="tag"># lru</a>
+              <a href="/tags/cache/" rel="tag"># cache</a>
+              <a href="/tags/rocksdb/" rel="tag"># rocksdb</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2018/11/11/go-vim-dev-environment/" rel="prev" title="搭建vim的go开发环境">
+      <i class="fa fa-chevron-left"></i> 搭建vim的go开发环境
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2019/01/02/jemalloc-heap-profiling/" rel="next" title="jemalloc的heap profiling">
+      jemalloc的heap profiling <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#LRUHandle%E7%BB%93%E6%9E%84%E4%BD%93-1"><span class="nav-number">1.</span> <span class="nav-text">LRUHandle结构体 (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#LRUHandleTable%E7%B1%BB-2"><span class="nav-number">2.</span> <span class="nav-text">LRUHandleTable类 (2)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#LRUCacheShard%E7%B1%BB-3"><span class="nav-number">3.</span> <span class="nav-text">LRUCacheShard类 (3)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%86%85%E5%AD%98%E5%AF%B9%E9%BD%90-3-1"><span class="nav-number">3.1.</span> <span class="nav-text">内存对齐 (3.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#LRU%E5%88%97%E8%A1%A8%E4%B8%8ELRUHandle%E7%9A%84%E7%8A%B6%E6%80%81-3-2"><span class="nav-number">3.2.</span> <span class="nav-text">LRU列表与LRUHandle的状态 (3.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#LRU%E7%9A%84%E9%AB%98%E4%BD%8E%E4%BC%98%E5%85%88%E7%BA%A7-3-3"><span class="nav-number">3.3.</span> <span class="nav-text">LRU的高低优先级 (3.3)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#LRUCache-4"><span class="nav-number">3.4.</span> <span class="nav-text">LRUCache (4)</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

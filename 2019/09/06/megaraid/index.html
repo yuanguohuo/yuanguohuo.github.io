@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="简单介绍megaraid。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="megaraid">
+<meta property="og:url" content="http://yoursite.com/2019/09/06/megaraid/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="简单介绍megaraid。">
+<meta property="og:locale">
+<meta property="og:image" content="http://yoursite.com/2019/09/06/megaraid/sas3616w-IOC.jpg">
+<meta property="og:image" content="http://yoursite.com/2019/09/06/megaraid/sas3516-RoC.jpg">
+<meta property="og:image" content="http://yoursite.com/2019/09/06/megaraid/9405w-16i_hba_angle.jpg">
+<meta property="og:image" content="http://yoursite.com/2019/09/06/megaraid/mr_9460-16i_angle_28129.jpg">
+<meta property="og:image" content="http://yoursite.com/2019/09/06/megaraid/scsi_model.jpg">
+<meta property="article:published_time" content="2019-09-06T09:37:05.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.524Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="disk">
+<meta property="article:tag" content="raid">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2019/09/06/megaraid/sas3616w-IOC.jpg">
+
+<link rel="canonical" href="http://yoursite.com/2019/09/06/megaraid/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>megaraid | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/09/06/megaraid/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          megaraid
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2019-09-06 09:37:05" itemprop="dateCreated datePublished" datetime="2019-09-06T09:37:05+00:00">2019-09-06</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/disk/" itemprop="url" rel="index"><span itemprop="name">disk</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2019/09/06/megaraid/" class="post-meta-item leancloud_visitors" data-flag-title="megaraid" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2019/09/06/megaraid/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2019/09/06/megaraid/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>简单介绍megaraid。</p>
+<a id="more"></a>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+
+<script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+<h1 id="LSI公司及产品-1"><a href="#LSI公司及产品-1" class="headerlink" title="LSI公司及产品 (1)"></a>LSI公司及产品 (1)</h1><p>简史：</p>
+<ul>
+<li>1981年成立，专攻ASIC；</li>
+<li>2000年6月，发布Fusion-MPT architecture；</li>
+<li>2001年3月，收购AMI公司的MegaRAID software IP + RAID division；</li>
+<li>2001年6月，发布LSI53C1030，第一个Fusion-MPT architecture的I/O Controller（简称IOC）；基于ARM 9；</li>
+<li>2004年1月，发布SAS1064，这是第一代SAS/SATA controller （IOC）；</li>
+<li>2005年4月，展示了SAS RoC SAS1078，这是第一代SAS/SATA Raid-on-Chip（RoC）；处理器从ARM 9换成PowerPC 440；</li>
+<li>2006年2月，首次引入运行Integrated RAID（简称IR，firmware层实现的RAID）的HBA；</li>
+<li>2013年12月，LSI被Avago收购；</li>
+<li>2016年2月，Avago又收购Broadcom；并且Avago更名为”Broadcom Inc”；</li>
+<li>2017年4月，发布Tri-Mode（SAS/SATA/PCIe）的HBA和RAID adapter（基于SAS3408 IOC and SAS3508 RoC）；第一次支持SAS/SATA/NVMe，并且芯片从PowerPC换成ARM A15；</li>
+</ul>
+<p>简史中有一些名词：</p>
+<ul>
+<li><strong>IOC和RoC</strong></li>
+</ul>
+<p>IOC和RoC是集成电路（Integrated Circuit，简称IC），也就是<strong>芯片</strong>，是LSI/Broadcom自己的HBA和RAID控制卡的一个核心元件，也会卖给OEM。</p>
+<p>IOC全称是I/O Controller，这里特指Storage I/O Controller，之前支持SAS/SATA两种接口（SAS和SATA磁盘），现在通常都还支持PCIe接口（NVMe磁盘）。IOC芯片不支持RAID，或只支持基础的Integrated RAID（简称IR，firmware层实现的RAID），且支持的RAID level也很有限：RAID-0, RAID-1, RAID-1E, RAID-10。IOC芯片主要用于HBA卡和entry-level的MegaRAID卡。Broadcom SAS3616W Tri-Mode I/O Controller长这个样子：</p>
+<img src="/2019/09/06/megaraid/sas3616w-IOC.jpg" class="" title="SAS3616W-IOC">
+
+<p>RoC全称是RAID-on-Chip，集成了更高级的基于硬件的RAID功能，如专门的硬件引擎用以加速RAID5，RAID6的parity计算。RoC支持多种level的RAID，RAID-0, RAID-1, RAID-1E, RAID-5, RAID-6, RAID10, RAID-50, RAID-60。RoC主要用于RAID控制卡。Broadcom SAS3516 Tri-Mode RoC长这样子：</p>
+<img src="/2019/09/06/megaraid/sas3516-RoC.jpg" class="" title="SAS3516-RoC">
+
+<p>像CPU一样，每个IOC和RoC包含多个处理器核心(processor cores)，这些cores用于实现Fusion-MPT architecture，Integrated RAID（运行IR firmware），管理SCSI I/O而不用打扰CPU。</p>
+<ul>
+<li><strong>IR和IT</strong></li>
+</ul>
+<p>IR即Integrated RAID，是基于firmware实现的RAID，介于Software RAID和Hardware RAID之间。IR也叫做<code>Hardware-Assisted Software RAID</code>，<code>firmware RAID</code>，或者<code>fake RAID</code>（对吗？fix me!）。 <code>Hardware-assisted software RAID</code>是使用芯片上运行的firmware实现RAID的功能。IT即Initiator-Target模式，禁用了IOC或RoC的高级功能，只使用Initiator Target功能，可以认为是直通的（对吗？fix me!）。IT模式下，由于是直通的，所以可以做Software RAID（对吗？fix me!）。</p>
+<ul>
+<li><strong>Fusion-MPT</strong></li>
+</ul>
+<p>Fusion-MPT (Message Passing Technology) 是一个体系结构，包括Fusion-MPT firmware，硬件(Ultra320 SCSI, FC, SAS)和OS层的驱动。LSI/Broadcom IOC和RoC都是基于这个体系结构。</p>
+<ul>
+<li><strong>HBA和RAID adapter</strong></li>
+</ul>
+<p>LSI/Broadcom生产两种存储卡：HBA卡和RAID控制卡。</p>
+<p>HBA卡几乎全部使用IOC芯片（9400-8i8e 是例外，它使用RoC芯片）。有两种类型的firmware：IT和IR（如前所述）。Broadcom HBA 9405W-16i Tri-Mode是一个基于SAS3616W Tri-Mode IOC芯片的HBA卡：</p>
+<img src="/2019/09/06/megaraid/9405w-16i_hba_angle.jpg" class="" title="9405w-16i-HBA">
+
+<p>RAID控制卡，即MegaRAID，可能使用IOC芯片也可能使用RoC芯片。Entry-level的MegaRAID卡使用IOC芯片，和HBA卡使用的IOC一样，只是装的是MegaRAID firmware。这些MegaRAID卡没有onboard cache memory，也没有备用电源，不支持RAID-6和RAID-60，在条带单元的size上也有限制。它们也被叫做 iMR or iMegaRAID (Integrated MegaRAID)。所以，这些MegaRAID卡也属于IR（对吗？fix me!）。针对value and higher市场的MegaRAID卡使用RoC芯片，带有onboard cache memory和备用电源，支持RAID-6，RAID-60等。Broadcom MegaRAID 9460-16i是基于SAS3516 Tri-Mode RoC芯片的MegaRAID卡： </p>
+<img src="/2019/09/06/megaraid/mr_9460-16i_angle_28129.jpg" class="" title="9460-16i-MegaRAID">
+
+<table>
+<thead>
+<tr>
+<th>存储卡</th>
+<th>芯片</th>
+<th>支持RAID的方式</th>
+<th>是否有onboard cache memory 和 备用电源</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>HBA卡(IT firmware)</td>
+<td>IOC</td>
+<td>不支持</td>
+<td>否</td>
+</tr>
+<tr>
+<td>HBA卡(IR firmware)</td>
+<td>IOC</td>
+<td>firmware(IR)</td>
+<td>否</td>
+</tr>
+<tr>
+<td>MegaRAID卡(针对entry level市场)</td>
+<td>IOC</td>
+<td>MegaRAID firmware(IR)</td>
+<td>否</td>
+</tr>
+<tr>
+<td>MegaRAID卡(针对value and higher市场)</td>
+<td>RoC</td>
+<td>Hardware</td>
+<td>是</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>OEM</strong></li>
+</ul>
+<p>有两种风格的OEM厂商：1.简单的re-brand LSI/Broadcom的HBA卡和MegaRAID卡；这些卡还是LSI/Broadcom生产的，只是打上了OEM厂商的标。这类很好区别，因为PCB上会显示LSI/Avago/Broadcom的logo；例如IBM ServeRAID M1015是MegaRAID SAS 9240-8i的re-brand版；2. 从LSI/Broadcom购买IOC和RoC芯片，然后使用这些芯片生产自己品牌的HBA卡和RAID卡。例如Dell PERC，uperMicro和Fujitsu的。</p>
+<h1 id="MegaCli64-2"><a href="#MegaCli64-2" class="headerlink" title="MegaCli64 (2)"></a>MegaCli64 (2)</h1><h2 id="下载与安装-2-1"><a href="#下载与安装-2-1" class="headerlink" title="下载与安装 (2.1)"></a>下载与安装 (2.1)</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"># wget https:&#x2F;&#x2F;docs.broadcom.com&#x2F;docs-and-downloads&#x2F;raid-controllers&#x2F;raid-controllers-common-files&#x2F;8-07-06_MegaCLI.zip</span><br><span class="line"># unzip 8-07-06_MegaCLI.zip </span><br><span class="line"># cd Linux&#x2F;</span><br><span class="line"># rpm -hiv MegaCli-8.07.06-1.noarch.rpm</span><br><span class="line"># ls &#x2F;opt&#x2F;MegaRAID&#x2F;MegaCli&#x2F;</span><br><span class="line">MegaCli64  install.log  libstorelibir-2.so  libstorelibir-2.so.13.05-0</span><br></pre></td></tr></table></figure>
+
+<h2 id="MegaCli64涉及的对象-2-2"><a href="#MegaCli64涉及的对象-2-2" class="headerlink" title="MegaCli64涉及的对象 (2.2)"></a>MegaCli64涉及的对象 (2.2)</h2><ul>
+<li>Adapter: 即controller，物理MegaRAID卡或物理MegaRAID控制器。一个server上可能有多个adapter，<code>MegaCli64 -adpCount</code>返回其数量。<code>-a</code>用于指定一个或所有adapter（<code>-aN</code>指定Id为<code>N</code>的adapter; <code>-aALL</code>指定所有adapter）。几乎所有常用命令都需要<code>-a</code>选项。一般情况下，server上只有一个adapter，其ID一般为0，这时<code>-a0</code>或<code>-aALL</code>是等价的。Adapter相关的操作以<code>-Adp</code>开头，例如，列出所有adapter的信息：<code>MegaCli64 -AdpAllInfo -aALL</code>；只列出adapter-0的信息：<code>MegaCli64 -AdpAllInfo -a0</code>。</li>
+<li>Enclosure: 即Disk Enclosure，物理磁盘柜。一个adapter上可以有一个或多个物理磁盘柜。其ID一般为254, 252等。<code>MegaCli64 -EncInfo -aALL</code>列出所有adapter上的所有磁盘柜；<code>MegaCli64 -EncInfo -a0</code>只列出adapter-0上的磁盘柜。一个磁盘柜里有多个磁盘，这些磁盘就是Physical Drive；</li>
+<li>Physical Drive: 即磁盘柜里的物理磁盘。<code>-PhysDrv [E0:S0,E1:S1,...]</code>用于指定一个或多个物理磁盘；E{M}:S{N}表示位于enclosure-M的slot-N的磁盘。物理磁盘相关的操作以<code>-pd</code>, <code>-Pd</code>, <code>-PD</code>开头，例如，列出adapter-0上所有的物理磁盘：<code>MegaCli64 -PDList -a0</code>。</li>
+<li>Logical Disk: 也叫virtual disk或virtual drive。由物理磁盘虚拟出的逻辑设备，ID通常是0, 1, 2等。例如由3个物理磁盘构建一个RAID0，physical drives是0, 1, 2；virtual drive是0。Virtual drive包含一个到几个physical drive以及一些RAID设置（例如，RAID level，strip size等）。<code>-L</code>用于指定一个（<code>-LN</code>，<code>N</code>为logical disk的ID）或所有（<code>-Lall</code>）logical disk。例如，<code>MegaCli64 -LDInfo -Lall -aALL</code>列出所有adapter上的所有logical drive。Logical driver相关的操作以<code>-LD</code>开头。</li>
+</ul>
+<h2 id="Virtual-Drive的Cache-Policy-2-3"><a href="#Virtual-Drive的Cache-Policy-2-3" class="headerlink" title="Virtual Drive的Cache Policy (2.3)"></a>Virtual Drive的Cache Policy (2.3)</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">Cache Policy&#39;s are how the raid card uses on board RAM to collect data before writing out to disk or to read data before the system asks for it.</span><br><span class="line"></span><br><span class="line">Write cache is used when we have a lot of data to write and it is faster to write data sequentially to disk instead of writing small chunks.</span><br><span class="line"></span><br><span class="line">Read cache is used when the system has asked for some data and the raid card keeps the data in cache in case the system asks for the same data again.</span><br><span class="line"></span><br><span class="line">It is always faster to read and write to cache then to access spinning disks. Understand that you should only use caching if you have good UPS power to the system.</span><br><span class="line"></span><br><span class="line">If the system looses power and does not flush the cache it is possible to loose data. No one wants that. Lets look at each cache policy LSI raid card use.</span><br><span class="line"></span><br><span class="line">WriteBack uses the card&#39;s cache to collect enough data to make a series of long sequential writes out to disk. This is the fastest write method.</span><br><span class="line">WriteThrough tells the card to write all data directly to disk without cache. This method is quite slow by about 1&#x2F;10 the speed of WriteBack, but is safer as no data can be lost that was in cache when the machine&#39;s power fails.</span><br><span class="line">ReadAdaptive uses an algorithm to see if when the OS asks for a bunch of data blocks sequentially, if we should read a few more sequential blocks because the OS _might_ ask for those too. This method can lead to good speed increases.</span><br><span class="line">ReadAheadNone tells the raid card to only read the data off the raid disk if it was actually asked for. No more, no less.</span><br><span class="line">Cached allows the general use of the cards cache for any data which is read or written. Very efficient if the same data is accessed over and over again.</span><br><span class="line">Direct is straight access to the disk without ever storing data in the cache. This can be slow as any I&#x2F;O has to touch the disk platters.</span><br><span class="line">Write Cache OK if Bad BBU tells the card to use write caching even if the Battery Backup Unit (BBU) is bad, disabled or missing. This is a good setting if your raid card&#39;s BBU charger is bad, if you do not want or can&#39;t to replace the BBU or if you do not want WriteThrough enabled during a BBU</span><br><span class="line">relearn test.</span><br><span class="line"></span><br><span class="line">No Write Cache if Bad BBU if the BBU is not available for any reason then disable WriteBack and turn on WriteThrough. This option is safer for your data, but the raid card will switch to WriteThrough during a battery relearn cycle.</span><br><span class="line">Disk Cache Policy: Enabled Use the hard drive&#39;s own cache. For example if data is written out the drives this option lets the drives themselves cache data internally before writing data to its platters.</span><br><span class="line">Disk Cache Policy: Disabled does not allow the drive to use any of its own internal cache.</span><br></pre></td></tr></table></figure>
+
+<h2 id="MegaCli64的使用例子-2-4"><a href="#MegaCli64的使用例子-2-4" class="headerlink" title="MegaCli64的使用例子 (2.4)"></a>MegaCli64的使用例子 (2.4)</h2><p>现在手上刚好有一台server，带有RAID卡，玩一玩。</p>
+<h3 id="例1：确保有RAID卡-2-4-1"><a href="#例1：确保有RAID卡-2-4-1" class="headerlink" title="例1：确保有RAID卡 (2.4.1)"></a>例1：确保有RAID卡 (2.4.1)</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># lspci | grep -i raid</span><br><span class="line">01:00.0 RAID bus controller: LSI Logic &#x2F; Symbios Logic MegaRAID SAS-3 3108 [Invader] (rev 02)</span><br></pre></td></tr></table></figure>
+
+<p>可见server上有一个MegaRAID卡；虽然不知道MegaRAID卡的型号，但我们知道它使用的芯片是SAS3108，在Broadcom官网上查得它是一个RoC芯片。</p>
+<h3 id="例2：RAID卡的PCI信息-2-4-2"><a href="#例2：RAID卡的PCI信息-2-4-2" class="headerlink" title="例2：RAID卡的PCI信息 (2.4.2)"></a>例2：RAID卡的PCI信息 (2.4.2)</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"># MegaCli64 -adpCount</span><br><span class="line"></span><br><span class="line">Controller Count: 1.</span><br><span class="line"></span><br><span class="line">Exit Code: 0x01</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"># MegaCli64 -AdpGetPciInfo -aAll</span><br><span class="line"></span><br><span class="line">PCI information for Controller 0</span><br><span class="line">--------------------------------</span><br><span class="line">Bus Number      : da80</span><br><span class="line">Device Number   : 0</span><br><span class="line">Function Number : a0</span><br><span class="line"></span><br><span class="line">Exit Code: 0x00</span><br></pre></td></tr></table></figure>
+
+<p>可见，我们只有一个RAID卡；其Bus Number是da80。</p>
+<h3 id="例3：RAID卡的属性-2-4-3"><a href="#例3：RAID卡的属性-2-4-3" class="headerlink" title="例3：RAID卡的属性 (2.4.3)"></a>例3：RAID卡的属性 (2.4.3)</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br></pre></td><td class="code"><pre><span class="line"># MegaCli64 -AdpAllInfo -aALL</span><br><span class="line"></span><br><span class="line">Adapter #0</span><br><span class="line"></span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">                    Versions</span><br><span class="line">                &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">Product Name    : SAS3108</span><br><span class="line">Serial No       :</span><br><span class="line">FW Package Build: 24.1.1-0035</span><br><span class="line"></span><br><span class="line">                    Mfg. Data</span><br><span class="line">                &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">Mfg. Date       : 00&#x2F;00&#x2F;00</span><br><span class="line">Rework Date     : 00&#x2F;00&#x2F;00</span><br><span class="line">Revision No     :</span><br><span class="line">Battery FRU     : N&#x2F;A</span><br><span class="line"></span><br><span class="line">                Image Versions in Flash:</span><br><span class="line">                &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">BIOS Version       : 6.13.00.2_4.14.05.00_0x06010602</span><br><span class="line">FW Version         : 4.210.90-3396</span><br><span class="line">NVDATA Version     : 3.1310.00-0067</span><br><span class="line">Ctrl-R Version     : 5.01-0008</span><br><span class="line">Boot Block Version : 3.00.00.00-0009</span><br><span class="line"></span><br><span class="line">                Pending Images in Flash</span><br><span class="line">                &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">None</span><br><span class="line"></span><br><span class="line">                PCI Info</span><br><span class="line">                &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">Controller Id   : 0000</span><br><span class="line">Vendor Id       : 1000</span><br><span class="line">Device Id       : 005d</span><br><span class="line">SubVendorId     : 19e5</span><br><span class="line">SubDeviceId     : d207</span><br><span class="line"></span><br><span class="line">Host Interface  : PCIE</span><br><span class="line"></span><br><span class="line">ChipRevision    : C0</span><br><span class="line"></span><br><span class="line">Link Speed           : 0</span><br><span class="line">Number of Frontend Port: 0</span><br><span class="line">Device Interface  : PCIE</span><br><span class="line"></span><br><span class="line">Number of Backend Port: 8</span><br><span class="line">Port  :  Address</span><br><span class="line">0        500e004aaaaaaa1f</span><br><span class="line">1        0000000000000000</span><br><span class="line">2        0000000000000000</span><br><span class="line">3        0000000000000000</span><br><span class="line">4        0000000000000000</span><br><span class="line">5        0000000000000000</span><br><span class="line">6        0000000000000000</span><br><span class="line">7        0000000000000000</span><br><span class="line"></span><br><span class="line">                HW Configuration</span><br><span class="line">                &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">SAS Address      : 5101b5442bcc7000</span><br><span class="line">BBU              : Absent</span><br><span class="line">Alarm            : Present</span><br><span class="line">NVRAM            : Present</span><br><span class="line">Serial Debugger  : Present</span><br><span class="line">Memory           : Present</span><br><span class="line">Flash            : Present</span><br><span class="line">Memory Size      : 1024MB</span><br><span class="line">TPM              : Absent</span><br><span class="line">On board Expander: Absent</span><br><span class="line">Upgrade Key      : Absent</span><br><span class="line">Temperature sensor for ROC    : Present</span><br><span class="line">Temperature sensor for controller    : Absent</span><br><span class="line"></span><br><span class="line">ROC temperature : 66  degree Celsius</span><br><span class="line"></span><br><span class="line">                Settings</span><br><span class="line">                &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">Current Time                     : 20:29:55 9&#x2F;12, 2019</span><br><span class="line">Predictive Fail Poll Interval    : 300sec</span><br><span class="line">Interrupt Throttle Active Count  : 16</span><br><span class="line">Interrupt Throttle Completion    : 50us</span><br><span class="line">Rebuild Rate                     : 30%</span><br><span class="line">PR Rate                          : 30%</span><br><span class="line">BGI Rate                         : 30%</span><br><span class="line">Check Consistency Rate           : 30%</span><br><span class="line">Reconstruction Rate              : 30%</span><br><span class="line">Cache Flush Interval             : 4s</span><br><span class="line">Max Drives to Spinup at One Time : 4</span><br><span class="line">Delay Among Spinup Groups        : 2s</span><br><span class="line">Physical Drive Coercion Mode     : 1GB</span><br><span class="line">Cluster Mode                     : Disabled</span><br><span class="line">Alarm                            : Enabled</span><br><span class="line">Auto Rebuild                     : Enabled</span><br><span class="line">Battery Warning                  : Enabled</span><br><span class="line">Ecc Bucket Size                  : 15</span><br><span class="line">Ecc Bucket Leak Rate             : 1440 Minutes</span><br><span class="line">Restore HotSpare on Insertion    : Enabled</span><br><span class="line">Expose Enclosure Devices         : Enabled</span><br><span class="line">Maintain PD Fail History         : Enabled</span><br><span class="line">Host Request Reordering          : Enabled</span><br><span class="line">Auto Detect BackPlane Enabled    : SGPIO&#x2F;i2c SEP</span><br><span class="line">Load Balance Mode                : Auto</span><br><span class="line">Use FDE Only                     : No</span><br><span class="line">Security Key Assigned            : No</span><br><span class="line">Security Key Failed              : No</span><br><span class="line">Security Key Not Backedup        : No</span><br><span class="line">Default LD PowerSave Policy      : Controller Defined</span><br><span class="line">Maximum number of direct attached drives to spin up in 1 min : 120</span><br><span class="line">Auto Enhanced Import             : No</span><br><span class="line">Any Offline VD Cache Preserved   : No</span><br><span class="line">Allow Boot with Preserved Cache  : No</span><br><span class="line">Disable Online Controller Reset  : No</span><br><span class="line">PFK in NVRAM                     : No</span><br><span class="line">Use disk activity for locate     : No</span><br><span class="line">POST delay                       : 90 seconds</span><br><span class="line">BIOS Error Handling              : Stop On Errors</span><br><span class="line">Current Boot Mode                 :Normal</span><br><span class="line">                Capabilities</span><br><span class="line">                &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">RAID Level Supported             : RAID0, RAID1, RAID5, RAID6, RAID00, RAID10, RAID50, RAID60, PRL 11, PRL 11 with spanning, SRL 3 supported, PRL11-RLQ0 DDF layout with no span, PRL11-RLQ0 DDF layout with span</span><br><span class="line">Supported Drives                 : SAS, SATA</span><br><span class="line"></span><br><span class="line">Allowed Mixing:</span><br><span class="line"></span><br><span class="line">Mix in Enclosure Allowed</span><br><span class="line">Mix of SAS&#x2F;SATA of HDD type in VD Allowed</span><br><span class="line"></span><br><span class="line">                Status</span><br><span class="line">                &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">ECC Bucket Count                 : 0</span><br><span class="line"></span><br><span class="line">                Limitations</span><br><span class="line">                &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">Max Arms Per VD          : 32</span><br><span class="line">Max Spans Per VD         : 8</span><br><span class="line">Max Arrays               : 128</span><br><span class="line">Max Number of VDs        : 64</span><br><span class="line">Max Parallel Commands    : 928</span><br><span class="line">Max SGE Count            : 60</span><br><span class="line">Max Data Transfer Size   : 8192 sectors</span><br><span class="line">Max Strips PerIO         : 42</span><br><span class="line">Max LD per array         : 16</span><br><span class="line">Min Strip Size           : 64 KB</span><br><span class="line">Max Strip Size           : 1.0 MB</span><br><span class="line">Max Configurable CacheCade Size: 0 GB</span><br><span class="line">Current Size of CacheCade      : 0 GB</span><br><span class="line">Current Size of FW Cache       : 837 MB</span><br><span class="line"></span><br><span class="line">                Device Present</span><br><span class="line">                &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">Virtual Drives    : 13</span><br><span class="line">  Degraded        : 0</span><br><span class="line">  Offline         : 0</span><br><span class="line">Physical Devices  : 16</span><br><span class="line">  Disks           : 14</span><br><span class="line">  Critical Disks  : 0</span><br><span class="line">  Failed Disks    : 0</span><br><span class="line"></span><br><span class="line">                Supported Adapter Operations</span><br><span class="line">                &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">Rebuild Rate                    : Yes</span><br><span class="line">CC Rate                         : Yes</span><br><span class="line">BGI Rate                        : Yes</span><br><span class="line">Reconstruct Rate                : Yes</span><br><span class="line">Patrol Read Rate                : Yes</span><br><span class="line">Alarm Control                   : Yes</span><br><span class="line">Cluster Support                 : No</span><br><span class="line">BBU                             : Yes</span><br><span class="line">Spanning                        : Yes</span><br><span class="line">Dedicated Hot Spare             : Yes</span><br><span class="line">Revertible Hot Spares           : Yes</span><br><span class="line">Foreign Config Import           : Yes</span><br><span class="line">Self Diagnostic                 : Yes</span><br><span class="line">Allow Mixed Redundancy on Array : No</span><br><span class="line">Global Hot Spares               : Yes</span><br><span class="line">Deny SCSI Passthrough           : No</span><br><span class="line">Deny SMP Passthrough            : No</span><br><span class="line">Deny STP Passthrough            : No</span><br><span class="line">Support Security                : No</span><br><span class="line">Snapshot Enabled                : No</span><br><span class="line">Support the OCE without adding drives : Yes</span><br><span class="line">Support PFK                     : Yes</span><br><span class="line">Support PI                      : Yes</span><br><span class="line">Support Boot Time PFK Change    : No</span><br><span class="line">Disable Online PFK Change       : No</span><br><span class="line">Support LDPI Type1                      : No</span><br><span class="line">Support LDPI Type2                      : No</span><br><span class="line">Support LDPI Type3                      : No</span><br><span class="line">PFK TrailTime Remaining         : 0 days 0 hours</span><br><span class="line">Support Shield State            : Yes</span><br><span class="line">Block SSD Write Disk Cache Change: No</span><br><span class="line">Support Online FW Update        : Yes</span><br><span class="line"></span><br><span class="line">                Supported VD Operations</span><br><span class="line">                &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">Read Policy          : Yes</span><br><span class="line">Write Policy         : Yes</span><br><span class="line">IO Policy            : Yes</span><br><span class="line">Access Policy        : Yes</span><br><span class="line">Disk Cache Policy    : Yes</span><br><span class="line">Reconstruction       : Yes</span><br><span class="line">Deny Locate          : No</span><br><span class="line">Deny CC              : No</span><br><span class="line">Allow Ctrl Encryption: No</span><br><span class="line">Enable LDBBM         : No</span><br><span class="line">Support Breakmirror  : No</span><br><span class="line">Power Savings        : No</span><br><span class="line"></span><br><span class="line">                Supported PD Operations</span><br><span class="line">                &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">Force Online                            : Yes</span><br><span class="line">Force Offline                           : Yes</span><br><span class="line">Force Rebuild                           : Yes</span><br><span class="line">Deny Force Failed                       : No</span><br><span class="line">Deny Force Good&#x2F;Bad                     : No</span><br><span class="line">Deny Missing Replace                    : No</span><br><span class="line">Deny Clear                              : No</span><br><span class="line">Deny Locate                             : No</span><br><span class="line">Support Temperature                     : Yes</span><br><span class="line">Disable Copyback                        : No</span><br><span class="line">Enable JBOD                             : No</span><br><span class="line">Enable Copyback on SMART                : Yes</span><br><span class="line">Enable Copyback to SSD on SMART Error   : Yes</span><br><span class="line">Enable SSD Patrol Read                  : No</span><br><span class="line">PR Correct Unconfigured Areas           : Yes</span><br><span class="line">Enable Spin Down of UnConfigured Drives : Yes</span><br><span class="line">Disable Spin Down of hot spares         : No</span><br><span class="line">Spin Down time                          : 30</span><br><span class="line">T10 Power State                         : No</span><br><span class="line">                Error Counters</span><br><span class="line">                &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">Memory Correctable Errors   : 0</span><br><span class="line">Memory Uncorrectable Errors : 0</span><br><span class="line"></span><br><span class="line">                Cluster Information</span><br><span class="line">                &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">Cluster Permitted     : No</span><br><span class="line">Cluster Active        : No</span><br><span class="line"></span><br><span class="line">                Default Settings</span><br><span class="line">                &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">Phy Polarity                     : 0</span><br><span class="line">Phy PolaritySplit                : 0</span><br><span class="line">Background Rate                  : 30</span><br><span class="line">Strip Size                       : 256kB</span><br><span class="line">Flush Time                       : 4 seconds</span><br><span class="line">Write Policy                     : WB</span><br><span class="line">Read Policy                      : Adaptive</span><br><span class="line">Cache When BBU Bad               : Disabled</span><br><span class="line">Cached IO                        : No</span><br><span class="line">SMART Mode                       : Mode 6</span><br><span class="line">Alarm Disable                    : Yes</span><br><span class="line">Coercion Mode                    : 1GB</span><br><span class="line">ZCR Config                       : Unknown</span><br><span class="line">Dirty LED Shows Drive Activity   : No</span><br><span class="line">BIOS Continue on Error           : 0</span><br><span class="line">Spin Down Mode                   : None</span><br><span class="line">Allowed Device Type              : SAS&#x2F;SATA Mix</span><br><span class="line">Allow Mix in Enclosure           : Yes</span><br><span class="line">Allow HDD SAS&#x2F;SATA Mix in VD     : Yes</span><br><span class="line">Allow SSD SAS&#x2F;SATA Mix in VD     : No</span><br><span class="line">Allow HDD&#x2F;SSD Mix in VD          : No</span><br><span class="line">Allow SATA in Cluster            : No</span><br><span class="line">Max Chained Enclosures           : 16</span><br><span class="line">Disable Ctrl-R                   : No</span><br><span class="line">Enable Web BIOS                  : No</span><br><span class="line">Direct PD Mapping                : No</span><br><span class="line">BIOS Enumerate VDs               : Yes</span><br><span class="line">Restore Hot Spare on Insertion   : Yes</span><br><span class="line">Expose Enclosure Devices         : Yes</span><br><span class="line">Maintain PD Fail History         : Yes</span><br><span class="line">Disable Puncturing               : No</span><br><span class="line">Zero Based Enclosure Enumeration : No</span><br><span class="line">PreBoot CLI Enabled              : No</span><br><span class="line">LED Show Drive Activity          : No</span><br><span class="line">Cluster Disable                  : Yes</span><br><span class="line">SAS Disable                      : No</span><br><span class="line">Auto Detect BackPlane Enable     : SGPIO&#x2F;i2c SEP</span><br><span class="line">Use FDE Only                     : No</span><br><span class="line">Enable Led Header                : Yes</span><br><span class="line">Delay during POST                : 0</span><br><span class="line">EnableCrashDump                  : No</span><br><span class="line">Disable Online Controller Reset  : No</span><br><span class="line">EnableLDBBM                      : No</span><br><span class="line">Un-Certified Hard Disk Drives    : Allow</span><br><span class="line">Treat Single span R1E as R10     : No</span><br><span class="line">Max LD per array                 : 16</span><br><span class="line">Power Saving option              : Don&#39;t Auto spin down Configured Drives</span><br><span class="line">Max power savings option is  not allowed for LDs. Only T10 power conditions are to be used.</span><br><span class="line">Default spin down time in minutes: 30</span><br><span class="line">Enable JBOD                      : No</span><br><span class="line">TTY Log In Flash                 : No</span><br><span class="line">Auto Enhanced Import             : No</span><br><span class="line">BreakMirror RAID Support         : No</span><br><span class="line">Disable Join Mirror              : Yes</span><br><span class="line">Enable Shield State              : Yes</span><br><span class="line">Time taken to detect CME         : 60s</span><br><span class="line"></span><br><span class="line">Exit Code: 0x00</span><br></pre></td></tr></table></figure>
+
+<p>这里信息很多，目前关注到：</p>
+<ul>
+<li>Product Name是 SAS3108，如前所述，从官网查得它是一个RoC型号；</li>
+<li>Number of Frontend Port是0；Number of Backend Port是8；（这是什么意思？前端通过PCIe连server，后端可以连至多8个Disk Enclosure？）</li>
+<li>BBU不存在；前文所述，RoC一般带有备用电源的，不清楚为何这个不带。</li>
+<li>Memory存在，size是1024MB；</li>
+<li>RAID Level Supported比较丰富；</li>
+<li>Supported Drives是SAS和SATA（不支持NVMe？）</li>
+<li>当前存在的Virtual Drives是13个；Physical Devices是16个，其中14个是Disks（那另外2个是什么呢？）。</li>
+<li>支持的Virtual Drives的操作（Supported VD Operations）有Read/Write Policy等；支持的Physical Drives（Supported PD Operations）有Force Online/Offline/Rebuild等；</li>
+<li>默认设置（Default Settings）里，Strip Size是256kB；</li>
+</ul>
+<h3 id="例4：此MegaRAID卡上的Enclosure-2-4-4"><a href="#例4：此MegaRAID卡上的Enclosure-2-4-4" class="headerlink" title="例4：此MegaRAID卡上的Enclosure (2.4.4)"></a>例4：此MegaRAID卡上的Enclosure (2.4.4)</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br></pre></td><td class="code"><pre><span class="line"># MegaCli64 -EncInfo -a0</span><br><span class="line"></span><br><span class="line">    Number of enclosures on adapter 0 -- 2</span><br><span class="line"></span><br><span class="line">    Enclosure 0:</span><br><span class="line">    Device ID                     : 14</span><br><span class="line">    Number of Slots               : 16</span><br><span class="line">    Number of Power Supplies      : 2</span><br><span class="line">    Number of Fans                : 4</span><br><span class="line">    Number of Temperature Sensors : 4</span><br><span class="line">    Number of Alarms              : 1</span><br><span class="line">    Number of SIM Modules         : 1</span><br><span class="line">    Number of Physical Drives     : 14</span><br><span class="line">    Status                        : Normal</span><br><span class="line">    Position                      : 1</span><br><span class="line">    Connector Name                : Port A</span><br><span class="line">    Enclosure type                : SES</span><br><span class="line">    FRU Part Number               : N&#x2F;A</span><br><span class="line">    Enclosure Serial Number       : N&#x2F;A</span><br><span class="line">    ESM Serial Number             : N&#x2F;A</span><br><span class="line">    Enclosure Zoning Mode         : N&#x2F;A</span><br><span class="line">    Partner Device Id             : 65535</span><br><span class="line"></span><br><span class="line">    Inquiry data                  :</span><br><span class="line">        Vendor Identification     : 12G SAS</span><br><span class="line">        Product Identification    : Expander</span><br><span class="line">        Product Revision Level    : RevB</span><br><span class="line">        Vendor Specific           :</span><br><span class="line"></span><br><span class="line">Number of Voltage Sensors         :0</span><br><span class="line"></span><br><span class="line">Number of Power Supplies     : 2</span><br><span class="line"></span><br><span class="line">Power Supply                 : 0</span><br><span class="line">Power Supply Status          : Unsupported</span><br><span class="line"></span><br><span class="line">Power Supply                 : 1</span><br><span class="line">Power Supply Status          : Unsupported</span><br><span class="line"></span><br><span class="line">Number of Fans               : 4</span><br><span class="line"></span><br><span class="line">Fan                          : 0</span><br><span class="line">Fan Status                   : Unsupported</span><br><span class="line"></span><br><span class="line">Fan                          : 1</span><br><span class="line">Fan Status                   : Unsupported</span><br><span class="line"></span><br><span class="line">Fan                          : 2</span><br><span class="line">Fan Status                   : Unsupported</span><br><span class="line"></span><br><span class="line">Fan                          : 3</span><br><span class="line">Fan Status                   : Unsupported</span><br><span class="line"></span><br><span class="line">Number of Temperature Sensors : 4</span><br><span class="line"></span><br><span class="line">Temp Sensor                  : 0</span><br><span class="line">Temperature                  : 236</span><br><span class="line">Temperature Sensor Status    : Unsupported</span><br><span class="line"></span><br><span class="line">Temp Sensor                  : 1</span><br><span class="line">Temperature                  : 236</span><br><span class="line">Temperature Sensor Status    : Unsupported</span><br><span class="line"></span><br><span class="line">Temp Sensor                  : 2</span><br><span class="line">Temperature                  : 236</span><br><span class="line">Temperature Sensor Status    : Unsupported</span><br><span class="line"></span><br><span class="line">Temp Sensor                  : 3</span><br><span class="line">Temperature                  : 236</span><br><span class="line">Temperature Sensor Status    : Unsupported</span><br><span class="line"></span><br><span class="line">Number of Chassis             : 1</span><br><span class="line"></span><br><span class="line">Chassis                      : 0</span><br><span class="line">Chassis Status               : OK</span><br><span class="line"></span><br><span class="line">    Enclosure 1:</span><br><span class="line">    Device ID                     : 252</span><br><span class="line">    Number of Slots               : 8</span><br><span class="line">    Number of Power Supplies      : 0</span><br><span class="line">    Number of Fans                : 0</span><br><span class="line">    Number of Temperature Sensors : 0</span><br><span class="line">    Number of Alarms              : 0</span><br><span class="line">    Number of SIM Modules         : 1</span><br><span class="line">    Number of Physical Drives     : 0</span><br><span class="line">    Status                        : Normal</span><br><span class="line">    Position                      : 1</span><br><span class="line">    Connector Name                : Unavailable</span><br><span class="line">    Enclosure type                : SGPIO</span><br><span class="line">    FRU Part Number               : N&#x2F;A</span><br><span class="line">    Enclosure Serial Number       : N&#x2F;A</span><br><span class="line">    ESM Serial Number             : N&#x2F;A</span><br><span class="line">    Enclosure Zoning Mode         : N&#x2F;A</span><br><span class="line">    Partner Device Id             : Unavailable</span><br><span class="line"></span><br><span class="line">    Inquiry data                  :</span><br><span class="line">        Vendor Identification     : LSI</span><br><span class="line">        Product Identification    : SGPIO</span><br><span class="line">        Product Revision Level    : N&#x2F;A</span><br><span class="line">        Vendor Specific           :</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Exit Code: 0x00</span><br></pre></td></tr></table></figure>
+
+<p>我们知道只有一个MegaRAID控制卡，其ID为0，即adapter 0，所以这里通过<code>-a0</code>来指定只列出本MegaRAID卡上的Enclosure。Enclosure信息有：</p>
+<ul>
+<li>此MegaRAID卡上有2个Enclosure（前一节中我们看到，Physical Devices是16个，其中14个是Disks，那另外两个应该就是这俩Enclosure，fix me！）。其中一个Enclosure的ID是14，另一个的ID是252。</li>
+<li>Enclosure-14上有14块磁盘（Physical Drives），2个Power Supplies，4个风扇，4个温度传感器；有16个slot，最多可以插16块磁盘；</li>
+<li>Enclosure-252上没有任何磁盘（Physical Drives），没有Power Supplies，也没有风扇和温度传感器；有8个slot，最多可以查8块磁盘；</li>
+</ul>
+<h3 id="例5：此MegaRAID卡上的物理磁盘-2-4-5"><a href="#例5：此MegaRAID卡上的物理磁盘-2-4-5" class="headerlink" title="例5：此MegaRAID卡上的物理磁盘 (2.4.5)"></a>例5：此MegaRAID卡上的物理磁盘 (2.4.5)</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br></pre></td><td class="code"><pre><span class="line"># MegaCli64 -pdList -a0</span><br><span class="line"></span><br><span class="line">Adapter #0</span><br><span class="line"></span><br><span class="line">Enclosure Device ID: 14</span><br><span class="line">Slot Number: 0</span><br><span class="line">Drive&#39;s position: DiskGroup: 1, Span: 0, Arm: 0</span><br><span class="line">Enclosure position: 1</span><br><span class="line">Device Id: 0</span><br><span class="line">WWN: 5000cca250c3e5be</span><br><span class="line">Sequence Number: 2</span><br><span class="line">Media Error Count: 0</span><br><span class="line">Other Error Count: 1</span><br><span class="line">Predictive Failure Count: 0</span><br><span class="line">Last Predictive Failure Event Seq Number: 0</span><br><span class="line">PD Type: SATA</span><br><span class="line"></span><br><span class="line">Raw Size: 3.638 TB [0x1d1c0beb0 Sectors]</span><br><span class="line">Non Coerced Size: 3.637 TB [0x1d1b0beb0 Sectors]</span><br><span class="line">Coerced Size: 3.637 TB [0x1d1a94800 Sectors]</span><br><span class="line">Sector Size:  512</span><br><span class="line">Logical Sector Size:  512</span><br><span class="line">Physical Sector Size:  512</span><br><span class="line">Firmware state: Online, Spun Up</span><br><span class="line">Commissioned Spare : No</span><br><span class="line">Emergency Spare : No</span><br><span class="line">Device Firmware Level: A8B0</span><br><span class="line">Shield Counter: 0</span><br><span class="line">Successful diagnostics completion on :  N&#x2F;A</span><br><span class="line">SAS Address(0): 0x500e004aaaaaaa00</span><br><span class="line">Connected Port Number: 0(path0)</span><br><span class="line">Inquiry Data:       PN1334PEG8KTEXHGST HUS724040ALA640                    MFAOA8B0</span><br><span class="line">FDE Capable: Not Capable</span><br><span class="line">FDE Enable: Disable</span><br><span class="line">Secured: Unsecured</span><br><span class="line">Locked: Unlocked</span><br><span class="line">Needs EKM Attention: No</span><br><span class="line">Foreign State: None</span><br><span class="line">Device Speed: 6.0Gb&#x2F;s</span><br><span class="line">Link Speed: 6.0Gb&#x2F;s</span><br><span class="line">Media Type: Hard Disk Device</span><br><span class="line">Drive:  Not Certified</span><br><span class="line">Drive Temperature :30C (86.00 F)</span><br><span class="line">PI Eligibility:  No</span><br><span class="line">Drive is formatted for PI information:  No</span><br><span class="line">PI: No PI</span><br><span class="line">Port-0 :</span><br><span class="line">Port status: Active</span><br><span class="line">Port&#39;s Linkspeed: 6.0Gb&#x2F;s</span><br><span class="line">Drive has flagged a S.M.A.R.T alert : No</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Enclosure Device ID: 14</span><br><span class="line">Slot Number: 1</span><br><span class="line">Drive&#39;s position: DiskGroup: 2, Span: 0, Arm: 0</span><br><span class="line">Enclosure position: 1</span><br><span class="line">Device Id: 1</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Enclosure Device ID: 14</span><br><span class="line">Slot Number: 2</span><br><span class="line">Drive&#39;s position: DiskGroup: 3, Span: 0, Arm: 0</span><br><span class="line">Enclosure position: 1</span><br><span class="line">Device Id: 2</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Enclosure Device ID: 14</span><br><span class="line">Slot Number: 3</span><br><span class="line">Drive&#39;s position: DiskGroup: 4, Span: 0, Arm: 0</span><br><span class="line">Enclosure position: 1</span><br><span class="line">Device Id: 3</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Enclosure Device ID: 14</span><br><span class="line">Slot Number: 4</span><br><span class="line">Drive&#39;s position: DiskGroup: 5, Span: 0, Arm: 0</span><br><span class="line">Enclosure position: 1</span><br><span class="line">Device Id: 4</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Enclosure Device ID: 14</span><br><span class="line">Slot Number: 5</span><br><span class="line">Drive&#39;s position: DiskGroup: 6, Span: 0, Arm: 0</span><br><span class="line">Enclosure position: 1</span><br><span class="line">Device Id: 5</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Enclosure Device ID: 14</span><br><span class="line">Slot Number: 6</span><br><span class="line">Drive&#39;s position: DiskGroup: 7, Span: 0, Arm: 0</span><br><span class="line">Enclosure position: 1</span><br><span class="line">Device Id: 6</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Enclosure Device ID: 14</span><br><span class="line">Slot Number: 7</span><br><span class="line">Drive&#39;s position: DiskGroup: 8, Span: 0, Arm: 0</span><br><span class="line">Enclosure position: 1</span><br><span class="line">Device Id: 7</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Enclosure Device ID: 14</span><br><span class="line">Slot Number: 8</span><br><span class="line">Drive&#39;s position: DiskGroup: 9, Span: 0, Arm: 0</span><br><span class="line">Enclosure position: 1</span><br><span class="line">Device Id: 8</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Enclosure Device ID: 14</span><br><span class="line">Slot Number: 9</span><br><span class="line">Drive&#39;s position: DiskGroup: 10, Span: 0, Arm: 0</span><br><span class="line">Enclosure position: 1</span><br><span class="line">Device Id: 9</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Enclosure Device ID: 14</span><br><span class="line">Slot Number: 10</span><br><span class="line">Drive&#39;s position: DiskGroup: 11, Span: 0, Arm: 0</span><br><span class="line">Enclosure position: 1</span><br><span class="line">Device Id: 10</span><br><span class="line">WWN: 5000cca24ce923cc</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Enclosure Device ID: 14</span><br><span class="line">Slot Number: 11</span><br><span class="line">Drive&#39;s position: DiskGroup: 12, Span: 0, Arm: 0</span><br><span class="line">Enclosure position: 1</span><br><span class="line">Device Id: 11</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Enclosure Device ID: 14</span><br><span class="line">Slot Number: 14</span><br><span class="line">Drive&#39;s position: DiskGroup: 0, Span: 0, Arm: 0</span><br><span class="line">Enclosure position: 1</span><br><span class="line">Device Id: 12</span><br><span class="line">WWN: 5000CCA06E20BDDF</span><br><span class="line">Sequence Number: 2</span><br><span class="line">Media Error Count: 0</span><br><span class="line">Other Error Count: 0</span><br><span class="line">Predictive Failure Count: 0</span><br><span class="line">Last Predictive Failure Event Seq Number: 0</span><br><span class="line">PD Type: SAS</span><br><span class="line"></span><br><span class="line">Raw Size: 279.396 GB [0x22ecb25c Sectors]</span><br><span class="line">Non Coerced Size: 278.896 GB [0x22dcb25c Sectors]</span><br><span class="line">Coerced Size: 278.464 GB [0x22cee000 Sectors]</span><br><span class="line">Sector Size:  512</span><br><span class="line">Logical Sector Size:  512</span><br><span class="line">Physical Sector Size:  512</span><br><span class="line">Firmware state: Online, Spun Up</span><br><span class="line">Commissioned Spare : No</span><br><span class="line">Emergency Spare : No</span><br><span class="line">Device Firmware Level: A440</span><br><span class="line">Shield Counter: 0</span><br><span class="line">Successful diagnostics completion on :  N&#x2F;A</span><br><span class="line">SAS Address(0): 0x5000cca06e20bddd</span><br><span class="line">SAS Address(1): 0x0</span><br><span class="line">Connected Port Number: 0(path0)</span><br><span class="line">Inquiry Data: HITACHI HUC109030CSS600 A440W5GL06HB</span><br><span class="line">FDE Capable: Not Capable</span><br><span class="line">FDE Enable: Disable</span><br><span class="line">Secured: Unsecured</span><br><span class="line">Locked: Unlocked</span><br><span class="line">Needs EKM Attention: No</span><br><span class="line">Foreign State: None</span><br><span class="line">Device Speed: 6.0Gb&#x2F;s</span><br><span class="line">Link Speed: 6.0Gb&#x2F;s</span><br><span class="line">Media Type: Hard Disk Device</span><br><span class="line">Drive:  Not Certified</span><br><span class="line">Drive Temperature :40C (104.00 F)</span><br><span class="line">PI Eligibility:  No</span><br><span class="line">Drive is formatted for PI information:  No</span><br><span class="line">PI: No PI</span><br><span class="line">Port-0 :</span><br><span class="line">Port status: Active</span><br><span class="line">Port&#39;s Linkspeed: 6.0Gb&#x2F;s</span><br><span class="line">Port-1 :</span><br><span class="line">Port status: Active</span><br><span class="line">Port&#39;s Linkspeed: 6.0Gb&#x2F;s</span><br><span class="line">Drive has flagged a S.M.A.R.T alert : No</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Enclosure Device ID: 14</span><br><span class="line">Slot Number: 15</span><br><span class="line">Drive&#39;s position: DiskGroup: 0, Span: 0, Arm: 1</span><br><span class="line">Enclosure position: 1</span><br><span class="line">Device Id: 13</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">Exit Code: 0x00</span><br></pre></td></tr></table></figure>
+
+<p>如前所述，此MegaRAID卡上共有14块磁盘，它们都插在Enclosure-14上（Enclosure-252上没有查任何磁盘）。</p>
+<ul>
+<li>Device-0（Device Id: 0）插在Enclosure-14的Slot-0上，命令行标识是<code>-PhysDrv [E14:S0]</code>；大小是3.638 TB；接口类型（PD Type）是SATA；介质类型（Media Type）是Hard Disk Device；</li>
+<li>Device-1到Device-11插在Slot-1到Slot-11上；磁盘的大小、接口类型、介质类型和Device-0一样；</li>
+<li>Slot-12和Slot-13空着没有插盘；</li>
+<li>Device-12（Device Id: 12）插在Slot-14上，命令行标识是<code>-PhysDrv [E14:S14]</code>；大小是279.396 GB；接口类型（PD Type）是SAS；介质类型（Media Type）也是Hard Disk Device（279G的磁盘不是SSD？会不会识别错了你？我在另外一个server上，同样的MegaCli64命令看到223G的磁盘的Media Type是: Solid State Device）。</li>
+<li>Device-13（Device Id: 13）插在Slot-15上，命令行标识是<code>-PhysDrv [E14:S15]</code>；磁盘的大小、接口类型、介质类型和Device-12一样；</li>
+</ul>
+<h3 id="例6：此MegaRAID卡上的Virtual-Drives-2-4-6"><a href="#例6：此MegaRAID卡上的Virtual-Drives-2-4-6" class="headerlink" title="例6：此MegaRAID卡上的Virtual Drives (2.4.6)"></a>例6：此MegaRAID卡上的Virtual Drives (2.4.6)</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br></pre></td><td class="code"><pre><span class="line"># MegaCli64 -LDInfo -Lall -a0</span><br><span class="line"></span><br><span class="line">Adapter 0 -- Virtual Drive Information:</span><br><span class="line"></span><br><span class="line">Virtual Drive: 0 (Target Id: 0)</span><br><span class="line">Name                :</span><br><span class="line">RAID Level          : Primary-1, Secondary-0, RAID Level Qualifier-0</span><br><span class="line">Size                : 278.464 GB</span><br><span class="line">Sector Size         : 512</span><br><span class="line">Is VD emulated      : No</span><br><span class="line">Mirror Data         : 278.464 GB</span><br><span class="line">State               : Optimal</span><br><span class="line">Strip Size          : 256 KB</span><br><span class="line">Number Of Drives    : 2</span><br><span class="line">Span Depth          : 1</span><br><span class="line">Default Cache Policy: WriteBack, ReadAhead, Direct, No Write Cache if Bad BBU</span><br><span class="line">Current Cache Policy: WriteThrough, ReadAhead, Direct, No Write Cache if Bad BBU</span><br><span class="line">Default Access Policy: Read&#x2F;Write</span><br><span class="line">Current Access Policy: Read&#x2F;Write</span><br><span class="line">Disk Cache Policy   : Disk&#39;s Default</span><br><span class="line">Encryption Type     : None</span><br><span class="line">PI type: No PI</span><br><span class="line"></span><br><span class="line">Is VD Cached: No</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Virtual Drive: 1 (Target Id: 1)</span><br><span class="line">Name                :</span><br><span class="line">RAID Level          : Primary-0, Secondary-0, RAID Level Qualifier-0</span><br><span class="line">Size                : 3.637 TB</span><br><span class="line">Sector Size         : 512</span><br><span class="line">Is VD emulated      : No</span><br><span class="line">Parity Size         : 0</span><br><span class="line">State               : Optimal</span><br><span class="line">Strip Size          : 256 KB</span><br><span class="line">Number Of Drives    : 1</span><br><span class="line">Span Depth          : 1</span><br><span class="line">Default Cache Policy: WriteBack, ReadAdaptive, Direct, Write Cache OK if Bad BBU</span><br><span class="line">Current Cache Policy: WriteBack, ReadAdaptive, Direct, Write Cache OK if Bad BBU</span><br><span class="line">Default Access Policy: Read&#x2F;Write</span><br><span class="line">Current Access Policy: Read&#x2F;Write</span><br><span class="line">Disk Cache Policy   : Disk&#39;s Default</span><br><span class="line">Encryption Type     : None</span><br><span class="line">PI type: No PI</span><br><span class="line"></span><br><span class="line">Is VD Cached: No</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Virtual Drive: 2 (Target Id: 2)</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">Virtual Drive: 3 (Target Id: 3)</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">Virtual Drive: 4 (Target Id: 4)</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">Virtual Drive: 5 (Target Id: 5)</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">Virtual Drive: 6 (Target Id: 6)</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">Virtual Drive: 7 (Target Id: 7)</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">Virtual Drive: 8 (Target Id: 8)</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">Virtual Drive: 9 (Target Id: 9)</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">Virtual Drive: 10 (Target Id: 10)</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">Virtual Drive: 11 (Target Id: 11)</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">Virtual Drive: 12 (Target Id: 12)</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">Exit Code: 0x00</span><br></pre></td></tr></table></figure>
+
+<p>如第2.4.3节所述，此MegaRAID卡上有13个Virtual Drives。</p>
+<ul>
+<li>第1个是<code>Virtual Drive: 0 (Target Id: 0)</code>：RAID Level是<code>Primary-1, Secondary-0</code>（即RAID-10）；使用2个Physical Drive（<code>Number Of Drives</code>为2）。Cache Policy是<code>WriteThrough</code>, <code>ReadAhead</code>, <code>Direct</code>, <code>No Write Cache if Bad BBU</code>；Disk Cache Policy是<code>Disk&#39;s Default</code>；</li>
+<li>其他和<code>Virtual Drive: 1 (Target Id: 1)</code>一样：RAID Level是<code>Primary-0, Secondary-0</code>（即RAID-0）；使用1个Physical Drive（<code>Number Of Drives</code>为1）。Cache Policy是<code>WriteBack</code>, <code>ReadAdaptive</code>, <code>Direct</code>, <code>Write Cache OK if Bad BBU</code>；</li>
+</ul>
+<p>注意<code>Virtual Drive: 0 (Target Id: 0)</code>是系统盘，Level是RAID-10，并且Cache Policy更安全（包括<code>WriteThrough</code>, <code>No Write Cache if Bad BBU</code>）；其他Virtual Drive是数据盘，Level是RAID-0，Cache Policy也不如系统盘安全（包括<code>WriteBack</code>, <code>Write Cache OK if Bad BBU</code>）；</p>
+<h3 id="例7：Virtual-Drive和Physical-Drive的对应关系-2-4-7"><a href="#例7：Virtual-Drive和Physical-Drive的对应关系-2-4-7" class="headerlink" title="例7：Virtual Drive和Physical Drive的对应关系 (2.4.7)"></a>例7：Virtual Drive和Physical Drive的对应关系 (2.4.7)</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br></pre></td><td class="code"><pre><span class="line"># MegaCli64 -LdPdInfo -a0</span><br><span class="line"></span><br><span class="line">Adapter #0</span><br><span class="line"></span><br><span class="line">Number of Virtual Disks: 13</span><br><span class="line"></span><br><span class="line">Virtual Drive: 0 (Target Id: 0)</span><br><span class="line">Name                :</span><br><span class="line">RAID Level          : Primary-1, Secondary-0, RAID Level Qualifier-0</span><br><span class="line">Size                : 278.464 GB</span><br><span class="line">Sector Size         : 512</span><br><span class="line">Is VD emulated      : No</span><br><span class="line">Mirror Data         : 278.464 GB</span><br><span class="line">State               : Optimal</span><br><span class="line">Strip Size          : 256 KB</span><br><span class="line">Number Of Drives    : 2</span><br><span class="line">Span Depth          : 1</span><br><span class="line">Default Cache Policy: WriteBack, ReadAhead, Direct, No Write Cache if Bad BBU</span><br><span class="line">Current Cache Policy: WriteThrough, ReadAhead, Direct, No Write Cache if Bad BBU</span><br><span class="line">Default Access Policy: Read&#x2F;Write</span><br><span class="line">Current Access Policy: Read&#x2F;Write</span><br><span class="line">Disk Cache Policy   : Disk&#39;s Default</span><br><span class="line">Encryption Type     : None</span><br><span class="line">PI type: No PI</span><br><span class="line"></span><br><span class="line">Is VD Cached: No</span><br><span class="line">Number of Spans: 1</span><br><span class="line">Span: 0 - Number of PDs: 2</span><br><span class="line"></span><br><span class="line">PD: 0 Information</span><br><span class="line">Enclosure Device ID: 14</span><br><span class="line">Slot Number: 14</span><br><span class="line">Drive&#39;s position: DiskGroup: 0, Span: 0, Arm: 0</span><br><span class="line">Enclosure position: 1</span><br><span class="line">Device Id: 12</span><br><span class="line">WWN: 5000CCA06E20BDDF</span><br><span class="line">Sequence Number: 2</span><br><span class="line">Media Error Count: 0</span><br><span class="line">Other Error Count: 0</span><br><span class="line">Predictive Failure Count: 0</span><br><span class="line">Last Predictive Failure Event Seq Number: 0</span><br><span class="line">PD Type: SAS</span><br><span class="line"></span><br><span class="line">Raw Size: 279.396 GB [0x22ecb25c Sectors]</span><br><span class="line">Non Coerced Size: 278.896 GB [0x22dcb25c Sectors]</span><br><span class="line">Coerced Size: 278.464 GB [0x22cee000 Sectors]</span><br><span class="line">Sector Size:  512</span><br><span class="line">Logical Sector Size:  512</span><br><span class="line">Physical Sector Size:  512</span><br><span class="line">Firmware state: Online, Spun Up</span><br><span class="line">Commissioned Spare : No</span><br><span class="line">Emergency Spare : No</span><br><span class="line">Device Firmware Level: A440</span><br><span class="line">Shield Counter: 0</span><br><span class="line">Successful diagnostics completion on :  N&#x2F;A</span><br><span class="line">SAS Address(0): 0x5000cca06e20bddd</span><br><span class="line">SAS Address(1): 0x0</span><br><span class="line">Connected Port Number: 0(path0)</span><br><span class="line">Inquiry Data: HITACHI HUC109030CSS600 A440W5GL06HB</span><br><span class="line">FDE Capable: Not Capable</span><br><span class="line">FDE Enable: Disable</span><br><span class="line">Secured: Unsecured</span><br><span class="line">Locked: Unlocked</span><br><span class="line">Needs EKM Attention: No</span><br><span class="line">Foreign State: None</span><br><span class="line">Device Speed: 6.0Gb&#x2F;s</span><br><span class="line">Link Speed: 6.0Gb&#x2F;s</span><br><span class="line">Media Type: Hard Disk Device</span><br><span class="line">Drive:  Not Certified</span><br><span class="line">Drive Temperature :40C (104.00 F)</span><br><span class="line">PI Eligibility:  No</span><br><span class="line">Drive is formatted for PI information:  No</span><br><span class="line">PI: No PI</span><br><span class="line">Port-0 :</span><br><span class="line">Port status: Active</span><br><span class="line">Port&#39;s Linkspeed: 6.0Gb&#x2F;s</span><br><span class="line">Port-1 :</span><br><span class="line">Port status: Active</span><br><span class="line">Port&#39;s Linkspeed: 6.0Gb&#x2F;s</span><br><span class="line">Drive has flagged a S.M.A.R.T alert : No</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">PD: 1 Information</span><br><span class="line">Enclosure Device ID: 14</span><br><span class="line">Slot Number: 15</span><br><span class="line">Drive&#39;s position: DiskGroup: 0, Span: 0, Arm: 1</span><br><span class="line">Enclosure position: 1</span><br><span class="line">Device Id: 13</span><br><span class="line">WWN: 5000CCA06E20C9B7</span><br><span class="line">Sequence Number: 2</span><br><span class="line">Media Error Count: 0</span><br><span class="line">Other Error Count: 0</span><br><span class="line">Predictive Failure Count: 0</span><br><span class="line">Last Predictive Failure Event Seq Number: 0</span><br><span class="line">PD Type: SAS</span><br><span class="line"></span><br><span class="line">Raw Size: 279.396 GB [0x22ecb25c Sectors]</span><br><span class="line">Non Coerced Size: 278.896 GB [0x22dcb25c Sectors]</span><br><span class="line">Coerced Size: 278.464 GB [0x22cee000 Sectors]</span><br><span class="line">Sector Size:  512</span><br><span class="line">Logical Sector Size:  512</span><br><span class="line">Physical Sector Size:  512</span><br><span class="line">Firmware state: Online, Spun Up</span><br><span class="line">Commissioned Spare : No</span><br><span class="line">Emergency Spare : No</span><br><span class="line">Device Firmware Level: A440</span><br><span class="line">Shield Counter: 0</span><br><span class="line">Successful diagnostics completion on :  N&#x2F;A</span><br><span class="line">SAS Address(0): 0x5000cca06e20c9b5</span><br><span class="line">SAS Address(1): 0x0</span><br><span class="line">Connected Port Number: 0(path0)</span><br><span class="line">Inquiry Data: HITACHI HUC109030CSS600 A440W5GL0ZYB</span><br><span class="line">FDE Capable: Not Capable</span><br><span class="line">FDE Enable: Disable</span><br><span class="line">Secured: Unsecured</span><br><span class="line">Locked: Unlocked</span><br><span class="line">Needs EKM Attention: No</span><br><span class="line">Foreign State: None</span><br><span class="line">Device Speed: 6.0Gb&#x2F;s</span><br><span class="line">Link Speed: 6.0Gb&#x2F;s</span><br><span class="line">Media Type: Hard Disk Device</span><br><span class="line">Drive:  Not Certified</span><br><span class="line">Drive Temperature :40C (104.00 F)</span><br><span class="line">PI Eligibility:  No</span><br><span class="line">Drive is formatted for PI information:  No</span><br><span class="line">PI: No PI</span><br><span class="line">Port-0 :</span><br><span class="line">Port status: Active</span><br><span class="line">Port&#39;s Linkspeed: 6.0Gb&#x2F;s</span><br><span class="line">Port-1 :</span><br><span class="line">Port status: Active</span><br><span class="line">Port&#39;s Linkspeed: 6.0Gb&#x2F;s</span><br><span class="line">Drive has flagged a S.M.A.R.T alert : No</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Virtual Drive: 1 (Target Id: 1)</span><br><span class="line">Name                :</span><br><span class="line">RAID Level          : Primary-0, Secondary-0, RAID Level Qualifier-0</span><br><span class="line">Size                : 3.637 TB</span><br><span class="line">Sector Size         : 512</span><br><span class="line">Is VD emulated      : No</span><br><span class="line">Parity Size         : 0</span><br><span class="line">State               : Optimal</span><br><span class="line">Strip Size          : 256 KB</span><br><span class="line">Number Of Drives    : 1</span><br><span class="line">Span Depth          : 1</span><br><span class="line">Default Cache Policy: WriteBack, ReadAdaptive, Direct, Write Cache OK if Bad BBU</span><br><span class="line">Current Cache Policy: WriteBack, ReadAdaptive, Direct, Write Cache OK if Bad BBU</span><br><span class="line">Default Access Policy: Read&#x2F;Write</span><br><span class="line">Current Access Policy: Read&#x2F;Write</span><br><span class="line">Disk Cache Policy   : Disk&#39;s Default</span><br><span class="line">Encryption Type     : None</span><br><span class="line">PI type: No PI</span><br><span class="line"></span><br><span class="line">Is VD Cached: No</span><br><span class="line">Number of Spans: 1</span><br><span class="line">Span: 0 - Number of PDs: 1</span><br><span class="line"></span><br><span class="line">PD: 0 Information</span><br><span class="line">Enclosure Device ID: 14</span><br><span class="line">Slot Number: 0</span><br><span class="line">Drive&#39;s position: DiskGroup: 1, Span: 0, Arm: 0</span><br><span class="line">Enclosure position: 1</span><br><span class="line">Device Id: 0</span><br><span class="line">WWN: 5000cca250c3e5be</span><br><span class="line">Sequence Number: 2</span><br><span class="line">Media Error Count: 0</span><br><span class="line">Other Error Count: 1</span><br><span class="line">Predictive Failure Count: 0</span><br><span class="line">Last Predictive Failure Event Seq Number: 0</span><br><span class="line">PD Type: SATA</span><br><span class="line"></span><br><span class="line">Raw Size: 3.638 TB [0x1d1c0beb0 Sectors]</span><br><span class="line">Non Coerced Size: 3.637 TB [0x1d1b0beb0 Sectors]</span><br><span class="line">Coerced Size: 3.637 TB [0x1d1a94800 Sectors]</span><br><span class="line">Sector Size:  512</span><br><span class="line">Logical Sector Size:  512</span><br><span class="line">Physical Sector Size:  512</span><br><span class="line">Firmware state: Online, Spun Up</span><br><span class="line">Commissioned Spare : No</span><br><span class="line">Emergency Spare : No</span><br><span class="line">Device Firmware Level: A8B0</span><br><span class="line">Shield Counter: 0</span><br><span class="line">Successful diagnostics completion on :  N&#x2F;A</span><br><span class="line">SAS Address(0): 0x500e004aaaaaaa00</span><br><span class="line">Connected Port Number: 0(path0)</span><br><span class="line">Inquiry Data:       PN1334PEG8KTEXHGST HUS724040ALA640                    MFAOA8B0</span><br><span class="line">FDE Capable: Not Capable</span><br><span class="line">FDE Enable: Disable</span><br><span class="line">Secured: Unsecured</span><br><span class="line">Locked: Unlocked</span><br><span class="line">Needs EKM Attention: No</span><br><span class="line">Foreign State: None</span><br><span class="line">Device Speed: 6.0Gb&#x2F;s</span><br><span class="line">Link Speed: 6.0Gb&#x2F;s</span><br><span class="line">Media Type: Hard Disk Device</span><br><span class="line">Drive:  Not Certified</span><br><span class="line">Drive Temperature :30C (86.00 F)</span><br><span class="line">PI Eligibility:  No</span><br><span class="line">Drive is formatted for PI information:  No</span><br><span class="line">PI: No PI</span><br><span class="line">Port-0 :</span><br><span class="line">Port status: Active</span><br><span class="line">Port&#39;s Linkspeed: 6.0Gb&#x2F;s</span><br><span class="line">Drive has flagged a S.M.A.R.T alert : No</span><br><span class="line"></span><br><span class="line">......</span><br></pre></td></tr></table></figure>
+
+<p>这个命令的输出信息和前两节类似，但更详细。我们可以看到Virtual Drive包含哪些Physical Drive：</p>
+<p><code>Virtual Drive: 0 (Target Id: 0)</code>: 包含两个Physical Drive，分别是插在Slot-14的Device-12（Device Id: 12）和插在Slot-15的Device-13（Device Id: 13）；<br><code>Virtual Drive: 1 (Target Id: 1)</code>: 包含一个Physical Drive，即插在Slot-0的Device-0（Device Id: 0）；</p>
+<h3 id="例8：Virtual-Drive和Linux-device的对应关系-2-4-8"><a href="#例8：Virtual-Drive和Linux-device的对应关系-2-4-8" class="headerlink" title="例8：Virtual Drive和Linux device的对应关系 (2.4.8)"></a>例8：Virtual Drive和Linux device的对应关系 (2.4.8)</h3><p>SCSI系统结构模型<a target="_blank" rel="noopener" href="http://www.t10.org/">SAM-4</a>，可以简单的表示为：</p>
+<img src="/2019/09/06/megaraid/scsi_model.jpg" class="" title="SCSI model">
+
+<p>一个target有一到多个port（transport end point），包含一到多个LUN。和模型相对应，一个SAS/FC disk就是一个具体的target，有两个port，包含一个LUN；MegaRAID卡创建出的Virtual Drive也是一个具体的target；而HBA卡或MegaRAID卡是具体的initiator。LUN就是SCSI device；initiator也叫host（不是指主机）。</p>
+<p><code>lsscsi</code>命令带上<code>--hosts</code>选项就可以列出系统上的initiators/hosts；不带<code>--hosts</code>选项，<code>lsscsi</code>的默认行为是列出SCSI device（LUN）。若SAS/FC disk上的两个port都和server连通，那么在<code>lsscsi</code>的输出里，disk的LUN会被显示为两个entry。HBA卡上可能有多个port，在<code>lsscsi --hosts</code>的输出里，有些HBA卡是一个port显示为一个entry，有些是整个HBA卡显示为一个entry。</p>
+<p>一个SCSI命令，从一个initiator发出，经过transport到达一个target，然后访问一个LUN。目前支持的transport有：IEEE 1394, ATA, FC, iSCSI, SAS, SATA, SPI and USB。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"># lsscsi --hosts</span><br><span class="line">[0]    megaraid_sas</span><br><span class="line">[1]    ahci</span><br><span class="line"></span><br><span class="line"># lsscsi -g</span><br><span class="line">[0:0:14:0]   enclosu 12G SAS  Expander         RevB  -          &#x2F;dev&#x2F;sg0</span><br><span class="line">[0:2:0:0]    disk    LSI      LSI              4.21  &#x2F;dev&#x2F;sda   &#x2F;dev&#x2F;sg1</span><br><span class="line">[0:2:1:0]    disk    LSI      LSI              4.21  &#x2F;dev&#x2F;sdb   &#x2F;dev&#x2F;sg2</span><br><span class="line">[0:2:2:0]    disk    LSI      LSI              4.21  &#x2F;dev&#x2F;sdc   &#x2F;dev&#x2F;sg3</span><br><span class="line">[0:2:3:0]    disk    LSI      LSI              4.21  &#x2F;dev&#x2F;sdd   &#x2F;dev&#x2F;sg4</span><br><span class="line">[0:2:4:0]    disk    LSI      LSI              4.21  &#x2F;dev&#x2F;sde   &#x2F;dev&#x2F;sg5</span><br><span class="line">[0:2:5:0]    disk    LSI      LSI              4.21  &#x2F;dev&#x2F;sdf   &#x2F;dev&#x2F;sg6</span><br><span class="line">[0:2:6:0]    disk    LSI      LSI              4.21  &#x2F;dev&#x2F;sdg   &#x2F;dev&#x2F;sg7</span><br><span class="line">[0:2:7:0]    disk    LSI      LSI              4.21  &#x2F;dev&#x2F;sdh   &#x2F;dev&#x2F;sg8</span><br><span class="line">[0:2:8:0]    disk    LSI      LSI              4.21  &#x2F;dev&#x2F;sdi   &#x2F;dev&#x2F;sg9</span><br><span class="line">[0:2:9:0]    disk    LSI      LSI              4.21  &#x2F;dev&#x2F;sdj   &#x2F;dev&#x2F;sg10</span><br><span class="line">[0:2:10:0]   disk    LSI      LSI              4.21  &#x2F;dev&#x2F;sdk   &#x2F;dev&#x2F;sg11</span><br><span class="line">[0:2:11:0]   disk    LSI      LSI              4.21  &#x2F;dev&#x2F;sdl   &#x2F;dev&#x2F;sg12</span><br><span class="line">[0:2:12:0]   disk    LSI      LSI              4.21  &#x2F;dev&#x2F;sdm   &#x2F;dev&#x2F;sg13</span><br></pre></td></tr></table></figure>
+
+<p>第一列是一个四元组[H:C:T:L]。</p>
+<ul>
+<li>H: SCSI host ID, 即SCSI initiator；</li>
+<li>C: SCSI host上的channel（即port？）；</li>
+<li>T: Target Number；</li>
+<li>L: Target上的LUN；</li>
+</ul>
+<p>在我们当前的系统里，MegaRAID卡是initiator；它通过channel-2连接targets；每个Virtual Drive是一个target（Number为0，1，……），一个target里只有一个LUN（ID为0）。另外，Enclosure也是一个target（Number为14），MegaRAID通过channel-0和它连接。</p>
+<p>参考：<br><a target="_blank" rel="noopener" href="https://forums.servethehome.com/index.php?threads/broadcom-lsi-avago-hba-and-raid-controller-technical-discussion.24119/">https://forums.servethehome.com/index.php?threads/broadcom-lsi-avago-hba-and-raid-controller-technical-discussion.24119/</a><br><a target="_blank" rel="noopener" href="https://www.broadcom.com/products/storage">https://www.broadcom.com/products/storage</a><br><a target="_blank" rel="noopener" href="https://raid.wiki.kernel.org/index.php/Hardware_Raid_Setup_using_MegaCli">https://raid.wiki.kernel.org/index.php/Hardware_Raid_Setup_using_MegaCli</a></p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/disk/" rel="tag"># disk</a>
+              <a href="/tags/raid/" rel="tag"># raid</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/09/03/advanced-format-disks/" rel="prev" title="Advanced Format Disks">
+      <i class="fa fa-chevron-left"></i> Advanced Format Disks
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2019/10/04/linux-block-layer-avoid-recursion/" rel="next" title="避免block device stack中的递归">
+      避免block device stack中的递归 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#LSI%E5%85%AC%E5%8F%B8%E5%8F%8A%E4%BA%A7%E5%93%81-1"><span class="nav-number">1.</span> <span class="nav-text">LSI公司及产品 (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#MegaCli64-2"><span class="nav-number">2.</span> <span class="nav-text">MegaCli64 (2)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%8B%E8%BD%BD%E4%B8%8E%E5%AE%89%E8%A3%85-2-1"><span class="nav-number">2.1.</span> <span class="nav-text">下载与安装 (2.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#MegaCli64%E6%B6%89%E5%8F%8A%E7%9A%84%E5%AF%B9%E8%B1%A1-2-2"><span class="nav-number">2.2.</span> <span class="nav-text">MegaCli64涉及的对象 (2.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Virtual-Drive%E7%9A%84Cache-Policy-2-3"><span class="nav-number">2.3.</span> <span class="nav-text">Virtual Drive的Cache Policy (2.3)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#MegaCli64%E7%9A%84%E4%BD%BF%E7%94%A8%E4%BE%8B%E5%AD%90-2-4"><span class="nav-number">2.4.</span> <span class="nav-text">MegaCli64的使用例子 (2.4)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BE%8B1%EF%BC%9A%E7%A1%AE%E4%BF%9D%E6%9C%89RAID%E5%8D%A1-2-4-1"><span class="nav-number">2.4.1.</span> <span class="nav-text">例1：确保有RAID卡 (2.4.1)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BE%8B2%EF%BC%9ARAID%E5%8D%A1%E7%9A%84PCI%E4%BF%A1%E6%81%AF-2-4-2"><span class="nav-number">2.4.2.</span> <span class="nav-text">例2：RAID卡的PCI信息 (2.4.2)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BE%8B3%EF%BC%9ARAID%E5%8D%A1%E7%9A%84%E5%B1%9E%E6%80%A7-2-4-3"><span class="nav-number">2.4.3.</span> <span class="nav-text">例3：RAID卡的属性 (2.4.3)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BE%8B4%EF%BC%9A%E6%AD%A4MegaRAID%E5%8D%A1%E4%B8%8A%E7%9A%84Enclosure-2-4-4"><span class="nav-number">2.4.4.</span> <span class="nav-text">例4：此MegaRAID卡上的Enclosure (2.4.4)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BE%8B5%EF%BC%9A%E6%AD%A4MegaRAID%E5%8D%A1%E4%B8%8A%E7%9A%84%E7%89%A9%E7%90%86%E7%A3%81%E7%9B%98-2-4-5"><span class="nav-number">2.4.5.</span> <span class="nav-text">例5：此MegaRAID卡上的物理磁盘 (2.4.5)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BE%8B6%EF%BC%9A%E6%AD%A4MegaRAID%E5%8D%A1%E4%B8%8A%E7%9A%84Virtual-Drives-2-4-6"><span class="nav-number">2.4.6.</span> <span class="nav-text">例6：此MegaRAID卡上的Virtual Drives (2.4.6)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BE%8B7%EF%BC%9AVirtual-Drive%E5%92%8CPhysical-Drive%E7%9A%84%E5%AF%B9%E5%BA%94%E5%85%B3%E7%B3%BB-2-4-7"><span class="nav-number">2.4.7.</span> <span class="nav-text">例7：Virtual Drive和Physical Drive的对应关系 (2.4.7)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BE%8B8%EF%BC%9AVirtual-Drive%E5%92%8CLinux-device%E7%9A%84%E5%AF%B9%E5%BA%94%E5%85%B3%E7%B3%BB-2-4-8"><span class="nav-number">2.4.8.</span> <span class="nav-text">例8：Virtual Drive和Linux device的对应关系 (2.4.8)</span></a></li></ol></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

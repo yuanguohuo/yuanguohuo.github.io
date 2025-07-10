@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="介绍MultiHead Attention的计算过程。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MultiHead Attention">
+<meta property="og:url" content="http://yoursite.com/2025/03/08/llm-multi-head-attenion/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="介绍MultiHead Attention的计算过程。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2025-03-08T18:15:30.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.520Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="llm">
+<meta property="article:tag" content="ai">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2025/03/08/llm-multi-head-attenion/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>MultiHead Attention | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2025/03/08/llm-multi-head-attenion/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          MultiHead Attention
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2025-03-08 18:15:30" itemprop="dateCreated datePublished" datetime="2025-03-08T18:15:30+00:00">2025-03-08</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/llm/" itemprop="url" rel="index"><span itemprop="name">llm</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2025/03/08/llm-multi-head-attenion/" class="post-meta-item leancloud_visitors" data-flag-title="MultiHead Attention" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/03/08/llm-multi-head-attenion/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/03/08/llm-multi-head-attenion/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>介绍MultiHead Attention的计算过程。</p>
+<a id="more"></a>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+
+<script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+<h1 id="说明-0"><a href="#说明-0" class="headerlink" title="说明 (0)"></a>说明 (0)</h1><p>MultiHead Attention是<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2025/03/07/llm-self-attention/">Self Attention</a>的推广，或者说后者是前者的特例。</p>
+<p>Self Attention是这样的：</p>
+<ul>
+<li>把单词的512维的embedding向量在512维空间投影3次，分别生成Query投影、Key投影和Value投影。这些投影都还是512维的，可以理解为没有丢失信息。然后就和单词的embedding向量没有关系了。而是使用这3个投影进行运算。</li>
+<li>在一个上下文中，使用Query投影和Key投影计算单词两两之间的注意力权重；注意力权重可以理解为单词之间的相关性大小。</li>
+<li>使用注意力权重加权求和Value投影，得到各个单词的SelfAttentionOutput；SelfAttentionOutput和embedding向量是同构的(都是512维)。</li>
+</ul>
+<p>MultiHead Attention：</p>
+<ul>
+<li>把单词的512维的embedding向量在低维空间(例如64维，可以选择其它维度)投影3次，分别生成Query投影、Key投影和Value投影。这些投影都是64维的，可以理解为丢失了部分信息。然后暂时和单词的embedding向量没有关系了。而是使用这3个投影进行运算。</li>
+<li>在一个上下文中，使用Query投影和Key投影计算单词两两之间的注意力权重；注意力权重可以理解为单词之间的相关性大小。</li>
+<li>使用注意力权重加权求和Value投影，得到各个单词的Output；Output和embedding向量不是同构的，embedding是512维，而Output是64维。<strong>不过到这里还没结束</strong>。</li>
+</ul>
+<p>到现在为止，除了投影到低维(64维)且生成的Output也是低维的(64维)之外，和Self Attention没有任何区别。但是，MultiHead Attention要<strong>把面的过程重复多次</strong>。重复几次呢？</p>
+<p>答案是$\frac{512}{64}=8$次。如此以来，<strong>把8次的结果拼起来，又得到512维的Output，和embedding保持同构！</strong>这也是“multi”的由来。</p>
+<p>最后，使用一个$512 \times 512$的线性变换矩阵$W^O$(见1.4节)，对512维的Output进行一个线性变换，就得到最终的MultiHeadOutput！</p>
+<p>可见，<strong>如果在选择低维空间进行投影的时候，还选择512维(把512维看作一个特殊的低维)，那么重复的次数就是$\frac{512}{512}=1$次！再选择$512 \times 512$的单位矩阵作为线性变换矩阵$W^O$，MultiHead Attention就退化成Self Attention了</strong>。</p>
+<p>我是这么理解的：**从高维(512)到低维(64)投影时丢失了部分信息，但是我们换了8个角度，投了8次(把Query投影-Key投影-Value投影算1次)，这样就尽可能的保留了本体的特征。并且和Self Attention的1次同维投影相比，多角度的低维投影可能更能抓住本体的特征。这里，本体的特征就是单词间的关系！</p>
+<h1 id="输入-1"><a href="#输入-1" class="headerlink" title="输入 (1)"></a>输入 (1)</h1><p>假设当前上下文是“humpty dumpty sat on”，我们要预测下一个单词。有以下输入：</p>
+<h2 id="Eembedding矩阵-1-1"><a href="#Eembedding矩阵-1-1" class="headerlink" title="Eembedding矩阵 (1.1)"></a>Eembedding矩阵 (1.1)</h2><p>假设每个单词的embedding向量是512维，并且假设：</p>
+<ul>
+<li>“humpty”的embedding向量是：</li>
+</ul>
+<p>$$<br>E_1 = [e_{1,1}, e_{1,2}, e_{1,3}, \ldots, e_{1,512}]<br>$$</p>
+<ul>
+<li>“dumpty”的embedding向量是：</li>
+</ul>
+<p>$$<br>E_2 = [e_{2,1}, e_{2,2}, e_{2,3}, \ldots, e_{2,512}]<br>$$</p>
+<ul>
+<li>“sat”的embedding向量是：</li>
+</ul>
+<p>$$<br>E_3 = [e_{3,1}, e_{3,2}, e_{3,3}, \ldots, e_{3,512}]<br>$$</p>
+<ul>
+<li>“on”的embedding向量是：</li>
+</ul>
+<p>$$<br>E_4 = [e_{4,1}, e_{4,2}, e_{4,3}, \ldots, e_{4,512}]<br>$$</p>
+<p>其实就是一个$4 \times 512$的矩阵:</p>
+<p>$$<br>X = \begin{bmatrix}<br>e_{1,1} &amp; e_{1,2} &amp; e_{1,3} &amp; \cdots &amp; e_{1,512} \\<br>e_{2,1} &amp; e_{2,2} &amp; e_{2,3} &amp; \cdots &amp; e_{2,512} \\<br>e_{3,1} &amp; e_{3,2} &amp; e_{3,3} &amp; \cdots &amp; e_{3,512} \\<br>e_{4,1} &amp; e_{4,2} &amp; e_{4,3} &amp; \cdots &amp; e_{4,512}<br>\end{bmatrix}<br>$$</p>
+<h2 id="头数-1-2"><a href="#头数-1-2" class="headerlink" title="头数 (1.2)"></a>头数 (1.2)</h2><p>从前面的说明可知，选择<strong>头数</strong>和选择<strong>低维空间的维数</strong>是同一个事儿！假设头数为8：</p>
+<p>$$ h = 8 $$</p>
+<p>那么每个头的维度为：</p>
+<p>$$ d_k = \frac{512}{8} = 64 $$</p>
+<h2 id="投影矩阵-1-3"><a href="#投影矩阵-1-3" class="headerlink" title="投影矩阵 (1.3)"></a>投影矩阵 (1.3)</h2><p>对于每个头$i \in {1, 2, \ldots, 8}$，有3个投影矩阵，它们都是$512 \times 64$的矩阵(如第0节所述)。<strong>每个头的投影矩阵不同，当然也不能相同！</strong>否则的话，就是同样的运算重复8次！</p>
+<p>$$<br>W_i^Q = \begin{bmatrix}<br>q_{1,1} &amp; q_{1,2} &amp; q_{1,3} &amp; \cdots &amp; q_{1,64} \\<br>q_{2,1} &amp; q_{2,2} &amp; q_{2,3} &amp; \cdots &amp; q_{2,64} \\<br>\vdots &amp; \vdots &amp; \vdots &amp; \ddots &amp; \vdots \\<br>q_{512,1} &amp; q_{512,2} &amp; q_{512,3} &amp; \cdots &amp; q_{512,64}<br>\end{bmatrix}<br>$$</p>
+<p>$$<br>W_i^K = \begin{bmatrix}<br>k_{1,1} &amp; k_{1,2} &amp; k_{1,3} &amp; \cdots &amp; k_{1,64} \\<br>k_{2,1} &amp; k_{2,2} &amp; k_{2,3} &amp; \cdots &amp; k_{2,64} \\<br>\vdots &amp; \vdots &amp; \vdots &amp; \ddots &amp; \vdots \\<br>k_{512,1} &amp; k_{512,2} &amp; k_{512,3} &amp; \cdots &amp; k_{512,64}<br>\end{bmatrix}<br>$$</p>
+<p>$$<br>W_i^V = \begin{bmatrix}<br>v_{1,1} &amp; v_{1,2} &amp; v_{1,3} &amp; \cdots &amp; v_{1,64} \\<br>v_{2,1} &amp; v_{2,2} &amp; v_{2,3} &amp; \cdots &amp; v_{2,64} \\<br>\vdots &amp; \vdots &amp; \vdots &amp; \ddots &amp; \vdots \\<br>v_{512,1} &amp; v_{512,2} &amp; v_{512,3} &amp; \cdots &amp; v_{512,64}<br>\end{bmatrix}<br>$$</p>
+<p>这几个矩阵都可以通过学习得到，其中的意义也不好解释。<strong>但它们叫做投影矩阵，意思是把单词的512维embedding向量投影到64维空间</strong>，见第2节生成Query, Key, Value矩阵。</p>
+<h2 id="线性变换矩阵-1-4"><a href="#线性变换矩阵-1-4" class="headerlink" title="线性变换矩阵 (1.4)"></a>线性变换矩阵 (1.4)</h2><p>这是个$512 \times 512$的矩阵，也通过学习得到的。在MultiHead Attention输出结果之前，对结果进行一个线性变换。显然，若它是单位矩阵，则相当于没有变换。我们把它记作$W^O$。具体形状不必展开。</p>
+<h1 id="生成-Query、Key、Value-矩阵-2"><a href="#生成-Query、Key、Value-矩阵-2" class="headerlink" title="生成 Query、Key、Value 矩阵 (2)"></a>生成 Query、Key、Value 矩阵 (2)</h1><p>对于每个头$i \in {1, 2, \ldots, 8}$：</p>
+<ul>
+<li>Query矩阵 $Q_i = XW_i^Q =$</li>
+</ul>
+<p>$$<br>\begin{bmatrix}<br>\sum\limits_{n=1}^{512}e_{1,n}q_{n,1} &amp; \sum\limits_{n=1}^{512}e_{1,n}q_{n,2} &amp; \sum\limits_{n=1}^{512}e_{1,n}q_{n,3} &amp; \cdots &amp; \sum\limits_{n=1}^{512}e_{1,n}q_{n,64} \\<br>\sum\limits_{n=1}^{512}e_{2,n}q_{n,1} &amp; \sum\limits_{n=1}^{512}e_{2,n}q_{n,2} &amp; \sum\limits_{n=1}^{512}e_{2,n}q_{n,3} &amp; \cdots &amp; \sum\limits_{n=1}^{512}e_{2,n}q_{n,64} \\<br>\sum\limits_{n=1}^{512}e_{3,n}q_{n,1} &amp; \sum\limits_{n=1}^{512}e_{3,n}q_{n,2} &amp; \sum\limits_{n=1}^{512}e_{3,n}q_{n,3} &amp; \cdots &amp; \sum\limits_{n=1}^{512}e_{3,n}q_{n,64} \\<br>\sum\limits_{n=1}^{512}e_{4,n}q_{n,1} &amp; \sum\limits_{n=1}^{512}e_{4,n}q_{n,2} &amp; \sum\limits_{n=1}^{512}e_{4,n}q_{n,3} &amp; \cdots &amp; \sum\limits_{n=1}^{512}e_{4,n}q_{n,64}<br>\end{bmatrix}<br>$$</p>
+<p>审视一下这个矩阵：首先，第1行是一个64维的向量，每个元素都是第1个单词”humpty”的embedding向量($E_1$)的线性组合。注意到embedding向量是512维，而这一行是64维，所以我们说，<strong>它是”humpty”的512维的embedding向量在64维空间的投影</strong>(参考第1.3节的投影矩阵$W_i^Q$)。由于是高维(512)到低维(64)的投影，所以一定会丢失一些信息，就像3维到2维投影只保留了形状而丢失了深度信息。总之，<strong>第1行就是第1个单词”humpty”的一些特征，来自原始的512维的embedding向量</strong>。同理，第2行是第2个单词特征，来自512维的embedding向量；第3行是第3个单词的特征；第4行是第4个单词的特征。</p>
+<p>下面的Key矩阵和Value矩阵也是一样，每一行都是一个单词的特征：只是投影矩阵不同($W_i^K$、$W_i^V$、$W_i^Q$互不相同)，得到的特征也不同。</p>
+<ul>
+<li>Key矩阵 $K_i = XW_i^K =$</li>
+</ul>
+<p>$$<br>\begin{bmatrix}<br>\sum\limits_{n=1}^{512}e_{1,n}k_{n,1} &amp; \sum\limits_{n=1}^{512}e_{1,n}k_{n,2} &amp; \sum\limits_{n=1}^{512}e_{1,n}k_{n,3} &amp; \cdots &amp; \sum\limits_{n=1}^{512}e_{1,n}k_{n,64} \\<br>\sum\limits_{n=1}^{512}e_{2,n}k_{n,1} &amp; \sum\limits_{n=1}^{512}e_{2,n}k_{n,2} &amp; \sum\limits_{n=1}^{512}e_{2,n}k_{n,3} &amp; \cdots &amp; \sum\limits_{n=1}^{512}e_{2,n}k_{n,64} \\<br>\sum\limits_{n=1}^{512}e_{3,n}k_{n,1} &amp; \sum\limits_{n=1}^{512}e_{3,n}k_{n,2} &amp; \sum\limits_{n=1}^{512}e_{3,n}k_{n,3} &amp; \cdots &amp; \sum\limits_{n=1}^{512}e_{3,n}k_{n,64} \\<br>\sum\limits_{n=1}^{512}e_{4,n}k_{n,1} &amp; \sum\limits_{n=1}^{512}e_{4,n}k_{n,2} &amp; \sum\limits_{n=1}^{512}e_{4,n}k_{n,3} &amp; \cdots &amp; \sum\limits_{n=1}^{512}e_{4,n}k_{n,64}<br>\end{bmatrix}<br>$$</p>
+<ul>
+<li>Value矩阵 $V_i = XW_i^V =$</li>
+</ul>
+<p>$$<br>\begin{bmatrix}<br>\sum\limits_{n=1}^{512}e_{1,n}v_{n,1} &amp; \sum\limits_{n=1}^{512}e_{1,n}v_{n,2} &amp; \sum\limits_{n=1}^{512}e_{1,n}v_{n,3} &amp; \cdots &amp; \sum\limits_{n=1}^{512}e_{1,n}v_{n,64} \\<br>\sum\limits_{n=1}^{512}e_{2,n}v_{n,1} &amp; \sum\limits_{n=1}^{512}e_{2,n}v_{n,2} &amp; \sum\limits_{n=1}^{512}e_{2,n}v_{n,3} &amp; \cdots &amp; \sum\limits_{n=1}^{512}e_{2,n}v_{n,64} \\<br>\sum\limits_{n=1}^{512}e_{3,n}v_{n,1} &amp; \sum\limits_{n=1}^{512}e_{3,n}v_{n,2} &amp; \sum\limits_{n=1}^{512}e_{3,n}v_{n,3} &amp; \cdots &amp; \sum\limits_{n=1}^{512}e_{3,n}v_{n,64} \\<br>\sum\limits_{n=1}^{512}e_{4,n}v_{n,1} &amp; \sum\limits_{n=1}^{512}e_{4,n}v_{n,2} &amp; \sum\limits_{n=1}^{512}e_{4,n}v_{n,3} &amp; \cdots &amp; \sum\limits_{n=1}^{512}e_{4,n}v_{n,64}<br>\end{bmatrix}<br>$$</p>
+<p>到目前，我们只是把每个单词的embedding向量在64维空间投影3次：Query投影，Key投影，Value投影。我是这么理解的：</p>
+<ul>
+<li>Value投影代表embedding本身(自己的影子)；</li>
+<li>Query投影用于查询自己和别的单词的关系；</li>
+<li>Key投影用于别的单词查询和自己的关系；</li>
+<li>单词之间的关系就是<strong>单词之间的相关性</strong>，也就是“<strong>注意力分数</strong>”；“注意力分数”经过缩放、归一化处理就是单词之间的权重；</li>
+<li>用一个单词相对各个单词的权重对各个单词的Value向量进行加权求和，得到一个新的64维向量(因为Value向量是64维，所以新向量也是64维)，就是这个头的Output。</li>
+</ul>
+<p>我们使用$Q_x$，$K_x$，$V_x$分别表示单词$x$的Query投影，Key投影和Value投影(它们都是64维的向量)，$x \in [humpty, dumpty, sat, on]$，则：</p>
+<p>$$<br>Q_i = XW_i^Q = \begin{bmatrix}<br>Q_{humpty} \\<br>Q_{dumpty} \\<br>Q_{sat} \\<br>Q_{on}<br>\end{bmatrix}<br>$$</p>
+<p>$$<br>K_i = XW_i^K = \begin{bmatrix}<br>K_{humpty} \\<br>K_{dumpty} \\<br>K_{sat} \\<br>K_{on}<br>\end{bmatrix}<br>$$</p>
+<p>$$<br>V_i = XW_i^V = \begin{bmatrix}<br>V_{humpty} \\<br>V_{dumpty} \\<br>V_{sat} \\<br>V_{on}<br>\end{bmatrix}<br>$$</p>
+<h1 id="计算单头注意力-3"><a href="#计算单头注意力-3" class="headerlink" title="计算单头注意力 (3)"></a>计算单头注意力 (3)</h1><p>以第$i$个头为例：</p>
+<h2 id="计算注意力分数矩阵-3-1"><a href="#计算注意力分数矩阵-3-1" class="headerlink" title="计算注意力分数矩阵 (3.1)"></a>计算注意力分数矩阵 (3.1)</h2><p>$$<br>AttentionScore_i = \frac{Q_iK_i^T}{\sqrt{d_k}}<br>$$</p>
+<p>这个矩阵展开就很吓人了。但不要恐慌，分析一下，还是比较简单的。</p>
+<p>首先把分母忽略掉，它就是除以标量$\sqrt{d_k} = \sqrt{64} = 8$，不改变矩阵的结构。这是一个缩放因子，用于防止点积结果过大导致梯度消失或爆炸问题。</p>
+<p>然后重点看分子部分：它是$Q_i$乘以$K_i$的转置($K_i^T$)。$Q_i$和$K_i$都是$4 \times 64$的矩阵，不转置肯定没法相乘。$K_i$的转置($K_i^T$)就是$64 \times 4$的矩阵，这样以来，结果就是$4 \times 4$的矩阵。</p>
+<p>再看怎么相乘的：$K_i$的转置($K_i^T$)，就是把第1行变成第1列，第2行变成第2列，第3行变成第3列……；然后$Q_i$和它相乘。用肉眼看的话，刚好也不用转置了：</p>
+<ul>
+<li><p>直接拿$Q_i$的第1行和$K_i$的第1行对应相乘再相加(点积)，得到$AttentionScore_i[1][1]$；即第1个单词的Query投影点乘第1个单词Key投影；</p>
+</li>
+<li><p>直接拿$Q_i$的第1行和$K_i$的第2行对应相乘再相加(点积)，得到$AttentionScore_i[1][2]$；即第1个单词的Query投影点乘第2个单词Key投影；</p>
+</li>
+<li><p>直接拿$Q_i$的第1行和$K_i$的第3行对应相乘再相加(点积)，得到$AttentionScore_i[1][3]$；即第1个单词的Query投影点乘第3个单词Key投影；</p>
+</li>
+<li><p>直接拿$Q_i$的第1行和$K_i$的第4行对应相乘再相加(点积)，得到$AttentionScore_i[1][4]$；即第1个单词的Query投影点乘第4个单词Key投影；</p>
+</li>
+<li><p>直接拿$Q_i$的第2行和$K_i$的第1行对应相乘再相加(点积)，得到$AttentionScore_i[2][1]$；即第2个单词的Query投影点乘第1个单词Key投影；</p>
+</li>
+<li><p>直接拿$Q_i$的第2行和$K_i$的第2行对应相乘再相加(点积)，得到$AttentionScore_i[2][2]$；即第2个单词的Query投影点乘第2个单词Key投影；</p>
+</li>
+<li><p>直接拿$Q_i$的第2行和$K_i$的第3行对应相乘再相加(点积)，得到$AttentionScore_i[2][3]$；即第2个单词的Query投影点乘第3个单词Key投影；</p>
+</li>
+<li><p>直接拿$Q_i$的第2行和$K_i$的第4行对应相乘再相加(点积)，得到$AttentionScore_i[2][4]$；即第2个单词的Query投影点乘第4个单词Key投影；</p>
+</li>
+<li><p>…</p>
+</li>
+</ul>
+<p>前面我们使用$Q_x$，$K_x$分别表示Query投影和Key投影，$x \in [humpty, dumpty, sat, on]$，则：</p>
+<p>$AttentionScore_i = $</p>
+<p>$$<br>\begin{bmatrix}<br>Q_{humpty} \cdot K_{humpty}, &amp; Q_{humpty} \cdot K_{dumpty}, &amp; Q_{humpty} \cdot K_{sat}, &amp; Q_{humpty} \cdot K_{on} \\<br>Q_{dumpty} \cdot K_{humpty}, &amp; Q_{dumpty} \cdot K_{dumpty}, &amp; Q_{dumpty} \cdot K_{sat}, &amp; Q_{dumpty} \cdot K_{on} \\<br>Q_{sat}    \cdot K_{humpty}, &amp; Q_{sat}    \cdot K_{dumpty}, &amp; Q_{sat}    \cdot K_{sat}, &amp; Q_{sat}    \cdot K_{on} \\<br>Q_{on}     \cdot K_{humpty}, &amp; Q_{on}     \cdot K_{dumpty}, &amp; Q_{on}     \cdot K_{sat}, &amp; Q_{on}     \cdot K_{on}<br>\end{bmatrix}<br>$$</p>
+<p>$AttentionScore_i[m][n]$到底是什么意义呢？它其实表示<strong>单词m对单词n的注意力分数</strong>；</p>
+<h2 id="应用Softmax归一化-3-2"><a href="#应用Softmax归一化-3-2" class="headerlink" title="应用Softmax归一化 (3.2)"></a>应用Softmax归一化 (3.2)</h2><p>$$<br>AttentionWeight_i = softmax(AttentionScore_i)<br>$$</p>
+<p>注意$softmax$不是针对整个矩阵的，而是逐行归一化，即每行的所有元素独立进行softmax归一化，确保每行的和为1。</p>
+<p>将所有元素视为一个向量，整体归一化（所有元素和为1），这种方式几乎不使用：因为这种操作会破坏矩阵的语义结构，导致行/列间依赖关系丢失。</p>
+<p>所以，这一步比较简单，没有改变矩阵的结构，$AttentionWeight_i$还是一个$4 \times 4$的矩阵。就是把$AttentionScore_i$归一化，转化成概率分布。即$AttentionWeight_i[m][n]$是单词m对单词n的weight。我们表示为：</p>
+<p>$$<br>AttentionWeight = \begin{bmatrix}<br>w_{humpty,humpty} &amp; w_{humpty,dumpty} &amp; w_{humpty,sat} &amp; w_{humpty,on} \\<br>w_{dumpty,humpty} &amp; w_{dumpty,dumpty} &amp; w_{dumpty,sat} &amp; w_{dumpty,on} \\<br>w_{sat,humpty}    &amp; w_{sat,dumpty}    &amp; w_{sat,sat}    &amp; w_{sat,on} \\<br>w_{on,humpty}     &amp; w_{on,dumpty}     &amp; w_{on,sat}     &amp; w_{on,on}<br>\end{bmatrix}<br>$$</p>
+<h2 id="加权聚合Value-3-3"><a href="#加权聚合Value-3-3" class="headerlink" title="加权聚合Value (3.3)"></a>加权聚合Value (3.3)</h2><p>前面说过，矩阵$V_i$是一个$4 \times 64$的矩阵，也就是每个单词的Value投影，每行是一个单词。每列呢？可以看作是每个单词的一个投影分量，即：</p>
+<p>$$<br>V_i = \begin{bmatrix}<br>V_{humpty} \\<br>V_{dumpty} \\<br>V_{sat} \\<br>V_{on}<br>\end{bmatrix} = \begin{bmatrix}<br>V_{humpty}分量1, &amp; V_{humpty}分量2, &amp; \cdots, &amp; V_{humpty}分量64 \\<br>V_{dumpty}分量1, &amp; V_{dumpty}分量2, &amp; \cdots, &amp; V_{dumpty}分量64 \\<br>V_{sat}分量1,    &amp; V_{sat}分量2,    &amp; \cdots, &amp; V_{sat}分量64 \\<br>V_{on}分量1,     &amp; V_{on}分量2,     &amp; \cdots, &amp; V_{on}分量64<br>\end{bmatrix}<br>$$</p>
+<p>上一小节我们得到$AttentionWeight_i$是一个$4 \times 4$的矩阵，它乘以$V_i$ ($4 \times 64$)，就得到$4 \times 64$的加权聚合Value：</p>
+<p>$Head_i = AttentionWeight_i \cdot V_i = $</p>
+<p>$$<br>\begin{bmatrix}<br>\sum\limits_{x}w_{humpty,x}V_x分量1, &amp; \sum\limits_{x}w_{humpty,x}V_x分量2, &amp; \cdots, &amp; \sum\limits_{x}w_{humpty,x}V_x分量64 \\<br>\sum\limits_{x}w_{dumpty,x}V_x分量1, &amp; \sum\limits_{x}w_{dumpty,x}V_x分量2, &amp; \cdots, &amp; \sum\limits_{x}w_{dumpty,x}V_x分量64 \\<br>\sum\limits_{x}w_{sat,x}V_x分量1,    &amp; \sum\limits_{x}w_{sat,x}V_x分量2,    &amp; \cdots, &amp; \sum\limits_{x}w_{sat,x}V_x分量64 \\<br>\sum\limits_{x}w_{on,x}V_x分量1,     &amp; \sum\limits_{x}w_{on,x}V_x分量2,     &amp; \cdots, &amp; \sum\limits_{x}w_{on,x}V_x分量64<br>\end{bmatrix}<br>$$</p>
+<ul>
+<li>$Head_i[humpty][1]$：所有单词的Value的分量1加权求和；这里的权是指humpty对其它单词的AttentionWeight。</li>
+<li>$Head_i[humpty][2]$：所有单词的Value的<strong>分量2</strong>加权求和；这里的权是指humpty对其它单词的AttentionWeight。</li>
+<li>…</li>
+<li>$Head_i[sat][1]$：所有单词的Value的分量1加权求和；这里的权是指sat对其它单词的AttentionWeight。</li>
+<li>$Head_i[sat][2]$：所有单词的Value的分量2加权求和；这里的权是指sat对其它单词的AttentionWeight。</li>
+<li>…</li>
+</ul>
+<p>就是说，<strong>第1行是humpty的($Head_i$的)Output；第2行是dumpty的Output；</strong> ……<br>每个单词的Output又是<strong>所有单词的Value的加权求和</strong>。因为Value是一个向量，所以，<strong>加权求和是指各个分量对应加权求和</strong>！<br>这里的<strong>权是指当前单词对于所有单词的AttentionWeight</strong>。</p>
+<p>总之，$Head_i$是个$4 \times 64$的矩阵，其中第1行中编码了第1个单词与其它单词之间的关联信息；第2行中编码了第2个单词与其它单词的关联信息，……</p>
+<h1 id="合并多头输出-4"><a href="#合并多头输出-4" class="headerlink" title="合并多头输出 (4)"></a>合并多头输出 (4)</h1><p>到目前为止，我们都在看一个头；得到的$Head_i$也是这一个头$i$的Output。它是一个$4 \times 64$的矩阵。</p>
+<p>总共有8个头，重复上面的过程，得到8个$4 \times 64$的Output！拼起来就是$4 \times 512$的矩阵，和输入矩阵$X$同构。</p>
+<p>$$<br>MultiHead(X) = \begin{bmatrix}<br>Head_1; &amp; Head_2; &amp; Head_3; &amp; \cdots; &amp; Head_8<br>\end{bmatrix}<br>$$</p>
+<p>其实这8个头，只是输入的投影矩阵不同，其它计算都一模一样。</p>
+<h1 id="输出线性变换-5"><a href="#输出线性变换-5" class="headerlink" title="输出线性变换 (5)"></a>输出线性变换 (5)</h1><p>上面已经得到和输入$X$的同构矩阵$MultiHead(X)$ ($4 \times 512$)，再乘以线性变换矩阵$W^O$ ($512 \times 512$，见第1.4节)，得到的还是$4 \times 512$的矩阵。即:</p>
+<p>$$<br>MultiHeadOutput = MultiHead(X)W^O \in R^{4 \times 512}<br>$$</p>
+<h1 id="总结-6"><a href="#总结-6" class="headerlink" title="总结 (6)"></a>总结 (6)</h1><ul>
+<li>输入与输出对齐：输出维度与输入一致，便于残差连接和后续层处理。</li>
+<li>多头协作：每个头学习不同模式，最终输出融合多视角信息。</li>
+<li>上下文编码：每个输出位置聚合了全局依赖关系，为预测提供丰富特征。</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/llm/" rel="tag"># llm</a>
+              <a href="/tags/ai/" rel="tag"># ai</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/03/07/llm-self-attention/" rel="prev" title="Self-Attention">
+      <i class="fa fa-chevron-left"></i> Self-Attention
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2025/06/07/persistent-memory/" rel="next" title="Persistent Memory">
+      Persistent Memory <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AF%B4%E6%98%8E-0"><span class="nav-number">1.</span> <span class="nav-text">说明 (0)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%BE%93%E5%85%A5-1"><span class="nav-number">2.</span> <span class="nav-text">输入 (1)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Eembedding%E7%9F%A9%E9%98%B5-1-1"><span class="nav-number">2.1.</span> <span class="nav-text">Eembedding矩阵 (1.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A4%B4%E6%95%B0-1-2"><span class="nav-number">2.2.</span> <span class="nav-text">头数 (1.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%8A%95%E5%BD%B1%E7%9F%A9%E9%98%B5-1-3"><span class="nav-number">2.3.</span> <span class="nav-text">投影矩阵 (1.3)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BA%BF%E6%80%A7%E5%8F%98%E6%8D%A2%E7%9F%A9%E9%98%B5-1-4"><span class="nav-number">2.4.</span> <span class="nav-text">线性变换矩阵 (1.4)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%94%9F%E6%88%90-Query%E3%80%81Key%E3%80%81Value-%E7%9F%A9%E9%98%B5-2"><span class="nav-number">3.</span> <span class="nav-text">生成 Query、Key、Value 矩阵 (2)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AE%A1%E7%AE%97%E5%8D%95%E5%A4%B4%E6%B3%A8%E6%84%8F%E5%8A%9B-3"><span class="nav-number">4.</span> <span class="nav-text">计算单头注意力 (3)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%A1%E7%AE%97%E6%B3%A8%E6%84%8F%E5%8A%9B%E5%88%86%E6%95%B0%E7%9F%A9%E9%98%B5-3-1"><span class="nav-number">4.1.</span> <span class="nav-text">计算注意力分数矩阵 (3.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BA%94%E7%94%A8Softmax%E5%BD%92%E4%B8%80%E5%8C%96-3-2"><span class="nav-number">4.2.</span> <span class="nav-text">应用Softmax归一化 (3.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8A%A0%E6%9D%83%E8%81%9A%E5%90%88Value-3-3"><span class="nav-number">4.3.</span> <span class="nav-text">加权聚合Value (3.3)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%90%88%E5%B9%B6%E5%A4%9A%E5%A4%B4%E8%BE%93%E5%87%BA-4"><span class="nav-number">5.</span> <span class="nav-text">合并多头输出 (4)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%BE%93%E5%87%BA%E7%BA%BF%E6%80%A7%E5%8F%98%E6%8D%A2-5"><span class="nav-number">6.</span> <span class="nav-text">输出线性变换 (5)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93-6"><span class="nav-number">7.</span> <span class="nav-text">总结 (6)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

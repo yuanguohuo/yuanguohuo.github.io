@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="终于完成hexo+github博客搭建。作为第一篇博客，本来记录了整个搭建过程。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="基于hexo+github搭建个人博客">
+<meta property="og:url" content="http://yoursite.com/2018/05/23/build-hexo-blog/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="终于完成hexo+github博客搭建。作为第一篇博客，本来记录了整个搭建过程。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2018-05-23T15:40:32.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.481Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="hexo">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2018/05/23/build-hexo-blog/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>基于hexo+github搭建个人博客 | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/23/build-hexo-blog/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          基于hexo+github搭建个人博客
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2018-05-23 15:40:32" itemprop="dateCreated datePublished" datetime="2018-05-23T15:40:32+00:00">2018-05-23</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/hexo/" itemprop="url" rel="index"><span itemprop="name">hexo</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2018/05/23/build-hexo-blog/" class="post-meta-item leancloud_visitors" data-flag-title="基于hexo+github搭建个人博客" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2018/05/23/build-hexo-blog/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2018/05/23/build-hexo-blog/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>终于完成hexo+github博客搭建。作为第一篇博客，本来记录了整个搭建过程。</p>
+<a id="more"></a>
+
+<h1 id="安装依赖-1"><a href="#安装依赖-1" class="headerlink" title="安装依赖 (1)"></a>安装依赖 (1)</h1><h2 id="安装git-1-1"><a href="#安装git-1-1" class="headerlink" title="安装git (1.1)"></a>安装git (1.1)</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> brew install git</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="安装node-js-1-2"><a href="#安装node-js-1-2" class="headerlink" title="安装node.js (1.2)"></a>安装node.js (1.2)</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> wget -qO- https://raw.github.com/creationix/nvm/master/install.sh | sh</span></span><br></pre></td></tr></table></figure>
+<p>退出并重新登录</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> nvm install stable</span></span><br></pre></td></tr></table></figure>
+
+<h1 id="安装hexo-2"><a href="#安装hexo-2" class="headerlink" title="安装hexo (2)"></a>安装hexo (2)</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$ npm install -g hexo-cli</span><br><span class="line">$ npm install hexo --save</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h1 id="初始化-3"><a href="#初始化-3" class="headerlink" title="初始化 (3)"></a>初始化 (3)</h1><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> hexo init hexo-root</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> <span class="built_in">cd</span> hexo-root</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> npm install</span></span><br></pre></td></tr></table></figure>
+<p>这里创建了一个空目录hex-root，并进行hexo初始化。<strong>后续的操作都在hexo-root目录下执行</strong>。</p>
+<p>注意：最后一个命令(hexo init .)要求当前目录(hexo-root)是一个空目录。否则，会失败。</p>
+<p>成功之后，可以看见当前目录下有这些内容：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> ls</span></span><br><span class="line">_config.yml  node_modules  package-lock.json  package.json  scaffolds  source  themes</span><br></pre></td></tr></table></figure>
+
+<h1 id="本地测试-4"><a href="#本地测试-4" class="headerlink" title="本地测试 (4)"></a>本地测试 (4)</h1><p>在本地起hexo server</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> hexo clean</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> hexo generate</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> hexo server</span></span><br></pre></td></tr></table></figure>
+<p>然后，在浏览器上可以测试初始化是否成功：<br><a target="_blank" rel="noopener" href="http://localhost:4000/">http://localhost:4000/</a></p>
+<p>这时候应该能看见初始化自带的一篇博客：hello-world</p>
+<p>测试完成后，ctrl+C停止hexo server。</p>
+<h1 id="设置-5"><a href="#设置-5" class="headerlink" title="设置 (5)"></a>设置 (5)</h1><h2 id="设置主题为next-5-1"><a href="#设置主题为next-5-1" class="headerlink" title="设置主题为next (5.1)"></a>设置主题为next (5.1)</h2><p>初始化后，默认自带了一个landscape主题：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> ls themes/</span></span><br><span class="line">landscape</span><br></pre></td></tr></table></figure>
+
+<p>下载next主题：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> git <span class="built_in">clone</span> https://github.com/theme-next/hexo-theme-next themes/next</span></span><br><span class="line"></span><br><span class="line"><span class="meta">$</span><span class="bash"> ls themes/</span></span><br><span class="line">landscape  next</span><br></pre></td></tr></table></figure>
+
+<p>把主题设置为next：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> vim _config.yml</span></span><br><span class="line">theme: next</span><br></pre></td></tr></table></figure>
+
+<p>把next主题的scheme设置为Mist(纯属个人喜好)</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> vim themes/next/_config.yml  </span></span><br><span class="line">scheme: Mist</span><br></pre></td></tr></table></figure>
+
+<p>把代码高亮设置为night eighties(纯属个人喜好)</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> vim themes/next/_config.yml</span></span><br><span class="line">highlight_theme: night eighties</span><br></pre></td></tr></table></figure>
+
+<p>重新本地测试，发现已经变为简约的next主题了。</p>
+<h2 id="设置new-post-name-5-2"><a href="#设置new-post-name-5-2" class="headerlink" title="设置new_post_name (5.2)"></a>设置new_post_name (5.2)</h2><p>当我们使用命令：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hexo new &#123;title&#125;</span><br></pre></td></tr></table></figure>
+<p>创建一篇新博客的时候，hexo会为我们生成一个{title}.md文件。为了日后方便看博客的创建时间，我们希望.md文件名中带上当前日期。为此，修改_config.yml:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> vim _config.yml</span></span><br><span class="line">new_post_name: :title-:year-:month-:day.md # File name of new posts</span><br><span class="line"></span><br><span class="line"><span class="meta">$</span><span class="bash"> hexo new testpage</span></span><br><span class="line">INFO  Created: ~/hexo-root/source/_posts/testpage-2018-05-12.md</span><br><span class="line"></span><br><span class="line"><span class="meta">$</span><span class="bash"> ls <span class="built_in">source</span>/_posts/</span></span><br><span class="line">hello-world.md  testpage-2018-05-12.md</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h2 id="菜单栏-5-3"><a href="#菜单栏-5-3" class="headerlink" title="菜单栏 (5.3)"></a>菜单栏 (5.3)</h2><p>默认情况下，菜单栏中只有Home和Archives两项。把categories, tags和about都打开，这样，菜单栏就会显示相应的菜单项了。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> vim themes/next/_config.yml  </span></span><br><span class="line">menu:</span><br><span class="line">   home: / || home</span><br><span class="line">   about: /about/ || user</span><br><span class="line">   tags: /tags/ || tags</span><br><span class="line">   categories: /categories/ || th</span><br><span class="line">   archives: /archives/ || archive  </span><br></pre></td></tr></table></figure>
+<p>现在执行本地测试，点击主页上方的Categories,Tags和About按钮时，会得到错误：</p>
+<ul>
+<li>Cannot GET /categories/</li>
+<li>Cannot GET /tags/</li>
+<li>Cannot GET /about/</li>
+</ul>
+<p>这是因为source/下没有categories, tags和about信息。创建它们：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> hexo new page about</span></span><br><span class="line">INFO  Created: ~/hexo-root/source/about/index.md</span><br><span class="line"></span><br><span class="line"><span class="meta">$</span><span class="bash"> vim <span class="built_in">source</span>/about/index.md</span></span><br><span class="line">自我介绍</span><br><span class="line"></span><br><span class="line"><span class="meta">$</span><span class="bash"> hexo new page categories</span></span><br><span class="line">INFO  Created: ~/hexo-root/source/categories/index.md</span><br><span class="line"></span><br><span class="line"><span class="meta">$</span><span class="bash"> hexo new page tags</span></span><br><span class="line">INFO  Created: ~/hexo-root/source/tags/index.md</span><br></pre></td></tr></table></figure>
+
+<p>可见，在source/下创建了三个目录：categories, tags和about，并且各创建了一个index.md文件。</p>
+<p>重新执行本地测试，发现点击Categories, Tags和About时不再报错了。现在我们尝试在testpage-2018-05-12.md中加入category和tag，看看能不能成功建立categories和tags索引：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> vim <span class="built_in">source</span>/_posts/testpage-2018-05-12.md</span></span><br><span class="line">title: testpage</span><br><span class="line">date: 2018-05-12 23:19:34</span><br><span class="line">tags: [filesystem,ext4]</span><br><span class="line">categories: linux</span><br></pre></td></tr></table></figure>
+<p>重新执行本地测试，点击Categories和Tags，发现里面都是空的。索引建立失败。解决：</p>
+<ul>
+<li>在source/categories/index.md中加入type: “categories”</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> vim <span class="built_in">source</span>/categories/index.md</span></span><br><span class="line">title: categories</span><br><span class="line">date: 2018-05-12 23:29:23</span><br><span class="line">type: &quot;categories&quot;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>在source/tags/index.md中加入type: “tags”</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> vim <span class="built_in">source</span>/tags/index.md</span></span><br><span class="line">title: tags</span><br><span class="line">date: 2018-05-12 23:29:35</span><br><span class="line">type: &quot;tags&quot;</span><br></pre></td></tr></table></figure>
+
+<p>重新执行本地测试，点击Categories和Tags，发现索引建立已经成功。</p>
+<h2 id="配置中文-5-4"><a href="#配置中文-5-4" class="headerlink" title="配置中文 (5.4)"></a>配置中文 (5.4)</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> vim themes/next/languages/zh-Hans.yml</span></span><br><span class="line">menu:</span><br><span class="line">  home: 主页</span><br><span class="line">  categories: 分类</span><br><span class="line">  archives: 归档</span><br><span class="line">  tags: 标签</span><br><span class="line">  message: 留言</span><br><span class="line">  about: 关于</span><br><span class="line">  search: 搜索</span><br><span class="line">sidebar:</span><br><span class="line">  overview: 本站概览</span><br><span class="line">  toc: 文章目录</span><br><span class="line">post:</span><br><span class="line">  posted: 发表于</span><br><span class="line">  edited: 更新于</span><br><span class="line">  in: 所属分类</span><br><span class="line">  views: 阅读次数</span><br><span class="line">  comments_count: 评论数</span><br><span class="line">  read_more: 阅读全文</span><br><span class="line">  sticky: 置顶</span><br><span class="line">  toc_empty: 此文章未包含目录</span><br><span class="line">reward:</span><br><span class="line">  wechatpay: 微信支付</span><br><span class="line">  alipay: 支付宝</span><br><span class="line">state:</span><br><span class="line">  posts: 日志</span><br><span class="line">  pages: 页面</span><br><span class="line">  tags: 标签</span><br><span class="line">  categories: 分类</span><br><span class="line">counter:</span><br><span class="line">  tag_cloud:</span><br><span class="line">    zero: 暂无标签</span><br><span class="line">    one: 目前共计 1 个标签</span><br><span class="line">    other: &quot;目前共计 %d 个标签&quot;</span><br><span class="line">  categories:</span><br><span class="line">    zero: 暂无分类</span><br><span class="line">    one: 目前共计 1 个分类</span><br><span class="line">    other: &quot;目前共计 %d 个分类&quot;</span><br><span class="line">  archive_posts:</span><br><span class="line">    zero: 暂无日志。</span><br><span class="line">    one: 目前共计 1 篇日志。</span><br><span class="line">    other: &quot;目前共计 %d 篇日志。&quot;</span><br><span class="line"></span><br><span class="line"><span class="meta">$</span><span class="bash"> vim _config.yml</span></span><br><span class="line">language: zh-Hans</span><br></pre></td></tr></table></figure>
+
+<h2 id="基本信息-5-5"><a href="#基本信息-5-5" class="headerlink" title="基本信息 (5.5)"></a>基本信息 (5.5)</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> vim _config.yml</span></span><br><span class="line">title: &lt;Your-name&gt;的博客</span><br><span class="line">description: 简短自我/博客描述</span><br><span class="line">author: &lt;Your-name&gt;</span><br></pre></td></tr></table></figure>
+
+<h2 id="头像设置-5-6"><a href="#头像设置-5-6" class="headerlink" title="头像设置 (5.6)"></a>头像设置 (5.6)</h2><p>把头像（例如me.jpg）放到themes/next/source/images/目录下，然后修改next的配置文件：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> vim themes/next/_config.yml</span></span><br><span class="line">avatar:</span><br><span class="line">  url: /images/me.jpg</span><br></pre></td></tr></table></figure>
+
+<h2 id="打赏-5-7"><a href="#打赏-5-7" class="headerlink" title="打赏 (5.7)"></a>打赏 (5.7)</h2><p>把微信和支付宝的收款二维码图片例如wechatpay.jpg和alipay.jpg）放到themes/next/source/images/目录下，然后修改next的配置文件：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> vim themes/next/_config.yml</span></span><br><span class="line">reward_comment: 写的不错，有赏！</span><br><span class="line">wechatpay: /images/wechatpay.jpg</span><br><span class="line">alipay: /images/alipay.jpg</span><br></pre></td></tr></table></figure>
+
+<h2 id="社交链接-5-8"><a href="#社交链接-5-8" class="headerlink" title="社交链接 (5.8)"></a>社交链接 (5.8)</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> vim themes/next/_config.yml</span></span><br><span class="line">social:</span><br><span class="line">  GitHub: https://github.com/&lt;your-name&gt; || github</span><br><span class="line">  E-Mail: mailto:&lt;your-email-address&gt; || envelope</span><br></pre></td></tr></table></figure>
+
+<h2 id="站内搜索功能-5-9"><a href="#站内搜索功能-5-9" class="headerlink" title="站内搜索功能 (5.9)"></a>站内搜索功能 (5.9)</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> npm install hexo-generator-search --save</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> npm install hexo-generator-searchdb --save</span></span><br><span class="line"></span><br><span class="line"><span class="meta">$</span><span class="bash"> vim _config.xml</span></span><br><span class="line">search:</span><br><span class="line">  path: search.xml</span><br><span class="line">  field: post</span><br><span class="line">  format: html</span><br><span class="line">  limit: 10000</span><br><span class="line"></span><br><span class="line"><span class="meta">$</span><span class="bash"> vim themes/next/_config.yml</span></span><br><span class="line">local_search:</span><br><span class="line">  enable: true</span><br><span class="line">  trigger: auto</span><br><span class="line">  top_n_per_article: 1</span><br><span class="line">  unescape: false</span><br></pre></td></tr></table></figure>
+
+
+<h2 id="生成摘要-5-10"><a href="#生成摘要-5-10" class="headerlink" title="生成摘要 (5.10)"></a>生成摘要 (5.10)</h2><p>当点击“Home”的时候，会显示博文列表。通过配置，可以同时显示一个摘要。有两种方式生成摘要：</p>
+<p><strong>自动生成：</strong><br>这种方式比较简单粗暴，就是认为你博文的“前N个字”就是摘要，所有博文都一样。例如，前300字自动作为摘要：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> vim themes/next/_config.yml</span></span><br><span class="line">auto_excerpt:</span><br><span class="line">  enable: true</span><br><span class="line">  length: 300</span><br></pre></td></tr></table></figure>
+
+<p><strong>自定义：</strong><br>自动生成摘要的方式虽然简单，但不精确。博主可以为每篇博文精确定义摘要，方式是：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">vim blog-title-&#123;year&#125;-&#123;month&#125;-&#123;day&#125;.md</span><br><span class="line">摘要部分</span><br><span class="line">&lt;!-- more --&gt;</span><br><span class="line">正文部分</span><br></pre></td></tr></table></figure>
+<p>也就是通过<!-- more -->将摘要和正文分开。</p>
+<p><strong>注意：显然，推荐使用自定义摘要。但是，可以把自动生成摘要打开，这样，若博客有自定义摘要，则使用自定义摘要；若没有，则自动生成。</strong></p>
+<h2 id="leancloud访问量统计和评论功能-5-11"><a href="#leancloud访问量统计和评论功能-5-11" class="headerlink" title="leancloud访问量统计和评论功能 (5.11)"></a>leancloud访问量统计和评论功能 (5.11)</h2><h3 id="Leancloud准备-5-11-1"><a href="#Leancloud准备-5-11-1" class="headerlink" title="Leancloud准备 (5.11.1)"></a>Leancloud准备 (5.11.1)</h3><ul>
+<li>登录<a target="_blank" rel="noopener" href="https://leancloud.cn/%E5%B9%B6%E6%B3%A8%E5%86%8C">https://leancloud.cn/并注册</a></li>
+<li>创建应用: 访问控制台 –&gt; 创建应用 –&gt; 填入新应用名称(自取) –&gt; 创建</li>
+<li>创建Counter: 选择刚创建的应用，存储 –&gt; 创建Class –&gt; 填入Class名称(必须是”Counter”) –&gt; 创建Class</li>
+</ul>
+<p>注意：Comment已经存在，所以我们没有创建Comment；</p>
+<h3 id="获取AppID和AppKey-5-11-2"><a href="#获取AppID和AppKey-5-11-2" class="headerlink" title="获取AppID和AppKey (5.11.2)"></a>获取AppID和AppKey (5.11.2)</h3><p>选择刚创建的应用，设置 –&gt; 应用Key，记下里面的”AppID”和”AppKey”。</p>
+<h3 id="配置next主题-5-11-3"><a href="#配置next主题-5-11-3" class="headerlink" title="配置next主题 (5.11.3)"></a>配置next主题 (5.11.3)</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> vim themes/next/_config.yml</span></span><br><span class="line">leancloud_visitors:</span><br><span class="line">  enable: true</span><br><span class="line">  app_id: 上一步获取的AppID</span><br><span class="line">  app_key: 上一步获取的AppKey</span><br><span class="line">  security: false</span><br><span class="line"></span><br><span class="line">valine:</span><br><span class="line">  enable: true</span><br><span class="line">  appid: 上一步获取的AppID</span><br><span class="line">  appkey: 上一步获取的AppKey</span><br></pre></td></tr></table></figure>
+
+
+<h1 id="创建github-repository-6"><a href="#创建github-repository-6" class="headerlink" title="创建github repository (6)"></a>创建github repository (6)</h1><p>创建git repository:  <a target="_blank" rel="noopener" href="https://github.com/">https://github.com/</a><your-name>/<your-name>.github.io</p>
+<p>注意：</p>
+<ul>
+<li>repository名一定要为github的名字。</li>
+<li>把”Initialize this repository with a README”勾选上。</li>
+</ul>
+<h1 id="拷贝public-key到github-7"><a href="#拷贝public-key到github-7" class="headerlink" title="拷贝public key到github (7)"></a>拷贝public key到github (7)</h1><p>若还没有生成key pair，请先生成。然后：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> cat ~/.ssh/id_rsa.pub</span></span><br></pre></td></tr></table></figure>
+<p>并拷贝其输出内容。<br>到github上，点击：右上的头像 -&gt; Settings -&gt; SSH and GPG keys -&gt; New SSH key; 填写Title(名称自取)和Key (粘贴前面拷贝的id_rsa.pub的内容)。</p>
+<h1 id="配置deploy-8"><a href="#配置deploy-8" class="headerlink" title="配置deploy (8)"></a>配置deploy (8)</h1><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> vim _config.yml</span></span><br><span class="line">deploy:</span><br><span class="line">  type: git</span><br><span class="line">  repo: git@github.com:&lt;your-name&gt;/&lt;your-name&gt;.github.io.git</span><br><span class="line">  branch: master</span><br></pre></td></tr></table></figure>
+
+<h1 id="deploy-9"><a href="#deploy-9" class="headerlink" title="deploy (9)"></a>deploy (9)</h1><p>第一次deploy，需要先安装hexo-deployer-git：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> npm install hexo-deployer-git --save</span></span><br></pre></td></tr></table></figure>
+<p>只第一次deploy之前执行！</p>
+<p>下面就是deploy了：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> hexo clean</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> hexo generate</span></span><br><span class="line"><span class="meta">$</span><span class="bash"> hexo deploy</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>第一条命令：删除本地生成的静态页面；</li>
+<li>第二条命令：根据source/_posts下面的.md文件，以及主题等，重新生成静态页面；</li>
+<li>第三条命令：把第二步生成的静态页面上传到github；</li>
+</ul>
+<p>现在，博客就生成了：http://{your-name}.github.io/</p>
+<h1 id="引用图片资源-10"><a href="#引用图片资源-10" class="headerlink" title="引用图片资源 (10)"></a>引用图片资源 (10)</h1><ul>
+<li><strong>当设置post_asset_folder参数为true</strong></li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> vim _config.yml</span></span><br><span class="line">post_asset_folder:true</span><br></pre></td></tr></table></figure>
+
+<p>当设置post_asset_folder参数为true后，在建立文件时，hexo会自动建立一个与文章同名的文件夹，用于存放与该文章相关的所有资源。</p>
+<ul>
+<li><strong>安装hexo-asset-image</strong></li>
+</ul>
+<p>在hexo根目录下执行：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> npm install https://github.com/CodeFalling/hexo-asset-image --save  </span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>生成资源文件夹</strong></li>
+</ul>
+<p>以后再运行hexo n foo来生成博文时，在source/_posts文件夹下，除了自动生成foo-{year}-{month}-{day}.md文件外，还自动生成一个同名的文件夹foo-{year}-{month}-{day}，用于存放与本篇博文相关的资源。原有博客需要插入图片的，可以手动mkdir。</p>
+<ul>
+<li><strong>引用资源</strong></li>
+</ul>
+<p>把图片image.jpg放入资源文件夹foo，然后在博文中通过<code>![标题](foo/image.jpg)</code>来引用图片。生成的html(<code>public/&#123;year&#125;/&#123;month&#125;/&#123;day&#125;/foo/index.html</code>)中，对图片的引用是这样的：<code>&lt;img src=&quot;/&#123;year&#125;/&#123;month&#125;/&#123;day&#125;/foo/image.jpg&quot; alt=&quot;标题&quot;&gt;&lt;/p&gt;</code></p>
+<h1 id="创建markdown-repository-11"><a href="#创建markdown-repository-11" class="headerlink" title="创建markdown repository (11)"></a>创建markdown repository (11)</h1><p>到此为止，博客就搭建起来了。以后写博客，就是创建.md文件。为了保存曾经的博客(.md文件)，我另外创建一个github repository。通过这个repository，在公司和家里的不同电脑上，都可以写博客了。最后，在配置了hexo的电脑上发布。</p>
+<h1 id="常见错误-12"><a href="#常见错误-12" class="headerlink" title="常见错误 (12)"></a>常见错误 (12)</h1><p>博文.md文件中除了开头部分，若包含”—“，则很容易出一些奇怪的YAMLException，并且报错的位置可能相去甚远，很难定位。例如：</p>
+<ul>
+<li>YAMLException: end of the stream or a document separator is expected at line x, column y</li>
+<li>YAMLException: unidentified alias at line x, column y</li>
+<li>YAMLException: name of an alias node must contain at least one character at line x, column y</li>
+</ul>
+<h1 id="小结-13"><a href="#小结-13" class="headerlink" title="小结 (13)"></a>小结 (13)</h1><p>之前使用CSDN，页面不够漂亮，也不能做一些个性化的设置，所以计划搭一个自己的博客，今天终于得以实现。第一次搭建博客，并且对前端网站不熟悉，踩了不少坑，所以本文记下这个过程，作为开篇。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/hexo/" rel="tag"># hexo</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item"></div>
+      <div class="post-nav-item">
+    <a href="/2018/05/24/cpp11-std-move/" rel="next" title="C++11的std::move">
+      C++11的std::move <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E8%A3%85%E4%BE%9D%E8%B5%96-1"><span class="nav-number">1.</span> <span class="nav-text">安装依赖 (1)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%89%E8%A3%85git-1-1"><span class="nav-number">1.1.</span> <span class="nav-text">安装git (1.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%89%E8%A3%85node-js-1-2"><span class="nav-number">1.2.</span> <span class="nav-text">安装node.js (1.2)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E8%A3%85hexo-2"><span class="nav-number">2.</span> <span class="nav-text">安装hexo (2)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%88%9D%E5%A7%8B%E5%8C%96-3"><span class="nav-number">3.</span> <span class="nav-text">初始化 (3)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%9C%AC%E5%9C%B0%E6%B5%8B%E8%AF%95-4"><span class="nav-number">4.</span> <span class="nav-text">本地测试 (4)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AE%BE%E7%BD%AE-5"><span class="nav-number">5.</span> <span class="nav-text">设置 (5)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BE%E7%BD%AE%E4%B8%BB%E9%A2%98%E4%B8%BAnext-5-1"><span class="nav-number">5.1.</span> <span class="nav-text">设置主题为next (5.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BE%E7%BD%AEnew-post-name-5-2"><span class="nav-number">5.2.</span> <span class="nav-text">设置new_post_name (5.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%8F%9C%E5%8D%95%E6%A0%8F-5-3"><span class="nav-number">5.3.</span> <span class="nav-text">菜单栏 (5.3)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%85%8D%E7%BD%AE%E4%B8%AD%E6%96%87-5-4"><span class="nav-number">5.4.</span> <span class="nav-text">配置中文 (5.4)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9F%BA%E6%9C%AC%E4%BF%A1%E6%81%AF-5-5"><span class="nav-number">5.5.</span> <span class="nav-text">基本信息 (5.5)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A4%B4%E5%83%8F%E8%AE%BE%E7%BD%AE-5-6"><span class="nav-number">5.6.</span> <span class="nav-text">头像设置 (5.6)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%89%93%E8%B5%8F-5-7"><span class="nav-number">5.7.</span> <span class="nav-text">打赏 (5.7)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%A4%BE%E4%BA%A4%E9%93%BE%E6%8E%A5-5-8"><span class="nav-number">5.8.</span> <span class="nav-text">社交链接 (5.8)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AB%99%E5%86%85%E6%90%9C%E7%B4%A2%E5%8A%9F%E8%83%BD-5-9"><span class="nav-number">5.9.</span> <span class="nav-text">站内搜索功能 (5.9)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%94%9F%E6%88%90%E6%91%98%E8%A6%81-5-10"><span class="nav-number">5.10.</span> <span class="nav-text">生成摘要 (5.10)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#leancloud%E8%AE%BF%E9%97%AE%E9%87%8F%E7%BB%9F%E8%AE%A1%E5%92%8C%E8%AF%84%E8%AE%BA%E5%8A%9F%E8%83%BD-5-11"><span class="nav-number">5.11.</span> <span class="nav-text">leancloud访问量统计和评论功能 (5.11)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Leancloud%E5%87%86%E5%A4%87-5-11-1"><span class="nav-number">5.11.1.</span> <span class="nav-text">Leancloud准备 (5.11.1)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%8E%B7%E5%8F%96AppID%E5%92%8CAppKey-5-11-2"><span class="nav-number">5.11.2.</span> <span class="nav-text">获取AppID和AppKey (5.11.2)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%85%8D%E7%BD%AEnext%E4%B8%BB%E9%A2%98-5-11-3"><span class="nav-number">5.11.3.</span> <span class="nav-text">配置next主题 (5.11.3)</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%88%9B%E5%BB%BAgithub-repository-6"><span class="nav-number">6.</span> <span class="nav-text">创建github repository (6)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%8B%B7%E8%B4%9Dpublic-key%E5%88%B0github-7"><span class="nav-number">7.</span> <span class="nav-text">拷贝public key到github (7)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%85%8D%E7%BD%AEdeploy-8"><span class="nav-number">8.</span> <span class="nav-text">配置deploy (8)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#deploy-9"><span class="nav-number">9.</span> <span class="nav-text">deploy (9)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%BC%95%E7%94%A8%E5%9B%BE%E7%89%87%E8%B5%84%E6%BA%90-10"><span class="nav-number">10.</span> <span class="nav-text">引用图片资源 (10)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%88%9B%E5%BB%BAmarkdown-repository-11"><span class="nav-number">11.</span> <span class="nav-text">创建markdown repository (11)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B8%B8%E8%A7%81%E9%94%99%E8%AF%AF-12"><span class="nav-number">12.</span> <span class="nav-text">常见错误 (12)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93-13"><span class="nav-number">13.</span> <span class="nav-text">小结 (13)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

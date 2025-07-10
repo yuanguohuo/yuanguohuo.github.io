@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="介绍C++模版的特化与偏特化。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="C++的模版特化">
+<meta property="og:url" content="http://yoursite.com/2018/06/07/cpp17-template-specialization/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="介绍C++模版的特化与偏特化。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2018-06-07T18:32:08.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.490Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="template">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2018/06/07/cpp17-template-specialization/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>C++的模版特化 | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/06/07/cpp17-template-specialization/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          C++的模版特化
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2018-06-07 18:32:08" itemprop="dateCreated datePublished" datetime="2018-06-07T18:32:08+00:00">2018-06-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/c/" itemprop="url" rel="index"><span itemprop="name">c++</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2018/06/07/cpp17-template-specialization/" class="post-meta-item leancloud_visitors" data-flag-title="C++的模版特化" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2018/06/07/cpp17-template-specialization/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2018/06/07/cpp17-template-specialization/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>介绍C++模版的特化与偏特化。</p>
+<a id="more"></a>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+
+<script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+<h1 id="主模版-1"><a href="#主模版-1" class="headerlink" title="主模版 (1)"></a>主模版 (1)</h1><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string_view&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;tuple&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;utility&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> <span class="built_in">std</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T1, <span class="keyword">typename</span> T2, <span class="keyword">typename</span> T3&gt;</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyTemp</span> &#123;</span></span><br><span class="line">  <span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">print_type_info</span><span class="params">()</span> </span>&#123;</span><br><span class="line">      <span class="built_in">std</span>::string_view name = __PRETTY_FUNCTION__;</span><br><span class="line">      name.remove_prefix(name.find(<span class="string">&quot;print_type_info() &quot;</span>) + <span class="number">18</span>);</span><br><span class="line">      <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;generalized-type: &quot;</span> &lt;&lt; name &lt;&lt; <span class="built_in">std</span>::<span class="built_in">endl</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>主模版有3个类型参数：<code>T1</code>, <code>T2</code>和<code>T3</code>；静态函数(类函数)<code>print_type_info()</code>用于打印出实例化的类型实参，细节可以忽略。它借助于<code>__PRETTY_FUNCTION__</code>；这是函数的签名，里面包含类的信息，即实例化的类型实参。</p>
+<p>假如模版没有定义，即：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T1, <span class="keyword">typename</span> T2, <span class="keyword">typename</span> T3&gt;</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyTemp</span>;</span></span><br></pre></td></tr></table></figure>
+
+<p>它也可以实例化，但实例化的类不能构造对象。这是一个细节。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">using</span> T1 = MyTemp&lt;<span class="keyword">int</span>, <span class="keyword">char</span>, <span class="keyword">float</span>&gt;;  <span class="comment">//OK</span></span><br><span class="line">T1 t1;  <span class="comment">//error: ‘T1 t1’ has incomplete type and cannot be defined</span></span><br></pre></td></tr></table></figure>
+
+<h1 id="全特化-2"><a href="#全特化-2" class="headerlink" title="全特化 (2)"></a>全特化 (2)</h1><p>特化比较简单，就是针对<code>T1</code>, <code>T2</code>, <code>T3</code>为特定类型提供一个特别的实现。实例化时，若类型参数刚好匹配“特定类型”，就实例化为这个特别实现；否则就用主模版的实现。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//全特化</span></span><br><span class="line"><span class="keyword">template</span>&lt;&gt;</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyTemp</span>&lt;char, int, float&gt; &#123;</span></span><br><span class="line">  <span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">print_type_info</span><span class="params">()</span> </span>&#123;</span><br><span class="line">      <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;full-specialized: [char, int, float]&quot;</span> &lt;&lt; <span class="built_in">std</span>::<span class="built_in">endl</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>实例化：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">using</span> G = MyTemp&lt;<span class="built_in">std</span>::<span class="built_in">string</span>, <span class="built_in">std</span>::<span class="built_in">string</span>, <span class="built_in">std</span>::<span class="built_in">string</span>&gt;; <span class="comment">//主模版</span></span><br><span class="line"><span class="keyword">using</span> F = MyTemp&lt;<span class="keyword">char</span>, <span class="keyword">int</span>, <span class="keyword">float</span>&gt;; <span class="comment">//全特化</span></span><br><span class="line"></span><br><span class="line">G::print_type_info();</span><br><span class="line">F::print_type_info();</span><br></pre></td></tr></table></figure>
+
+<p>MacOS/clang编译器输出(c++17)：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">generalized-type: [T1 &#x3D; std::string,</span><br><span class="line">                   T2 &#x3D; std::string,</span><br><span class="line">                   T3 &#x3D; std::string]</span><br><span class="line">full-specialized: [char, int, float]</span><br></pre></td></tr></table></figure>
+
+<p>Linux/gcc编译器输出(c++17)：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">generalized-type: [with T1 &#x3D; std::basic_string&lt;char&gt;;</span><br><span class="line">                        T2 &#x3D; std::basic_string&lt;char&gt;;</span><br><span class="line">                        T3 &#x3D; std::basic_string&lt;char&gt;]</span><br><span class="line">full-specialized: [char, int, float]</span><br></pre></td></tr></table></figure>
+
+<h1 id="偏特化-3"><a href="#偏特化-3" class="headerlink" title="偏特化 (3)"></a>偏特化 (3)</h1><p>先看简单形态：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//偏特化1</span></span><br><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T1, <span class="keyword">typename</span> T2&gt;</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyTemp</span>&lt;T1, T2, float&gt; &#123;</span></span><br><span class="line">  <span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">print_type_info</span><span class="params">()</span> </span>&#123;</span><br><span class="line">      <span class="built_in">std</span>::string_view name = __PRETTY_FUNCTION__;</span><br><span class="line">      name.remove_prefix(name.find(<span class="string">&quot;print_type_info() &quot;</span>) + <span class="number">18</span>);</span><br><span class="line">      <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;partial-specialized-1: &quot;</span> &lt;&lt; name &lt;&lt; <span class="built_in">std</span>::<span class="built_in">endl</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">//偏特化2</span></span><br><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T1&gt;</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyTemp</span>&lt;T1, int, float&gt; &#123;</span></span><br><span class="line">  <span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">print_type_info</span><span class="params">()</span> </span>&#123;</span><br><span class="line">      <span class="built_in">std</span>::string_view name = __PRETTY_FUNCTION__;</span><br><span class="line">      name.remove_prefix(name.find(<span class="string">&quot;print_type_info() &quot;</span>) + <span class="number">18</span>);</span><br><span class="line">      <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;partial-specialized-2: &quot;</span> &lt;&lt; name &lt;&lt; <span class="built_in">std</span>::<span class="built_in">endl</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>这里提供了2个偏特化：</p>
+<ul>
+<li>偏特化1：只固定第3个类型参数为<code>float</code>；</li>
+<li>偏特化2：固定第2个类型参数为<code>int</code>，固定第3个类型参数为<code>float</code>；</li>
+</ul>
+<p>那么，实例化的的时候，如匹配偏特化2必然匹配偏特化1(例如<code>MyTemp&lt;string, int, float&gt;</code>)，最终选择哪个呢？当然是<strong>选择匹配最多的，遵循最长匹配原则</strong>，即偏特化2;</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">using</span> P1 = MyTemp&lt;<span class="keyword">double</span>, <span class="keyword">double</span>, <span class="keyword">float</span>&gt;; <span class="comment">//偏特化1</span></span><br><span class="line"><span class="keyword">using</span> P2 = MyTemp&lt;<span class="keyword">double</span>, <span class="keyword">int</span>, <span class="keyword">float</span>&gt;;    <span class="comment">//偏特化2</span></span><br><span class="line">P1::print_type_info();</span><br><span class="line">P2::print_type_info();</span><br></pre></td></tr></table></figure>
+
+<p>MacOS/clang编译器输出(c++17)：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">partial-specialized-1: [T1 &#x3D; double, T2 &#x3D; double, T3 &#x3D; float]</span><br><span class="line">partial-specialized-2: [T1 &#x3D; double, T2 &#x3D; int, T3 &#x3D; float]</span><br></pre></td></tr></table></figure>
+
+<p>Linux/gcc编译器输出(c++17)：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">partial-specialized-1: [with T1 &#x3D; double; T2 &#x3D; double]</span><br><span class="line">partial-specialized-2: [with T1 &#x3D; double]</span><br></pre></td></tr></table></figure>
+
+<p>似乎可以总结：特化就是把<code>template&lt;type-arg-list-1&gt; class MyTemp&lt;type-arg-list-2&gt;</code>里的“type-arg-list-1”缩短，把“type-arg-list-2”中形参固化成真实类型。当“type-arg-list-1”为空的时候，“type-arg-list-2”里的形参全部固化成真实类型，这时就变成“full-specialization”了(见第2节)。</p>
+<p>但实际上，固定“type-arg-list-2”的时候，不一定非要缩短“type-arg-list-1”！<strong>特化不是从“type-arg-list-1”中移除，在“type-arg-list-2”中固化的过程</strong>！看下面的例子；</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//偏特化3</span></span><br><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> U, <span class="keyword">typename</span> V, <span class="keyword">typename</span> W, <span class="keyword">int</span> a, <span class="keyword">int</span> b&gt;</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyTemp</span>&lt;std::tuple&lt;U,V,W&gt;, char[a], double[b]&gt; &#123;</span></span><br><span class="line">  <span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">print_type_info</span><span class="params">()</span> </span>&#123;</span><br><span class="line">      <span class="built_in">std</span>::string_view name = __PRETTY_FUNCTION__;</span><br><span class="line">      name.remove_prefix(name.find(<span class="string">&quot;print_type_info() &quot;</span>) + <span class="number">18</span>);</span><br><span class="line">      <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;partial-specialized-3: &quot;</span> &lt;&lt; name &lt;&lt; <span class="built_in">std</span>::<span class="built_in">endl</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>当“type-arg-list-2”固定的时候，“type-arg-list-1”不但没有缩短，反而曾长了！特化/偏特化确实是固化“type-arg-list-2”中的类型参数，但不是为了缩短“type-arg-list-1”！实际上，<strong>“type-arg-list-1”为“type-arg-list-2”提供类型信息</strong>：即<strong>“type-arg-list-2”中的一切未固定信息，例如类型参数，非类型参数（例如int参数）等，都要由“type-arg-list-1”提供</strong>。</p>
+<ul>
+<li>对于偏特化1和偏特化2的简单情形，在“type-arg-list-2”固化的过程中，需要的类型信息减少了，所以“type-arg-list-1”缩短了。甚至在“full-specialization”中“type-arg-list-1”缩为0，因为“type-arg-list-2”不需要任何类型信息；</li>
+<li>但对于偏特化3，为了固化“type-arg-list-2”：<code>T1</code>固化为<code>std::tuple&lt;U,V,W&gt;</code>需要3个类型参数<code>U</code>, <code>V</code>和<code>W</code>；<code>T2</code>固化为<code>char[a]</code>，<code>T3</code>固化为<code>double[b]</code>还需要2个<code>int</code>类型的型参<code>a</code>和<code>b</code>；这些都需要“type-arg-list-1”来提供。</li>
+</ul>
+<p>在为一个模版提供特化/偏特化的时候也是这个思路：<strong>先想着去固定<code>T1</code>, <code>T2</code>和<code>T3</code>；当这些类型能全部固定的时候，就是全特化，“type-arg-list-1”为空；当这些类型中有不可以固定的东西，无论是类型参数，还是<code>int</code>这样的非类型参数，都放到“type-arg-list-1”中，这就是偏特化</strong>。</p>
+<p>那么如何实例化偏特化3呢？</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">using</span> P3 = MyTemp&lt;<span class="built_in">std</span>::tuple&lt;<span class="keyword">int</span>, <span class="keyword">float</span>, <span class="keyword">double</span>&gt;, <span class="keyword">char</span>[<span class="number">100</span>], <span class="keyword">double</span>[<span class="number">200</span>]&gt;;</span><br><span class="line">P3::print_type_info();</span><br></pre></td></tr></table></figure>
+
+<p>MacOS/clang编译器输出(c++17)：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">partial-specialized-3: [T1 &#x3D; std::tuple&lt;int, float, double&gt;, T2 &#x3D; char[100], T3 &#x3D; double[200]]</span><br></pre></td></tr></table></figure>
+
+<p>Linux/gcc编译器输出(c++17)：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">partial-specialized-3: [with U &#x3D; int; V &#x3D; float; W &#x3D; double; int a &#x3D; 100; int b &#x3D; 200]</span><br></pre></td></tr></table></figure>
+
+<p>Linux/gcc的输出中明确地推导出了<code>U</code>, <code>V</code>和<code>W</code>以及<code>a</code>, <code>b</code>；不过从MacOS/clang的输出，可以更清楚地看到<code>T1</code>, <code>T2</code>和<code>T3</code>的实参。</p>
+<p>注意：</p>
+<ul>
+<li>实例化时不是要提供<code>U</code>, <code>V</code>和<code>W</code>以及<code>a</code>, <code>b</code>，而是要提供与<code>std::tuple&lt;U,V,W&gt;, char[a], double[b]</code>匹配的<code>T1</code>, <code>T2</code>和<code>T3</code>；</li>
+<li>编译器会推导出<code>U</code>, <code>V</code>和<code>W</code>以及<code>a</code>, <code>b</code>；<strong>可以利用编译器的推导能力来提取基础类型</strong>；例如在偏特化3中添加<code>using type_u = U;</code>，那么在上面的实例化中，就从<code>std::tuple&lt;int, float, double&gt;</code>中提取出<code>type_u = int</code>；就是说，<code>T1</code>又是一个模版类，模版类有自己的类型参数<code>X</code>, <code>Y</code>, <code>Z</code>(这时，<code>X</code>, <code>Y</code>, <code>Z</code>要放在“type-arg-list-1”中)，编译器会推导出它们的实际类型，所以<code>using type_x = X;</code>就可以得到真实的<code>X</code>类型；</li>
+</ul>
+<p>另外，似乎3个类型参数都固化了，看上去像一个“full-specialization”？其实不是的，<strong>“full-specialization”不是那么定义的，是看模版还有没有自由度</strong>。显然这里还有自由度，<code>std::tuple&lt;U,V,W&gt;, char[a], double[b]</code>中的<code>U</code>, <code>V</code>和<code>W</code>以及<code>a</code>, <code>b</code>都可以随意选择。</p>
+<p>最后，再看一个更复杂的例子：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//偏特化4</span></span><br><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> U, <span class="keyword">typename</span> V, <span class="keyword">typename</span>... W, <span class="keyword">size_t</span>... a, <span class="keyword">size_t</span>... b&gt;</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyTemp</span>&lt;std::tuple&lt;U, V, W...&gt;, std::index_sequence&lt;a...&gt;, std::index_sequence&lt;b...&gt;&gt; &#123;</span></span><br><span class="line">  <span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">print_type_info</span><span class="params">()</span> </span>&#123;</span><br><span class="line">      <span class="built_in">std</span>::string_view name = __PRETTY_FUNCTION__;</span><br><span class="line">      name.remove_prefix(name.find(<span class="string">&quot;print_type_info() &quot;</span>) + <span class="number">18</span>);</span><br><span class="line">      <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;partial-specialized-4: &quot;</span> &lt;&lt; name &lt;&lt; <span class="built_in">std</span>::<span class="built_in">endl</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>这里甚至引入了“参数包”：固化“type-arg-list-2”中的<code>T1 = std::tuple&lt;U, V, W...&gt;</code>，<code>T2 = std::index_sequence&lt;a...&gt;</code>, <code>T3 = std::index_sequence&lt;b...&gt;</code>需要“type-arg-list-1”提供<code>U</code>, <code>V</code>, <code>W...</code>以及<code>a...</code>和<code>b...</code>；</p>
+<p>实例化：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">using</span> P4 = MyTemp&lt;<span class="built_in">std</span>::tuple&lt;<span class="keyword">int</span>, <span class="keyword">float</span>, <span class="keyword">double</span>, <span class="keyword">char</span>, <span class="built_in">std</span>::<span class="built_in">string</span>&gt;, <span class="built_in">std</span>::index_sequence&lt;<span class="number">1</span>,<span class="number">2</span>,<span class="number">3</span>&gt;, <span class="built_in">std</span>::index_sequence&lt;<span class="number">4</span>,<span class="number">5</span>,<span class="number">6</span>,<span class="number">7</span>,<span class="number">8</span>,<span class="number">9</span>&gt;&gt;;</span><br><span class="line">P4::print_type_info();</span><br></pre></td></tr></table></figure>
+
+<p>MacOS/clang编译器输出(c++17)：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">partial-specialized-4: [T1 &#x3D; std::tuple&lt;int, float, double, char, std::string&gt;,</span><br><span class="line">                        T2 &#x3D; std::integer_sequence&lt;unsigned long, 1, 2, 3&gt;,</span><br><span class="line">                        T3 &#x3D; std::integer_sequence&lt;unsigned long, 4, 5, 6, 7, 8, 9&gt;]</span><br></pre></td></tr></table></figure>
+
+<p>Linux/gcc编译器输出(c++17)：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">partial-specialized-4: [with U &#x3D; int; </span><br><span class="line">                             V &#x3D; float; </span><br><span class="line">                             W &#x3D; &#123;double, char, std::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;&#125;;</span><br><span class="line">                             long unsigned int ...a &#x3D; &#123;1, 2, 3&#125;;</span><br><span class="line">                             long unsigned int ...b &#x3D; &#123;4, 5, 6, 7, 8, 9&#125;]</span><br></pre></td></tr></table></figure>
+
+<p>同样，Linux/gcc的输出中明确地推导出<code>U</code>, <code>V</code>, <code>W...</code>以及<code>a...</code>, <code>b...</code>；不过MacOS/clang的输出中，可以更清楚地看到<code>T1</code>, <code>T2</code>和<code>T3</code>的实参。</p>
+<h1 id="特化模版会继承主模版的基类吗-4"><a href="#特化模版会继承主模版的基类吗-4" class="headerlink" title="特化模版会继承主模版的基类吗 (4)"></a>特化模版会继承主模版的基类吗 (4)</h1><p>先说答案：不会！</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;utility&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string_view&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">template</span> &lt;<span class="class"><span class="keyword">class</span> <span class="title">T</span>, <span class="title">size_t</span> <span class="title">N</span>&gt;</span></span><br><span class="line"><span class="class"><span class="title">struct</span> <span class="title">Aligned</span>;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//主模版</span></span><br><span class="line"><span class="keyword">template</span> &lt;<span class="class"><span class="keyword">class</span> <span class="title">T</span>&gt;</span></span><br><span class="line"><span class="class"><span class="title">struct</span> <span class="title">NotAligned</span> &#123;</span></span><br><span class="line">  <span class="keyword">static_assert</span>(<span class="built_in">std</span>::is_same&lt;T, <span class="keyword">float</span>&gt;::value, <span class="string">&quot;only NotAligned&lt;float&gt; allowed&quot;</span>);</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">//偏特化</span></span><br><span class="line"><span class="keyword">template</span> &lt;<span class="class"><span class="keyword">class</span> <span class="title">T</span>, <span class="title">size_t</span> <span class="title">N</span>&gt;</span></span><br><span class="line"><span class="class"><span class="title">struct</span> <span class="title">NotAligned</span>&lt;const Aligned&lt;T, N&gt;&gt; &#123;</span></span><br><span class="line">  <span class="keyword">static_assert</span>(<span class="built_in">std</span>::is_same&lt;T, <span class="keyword">double</span>&gt;::value, <span class="string">&quot;only NotAligned&lt;const Aligned&lt;double, N&gt;&gt; allowed&quot;</span>);</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">//主模版</span></span><br><span class="line"><span class="keyword">template</span> &lt;<span class="class"><span class="keyword">class</span> <span class="title">T</span>&gt;</span></span><br><span class="line"><span class="class"><span class="title">struct</span> <span class="title">Type</span> :</span> NotAligned&lt;T&gt; &#123;</span><br><span class="line">  <span class="keyword">using</span> type = T;</span><br><span class="line">  <span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">info</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;general-type: &quot;</span> &lt;&lt; __PRETTY_FUNCTION__ &lt;&lt; <span class="built_in">std</span>::<span class="built_in">endl</span>;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">//偏特化</span></span><br><span class="line"><span class="keyword">template</span> &lt;<span class="class"><span class="keyword">class</span> <span class="title">T</span>, <span class="title">size_t</span> <span class="title">N</span>&gt;</span></span><br><span class="line"><span class="class"><span class="title">struct</span> <span class="title">Type</span>&lt;Aligned&lt;T, N&gt;&gt; &#123;</span></span><br><span class="line">  <span class="keyword">using</span> type = T;</span><br><span class="line">  <span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">info</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;specialized-type: &quot;</span> &lt;&lt; __PRETTY_FUNCTION__ &lt;&lt; <span class="built_in">std</span>::<span class="built_in">endl</span>;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="comment">// 打印：</span></span><br><span class="line">  <span class="comment">// general-type: static void Type&lt;T&gt;::info() [with T = float]</span></span><br><span class="line">  <span class="keyword">using</span> TpFloat = Type&lt;<span class="keyword">float</span>&gt;; <span class="comment">//必须为float</span></span><br><span class="line">  TpFloat::info();</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 打印：</span></span><br><span class="line">  <span class="comment">// general-type: static void Type&lt;T&gt;::info() [with T = const Aligned&lt;double, 16&gt;]</span></span><br><span class="line">  <span class="keyword">using</span> TpConstAlignedDouble = Type&lt;<span class="keyword">const</span> Aligned&lt;<span class="keyword">double</span>, <span class="number">16</span>&gt;&gt;; <span class="comment">//必须为double</span></span><br><span class="line">  TpConstAlignedDouble::info();</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 打印：</span></span><br><span class="line">  <span class="comment">// specialized-type: static void Type&lt;Aligned&lt;T, N&gt; &gt;::info() [with T = int; long unsigned int N = 32]</span></span><br><span class="line">  <span class="keyword">using</span> TpAlignedX = Type&lt;Aligned&lt;<span class="keyword">int</span>, <span class="number">32</span>&gt;&gt;; <span class="comment">//int可以随意换：short, size_t, string, ...</span></span><br><span class="line">  TpAlignedX::info();</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>MacOS/clang编译器输出(c++17)：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">general-type: static void Type&lt;float&gt;::info() [T &#x3D; float]</span><br><span class="line">general-type: static void Type&lt;const Aligned&lt;double, 16&gt;&gt;::info() [T &#x3D; const Aligned&lt;double, 16&gt;]</span><br><span class="line">specialized-type: static void Type&lt;Aligned&lt;int, 32&gt;&gt;::info() [T &#x3D; Aligned&lt;int, 32&gt;]</span><br></pre></td></tr></table></figure>
+
+<p>Linux/gcc编译器则编译出错，输出(c++17)：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">general-type: static void Type&lt;T&gt;::info() [with T &#x3D; float]</span><br><span class="line">general-type: static void Type&lt;T&gt;::info() [with T &#x3D; const Aligned&lt;double, 16&gt;]</span><br><span class="line">specialized-type: static void Type&lt;Aligned&lt;T, N&gt; &gt;::info() [with T &#x3D; int; long unsigned int N &#x3D; 32]</span><br></pre></td></tr></table></figure>
+
+<p>首先，<code>NotAligned</code>的主模版只允许实例化<code>NotAligned&lt;float&gt;</code>；而偏特化<code>NotAligned&lt;const Aligned&lt;T, N&gt;&gt;</code>只允许实例化<code>T=double</code>；</p>
+<p>然后，看<code>main()</code>中的几个实例化类：</p>
+<ul>
+<li><code>TpFloat</code>：匹配<code>Type</code>的主模板，并且编译器推导出<code>T=float</code>；继承<code>NotAligned&lt;T&gt;</code>时，也匹配其主模版；主模版只允许<code>NotAligned&lt;float&gt;</code>，这里<code>T</code>刚好是<code>float</code>，满足<code>static_assert</code>！</li>
+<li><code>TpConstAlignedDouble</code>：也匹配<code>Type</code>的主模版，是的，没错，<code>const</code>是类型的一部分，所以不能匹配<code>Type&lt;Aligned&lt;...&gt;&gt;</code>特化！匹配<code>Type&lt;T&gt;</code>时，编译器推导出<code>T=const Aligned&lt;double, 16&gt;</code>；继承<code>NotAligned&lt;T&gt;</code>时，匹配其偏特化<code>NotAligned&lt;const Aligned&lt;T, N&gt;&gt;</code>！在这个偏特化中，编译器又推导出<code>T=double</code>！也满足<code>static_assert</code>!</li>
+<li><code>TpAlignedX</code>：匹配<code>Type</code>的偏特化<code>Type&lt;Aligned&lt;T, N&gt;&gt;</code>。假如这个偏特化也继承主模版的基类<code>NotAligned</code>，无论匹配<code>NotAligned</code>的主模版还是偏特化，<code>static_assert</code>都不会满足！</li>
+</ul>
+<p>所以，<strong>一旦匹配特化或偏特化，就和主模板没有任何关系，不会继承主模版的基类</strong>！</p>
+<h1 id="显示实例化-5"><a href="#显示实例化-5" class="headerlink" title="显示实例化 (5)"></a>显示实例化 (5)</h1><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;typeinfo&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> <span class="built_in">std</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">foo</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="built_in">std</span>::<span class="built_in">cout</span> &lt;&lt; <span class="string">&quot;foo(&quot;</span>  &lt;&lt; <span class="keyword">typeid</span>(T).name() &lt;&lt; <span class="string">&quot;)&quot;</span> &lt;&lt; <span class="built_in">std</span>::<span class="built_in">endl</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">template</span> <span class="keyword">void</span> foo&lt;<span class="keyword">int</span>&gt;();</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  foo&lt;<span class="keyword">int</span>&gt;();</span><br><span class="line">  foo&lt;<span class="keyword">double</span>&gt;();</span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>MacOS/clang编译器(c++17)和Linux/gcc编译器(c++17)都输出：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">foo(i)</span><br><span class="line">foo(d)</span><br></pre></td></tr></table></figure>
+
+<p>注意：<code>template void foo&lt;int&gt;();</code>的作用是什么呢？<strong>其实并没有直接作用</strong>：<code>foo&lt;int&gt;()</code>和<code>foo&lt;double&gt;</code>行为是一样的！而并没有声明<code>template void foo&lt;double&gt;();</code></p>
+<p>这是一种<strong>显式实例化</strong>（Explicit Instantiation）语法。它的作用是<strong>强制要求编译器在当前位置生成目标实例</strong>。特点是，<code>template</code>后面没有<code>&lt;&gt;</code>，并且函数没有body！</p>
+<p>在本例中，就是强制要求编译器生成<code>foo&lt;int&gt;()&#123;...&#125;</code>函数实例；虽然没有强制要求生成<code>foo&lt;double&gt;()&#123;...&#125;</code>，但编译器在编译<code>foo&lt;double&gt;();</code>的时候，<strong>也能够自动推导出需要那样一个实例</strong>！</p>
+<p>显式实例化的作用：</p>
+<ul>
+<li>控制编译单元：在大型项目中，显式实例化可以用于集中管理模板实例化，减少编译时间。Yuanguo：假如在moduleA中定义模版而在moduleB, moduleC, …中使用；在moduleA中显示实例化可以让这些模版实例集中在一起(moduleA中)？</li>
+<li>提前生成代码：编译器会在此处生成foo<int>的具体实现代码。</li>
+<li>避免隐式实例化：后续代码中如果调用foo<int>()，将直接使用此处生成的实例化版本，而不会隐式生成重复代码。</li>
+</ul>
+<h1 id="对比模版别名-6"><a href="#对比模版别名-6" class="headerlink" title="对比模版别名 (6)"></a>对比模版别名 (6)</h1><p>其实，模版(偏)特化和模版别名没有关系：<strong>特化是为特定参数定制行为，产生了新的实现</strong>；而<strong>模版别名只是简化名称，不改变行为</strong>！<br>只是，模版别名定义时和偏特化有点像：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;type-arg-<span class="built_in">list</span><span class="number">-2</span>&gt;</span><br><span class="line"><span class="keyword">using</span> TempAlias = Temp&lt;type-arg-<span class="built_in">list</span><span class="number">-2</span>&gt;;</span><br></pre></td></tr></table></figure>
+
+<p>要填写“type-arg-list-2”，其中的一切未固定信息（类型参数、非类型参数）都要写到“type-arg-list-1”中！<br>假如所有信息都固定了，则不需要写<code>template&lt;&gt;</code>，这和模版完全特化有点区别。</p>
+<h1 id="小节-7"><a href="#小节-7" class="headerlink" title="小节 (7)"></a>小节 (7)</h1><p>总结C++模版的特化以及偏特化，特别是偏特化中的复杂情况。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/template/" rel="tag"># template</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2018/05/26/cpp11-decltype/" rel="prev" title="C++11中的decltype关键字">
+      <i class="fa fa-chevron-left"></i> C++11中的decltype关键字
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2018/06/08/cpp17-template-meta-programming/" rel="next" title="C++使用模版进行元编程">
+      C++使用模版进行元编程 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%B8%BB%E6%A8%A1%E7%89%88-1"><span class="nav-number">1.</span> <span class="nav-text">主模版 (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%85%A8%E7%89%B9%E5%8C%96-2"><span class="nav-number">2.</span> <span class="nav-text">全特化 (2)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%81%8F%E7%89%B9%E5%8C%96-3"><span class="nav-number">3.</span> <span class="nav-text">偏特化 (3)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%89%B9%E5%8C%96%E6%A8%A1%E7%89%88%E4%BC%9A%E7%BB%A7%E6%89%BF%E4%B8%BB%E6%A8%A1%E7%89%88%E7%9A%84%E5%9F%BA%E7%B1%BB%E5%90%97-4"><span class="nav-number">4.</span> <span class="nav-text">特化模版会继承主模版的基类吗 (4)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%98%BE%E7%A4%BA%E5%AE%9E%E4%BE%8B%E5%8C%96-5"><span class="nav-number">5.</span> <span class="nav-text">显示实例化 (5)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AF%B9%E6%AF%94%E6%A8%A1%E7%89%88%E5%88%AB%E5%90%8D-6"><span class="nav-number">6.</span> <span class="nav-text">对比模版别名 (6)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B0%8F%E8%8A%82-7"><span class="nav-number">7.</span> <span class="nav-text">小节 (7)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="看Programing Rust一书记录的一些细节，供查阅。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Rust语法笔记">
+<meta property="og:url" content="http://yoursite.com/2019/07/28/rust-notes/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="看Programing Rust一书记录的一些细节，供查阅。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2019-07-28T18:34:21.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.543Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="rust">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2019/07/28/rust-notes/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>Rust语法笔记 | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/07/28/rust-notes/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Rust语法笔记
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2019-07-28 18:34:21" itemprop="dateCreated datePublished" datetime="2019-07-28T18:34:21+00:00">2019-07-28</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/rust/" itemprop="url" rel="index"><span itemprop="name">rust</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2019/07/28/rust-notes/" class="post-meta-item leancloud_visitors" data-flag-title="Rust语法笔记" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2019/07/28/rust-notes/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2019/07/28/rust-notes/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>看Programing Rust一书记录的一些细节，供查阅。</p>
+<a id="more"></a>
+
+<h1 id="Array-and-Vector-1"><a href="#Array-and-Vector-1" class="headerlink" title="Array and Vector (1)"></a>Array and Vector (1)</h1><p>Array的语法是<code>[T; length]</code>，length必须是常量(编译时能够确定其值)。这和C/C++的静态数组(即<code>T a[length];</code>定义的数组，而不是<code>T *a = new T[length];</code>定义的数组)很相似。问题：array能在heap上么？答：不能，array只能在栈上，就像C/C++的局部静态数组一样。</p>
+<p>Vector的数据一定在heap上。可以使用以下3中方式创建vector:</p>
+<ul>
+<li><code>Vec::new()</code>: 创建一个空的vector；</li>
+<li><code>Vec::with_capacity(cap)</code>: 创建一个空的vector，但有cap个空间；</li>
+<li><code>vec![2, 3]</code>: 等价于<code>Vec::with_capacity()</code>并<code>push</code>元素2和3；</li>
+</ul>
+<p>Vector变量是一个三元组: (pointer, capacity, length)，和golang的slice有点像。从功能上类似于C/C++的动态数组<code>T *a = new T[length];</code></p>
+<p>注意：一些有用的方法(迭代元素，搜索，排序等)不是array和vector的，而是slice reference的。rust能够把array和vector隐士的转换为slice reference，所以，我们可以直接对array和vector调用这些方法。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">let mut chaos &#x3D; [3, 5, 4, 1, 2];</span><br><span class="line">chaos.sort();</span><br><span class="line">assert_eq!()chaos, [1, 2, 3, 4, 5];</span><br><span class="line"></span><br><span class="line">let mut v &#x3D; vec![&quot;a man&quot;, &quot;a plan&quot;, &quot;a cancel&quot;, &quot;panama&quot;];</span><br><span class="line">v.reverse();</span><br><span class="line">assert_eq!(v, vec![&quot;panama&quot;, &quot;a cancel&quot;, &quot;a plan&quot;, &quot;a man&quot;]);</span><br></pre></td></tr></table></figure>
+<p>这里sort和reverse都是slice reference的方法。</p>
+<h1 id="Reference-and-Slice-2"><a href="#Reference-and-Slice-2" class="headerlink" title="Reference and Slice (2)"></a>Reference and Slice (2)</h1><p>Slice是vector或者array的一个片段，记作<code>[T]</code>，但slice永远是按引用传递的，换言之，不存在slice类型（<code>[T]</code>）的变量，只存在slice reference类型（<code>&amp;[T]</code>）的变量。因为前者不存在，所以书中常常把<code>&amp;[T]</code>简单地叫做slice类型。为了精确起见，本文还是把<code>&amp;[T]</code>叫做<strong>slice reference类型</strong>。我们要看的是reference和slice reference的区别。</p>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>指向的内容</th>
+<th>Owning</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>reference</td>
+<td>单个对象</td>
+<td>No</td>
+<td>地址</td>
+</tr>
+<tr>
+<td>slice reference</td>
+<td>连续的多个对象</td>
+<td>No</td>
+<td>(地址,对象数)二元组</td>
+</tr>
+</tbody></table>
+<p>这样理解是不对的：slice是(地址,对象数)二元组(受golang的slice影响，golang的slice是三元组)，slice reference是指向二元组的指针。<br>和C/C++类比的话，reference <code>s</code>相当于<code>T *s = new T;</code>而slice reference <code>s</code>相当于<code>T *s = new T[length];</code>。只是在C/C++中指针<code>s</code>不区分这两者，而rust中是区分的: 前者是一个单独的地址；后者是(地址,对象数)。</p>
+<h1 id="Char-and-String-3"><a href="#Char-and-String-3" class="headerlink" title="Char and String (3)"></a>Char and String (3)</h1><p>和C/C++不同的char不同，而和golang的Rune非常类似，rust的char是4个字节，值是字符的unicode码点；而string不是char的序列(这样的话，一个char占4个字节，比较浪费空间)，而是UTF-8编码的字符序列(这样，ASCII只占一个字节，其他的字符有占2-4个字节，总体上节约空间)；</p>
+<p>String有以下3中：</p>
+<ul>
+<li>a. string字面量</li>
+</ul>
+<p>存在全局数据区</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&quot;\&quot;Hello world\&quot; is my first program.&quot;          &#x2F;&#x2F;escape</span><br><span class="line">r&quot;\d+(\.\d+)*&quot;                                  &#x2F;&#x2F;no escape</span><br><span class="line">r###&quot;no escape, and &quot; is a legal character&quot;###</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>b. string slice (&amp;str)</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">let s1 &#x3D; &quot;你好ABC&quot;;             &#x2F;&#x2F; &amp;str, 引用全局数据区，里面必须是合法UTF-8字符序列；</span><br><span class="line">let s2 &#x3D; &quot;你好XYZ&quot;.to_string(); &#x2F;&#x2F; std::string::String, 数据在堆区(从全局数据区拷贝到堆区)，里面是合法UTF-8字符序列；</span><br><span class="line">let s3 &#x3D; &amp;s2[0..3];             &#x2F;&#x2F; &amp;str, 引用堆区的数据s2的空间，里面必须是合法UTF-8字符序列；</span><br><span class="line">let s4 &#x3D; &amp;s2[0..2];             &#x2F;&#x2F; 编译不通过，因为里面不是合法UTF-8字符序列。&quot;你&quot;是4个字节，取其前3字节不是合法UTF-8字符；</span><br></pre></td></tr></table></figure>
+
+<p>这里的s1和s3都是&amp;str变量。如何理解&amp;str呢？其实&amp;str可以理解为&amp;[u8]，即u8的slice reference(见第2节)，唯一要求是u8序列必须可以解析为UTF-8字符序列。也就是说，&amp;str是(地址, 对象数)二元组。另外，&amp;str的<code>len()</code>返回的是字节数，而不是字符数。</p>
+<ul>
+<li>c. String</li>
+</ul>
+<p>String可以理解为Vec<u8>，唯一要求是u8序列必须可以解析为UTF-8字符序列。也就是说，String的变量是一个(pointer, capacity, length)三元组，其数据一定在heap上。另外，&amp;str的<code>len()</code>返回的也是字节数，而不是字符数。</p>
+<p>通过下表可以看出: String和&amp;str的关系，非常类似于Vec<u8>和&amp;[u8]的关系。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Vect<u8></th>
+<th>String</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>automatically frees buffers</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>growable</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>::new()</code> and <code>::with_capacity()</code></td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>.reserve()</code> and <code>.capacity()</code></td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>.push()</code> and <code>.pop()</code></td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>range syntax v[start..stop]</td>
+<td>Yes, returns &amp;[u8]</td>
+<td>Yes, returns &amp;str</td>
+</tr>
+<tr>
+<td>automatic conversion</td>
+<td>&amp;Vec<u8> to &amp;[u8]</td>
+<td>&amp;String to &amp;str</td>
+</tr>
+<tr>
+<td>inherits methods</td>
+<td>from &amp;[u8]</td>
+<td>from &amp;str</td>
+</tr>
+</tbody></table>
+<h1 id="Ownership-move-and-lifetime-4"><a href="#Ownership-move-and-lifetime-4" class="headerlink" title="Ownership, move and lifetime (4)"></a>Ownership, move and lifetime (4)</h1><p>对于变量的生命周期，目前主流语言在a.由程序员控制和b.自动gc中二选其一。前者如C/C++，或者如Java和Go。前者容易出bug：dangling pointer, double free等；后者程序员失去了对变量生命周期的控制，有的时候很难搞清楚该释放的内存为什么没有释放。释放时机不可依赖，释放造成stw等问题也比较棘手(还有，内存以外的其他资源，例如网络连接和文件句柄的生命周期，还是需要程序员控制。理论上讲，内存和网络连接及文件句柄都是资源，采取两种方式去管理似乎也不够优雅)。总之，这两种方式都不够理想，理想的是：程序员能够控制变量的生命周期并且语言应该是安全的(没有dangling pointer, double free等问题)。这就是rust的努力方向。</p>
+<h2 id="Ownership-4-1"><a href="#Ownership-4-1" class="headerlink" title="Ownership (4.1)"></a>Ownership (4.1)</h2><ul>
+<li>每一个值有唯一一个owner，但一个值可以own其他它个值。当owner生命周期结束，它own的所有值的生命周期都结束；</li>
+<li>值之间的owning关系形成一棵树；</li>
+<li>rust程序中的每个值都属于唯一的某一棵树，树的根是某个变量；</li>
+<li>当根变量的生命周期结束，树中所有值的生命周期都结束，被drop掉；</li>
+</ul>
+<p>可见ownership的规则相当的严苛，但有3个途径来放松这些规则：move，Rc/Arc以及borrowing reference。</p>
+<h2 id="Move-4-2"><a href="#Move-4-2" class="headerlink" title="Move (4.2)"></a>Move (4.2)</h2><p>和C++11中的move类似，只不过C++11中只有右值(prvalue和xvalue)才能被move，若左值也可以被move，那么它出现在等号的右边(或作为函数参数，作为函数返回值)一次，就改变了(丢失了资源)，很不符合常理：要找一个变量可能发生改变的地方，只找它在等号左边的出现就行了，谁会管它在等号右边的出现呢？</p>
+<p>然而，rust就是这么干的：不分左值右值，都能被move。变量出现在等号的右边也会发生改变(丢失自己的资源)。好在，rust会在编译时做检查，确保丢失了资源(被move，变成uninitialized状态)的变量不能再被使用。当然，作为函数参数或函数返回值和出现在等号右边是一样的。</p>
+<p>好吧，事情也没那么绝对：rust的类型分为Move和Copy两类，上面说的这些都是真对Move类型的。只是rust中绝大多数类型是Move，小部分是Copy。</p>
+<ul>
+<li>Copy类型：逐位拷贝就足够的，drop时不需要额外操作的(例如unlock，释放堆空间，关闭文件句柄，断开连接等)。例如：整数类型，浮点类型，<code>char</code>，<code>bool</code>；以及这些类型组成的tuple好固定大小的array。还有，若自定义的struct或enum只包含Copy类型的字段，程序员可以用<code>#[derive(Copy, Clone)]</code>把它声明为Copy类型的(注意：默认不是Copy的而是Move的)。</li>
+<li>Move类型：其他。例如：<code>String</code>，<code>Box&lt;T&gt;</code>，<code>File</code>，<code>MutexGuard</code>等。程序员自定义类型默认是Move的，即使它只包含Copy类型的字段。<br>本质上讲：在rust中，赋值(以及参数传递和函数返回)，都是按字节拷贝(例如拷贝整数，Vec三元组等)，不同之处在于：对于Copy类型，赋值(以及参数传递和函数返回)之后，源变量还保持为initialized，而对于Move类型源变量变成了uninitialized。</li>
+</ul>
+<p>另外，C++中赋值可以被程序员重载，里面可重可轻，重的如深拷贝大块内存甚至分配别的资源，轻的如move，这使得赋值，参数传递，函数返回等基本操作的代价不可预测。相反，rust中这些基本操作都是内存的按字节拷贝(拷贝的量比较小，例如一个整数，一个Vec三元组等)，代价比较明晰；而重的操作，如Clone，是显性的。</p>
+<p>注意：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">let mut str_vec &#x3D; Vec::new();</span><br><span class="line">for i in 101..106 </span><br><span class="line">&#123;</span><br><span class="line">    str_vec.push(i.to_string());</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">&#x2F;&#x2F;let _third &#x3D; str_vec[2];     &#x2F;&#x2F;编译不通过</span><br><span class="line"></span><br><span class="line">let mut i_vec &#x3D; Vec::new();</span><br><span class="line">for i in 1..16</span><br><span class="line">&#123;</span><br><span class="line">    i_vec.push(i)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">let _forth &#x3D; i_vec[3];         &#x2F;&#x2F;OK，没问题</span><br></pre></td></tr></table></figure>
+
+<p>对于Move类型，indexed对象不能被move，否则导致Vec内有uninitialized空洞。可以用<code>pop</code>, <code>swap_remove</code>, <code>std::mem::replace</code>等操作。对于Copy类型则没有这个问题。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">let v &#x3D; vec![</span><br><span class="line">                &quot;hello&quot;.to_string(),</span><br><span class="line">                &quot;rust&quot;.to_string(),</span><br><span class="line">                &quot;programmers&quot;.to_string()</span><br><span class="line">            ];</span><br><span class="line"></span><br><span class="line">for mut s in v </span><br><span class="line">&#123;</span><br><span class="line">    s.push(&#39;!&#39;);</span><br><span class="line">    println!(&quot;&#123;&#125;&quot;, s);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这段代码的特殊之处在于：不是v的元素一个个的被move到s，而是v直接被move到一个隐藏变量中(v变成uninitialized)，然后这个隐藏变量的元素被一个个move到s(s是owner所以能够修改字符串)。在循环的过程中，这个隐藏变量是有空洞的(部分元素被move)，但这个状态是不可见的。</p>
+<h2 id="Rc-and-Arc-4-3"><a href="#Rc-and-Arc-4-3" class="headerlink" title="Rc and Arc (4.3)"></a>Rc and Arc (4.3)</h2><h2 id="Borrow-reference-4-4"><a href="#Borrow-reference-4-4" class="headerlink" title="Borrow reference (4.4)"></a>Borrow reference (4.4)</h2><h3 id="类型的lifetime-4-4-1"><a href="#类型的lifetime-4-4-1" class="headerlink" title="类型的lifetime (4.4.1)"></a>类型的lifetime (4.4.1)</h3><h3 id="变量的lifetime-4-4-2"><a href="#变量的lifetime-4-4-2" class="headerlink" title="变量的lifetime (4.4.2)"></a>变量的lifetime (4.4.2)</h3>
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/rust/" rel="tag"># rust</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/07/19/leveldb-cache/" rel="prev" title="LevelDB的LRUCache">
+      <i class="fa fa-chevron-left"></i> LevelDB的LRUCache
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2019/08/17/linux-iostat/" rel="next" title="linux iostat详解">
+      linux iostat详解 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Array-and-Vector-1"><span class="nav-number">1.</span> <span class="nav-text">Array and Vector (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Reference-and-Slice-2"><span class="nav-number">2.</span> <span class="nav-text">Reference and Slice (2)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Char-and-String-3"><span class="nav-number">3.</span> <span class="nav-text">Char and String (3)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Ownership-move-and-lifetime-4"><span class="nav-number">4.</span> <span class="nav-text">Ownership, move and lifetime (4)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Ownership-4-1"><span class="nav-number">4.1.</span> <span class="nav-text">Ownership (4.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Move-4-2"><span class="nav-number">4.2.</span> <span class="nav-text">Move (4.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Rc-and-Arc-4-3"><span class="nav-number">4.3.</span> <span class="nav-text">Rc and Arc (4.3)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Borrow-reference-4-4"><span class="nav-number">4.4.</span> <span class="nav-text">Borrow reference (4.4)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%B1%BB%E5%9E%8B%E7%9A%84lifetime-4-4-1"><span class="nav-number">4.4.1.</span> <span class="nav-text">类型的lifetime (4.4.1)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%98%E9%87%8F%E7%9A%84lifetime-4-4-2"><span class="nav-number">4.4.2.</span> <span class="nav-text">变量的lifetime (4.4.2)</span></a></li></ol></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

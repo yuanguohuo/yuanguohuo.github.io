@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="最近看了下namazu，试图使用它来模拟filesystem以及ethernet的抖动以及错误，发现ethernet inspector使用的是netfilter queue；这里对它做一个简单的调研。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="libnetfilter_queue的使用">
+<meta property="og:url" content="http://yoursite.com/2019/01/22/libnetfilter-queue/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="最近看了下namazu，试图使用它来模拟filesystem以及ethernet的抖动以及错误，发现ethernet inspector使用的是netfilter queue；这里对它做一个简单的调研。">
+<meta property="og:locale">
+<meta property="og:image" content="http://yoursite.com/2019/01/22/libnetfilter-queue/relationship.jpg">
+<meta property="article:published_time" content="2019-01-22T21:09:18.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.508Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="libnetfilter_queue">
+<meta property="article:tag" content="libmnl">
+<meta property="article:tag" content="netlink">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2019/01/22/libnetfilter-queue/relationship.jpg">
+
+<link rel="canonical" href="http://yoursite.com/2019/01/22/libnetfilter-queue/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>libnetfilter_queue的使用 | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/01/22/libnetfilter-queue/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          libnetfilter_queue的使用
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2019-01-22 21:09:18" itemprop="dateCreated datePublished" datetime="2019-01-22T21:09:18+00:00">2019-01-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2019/01/22/libnetfilter-queue/" class="post-meta-item leancloud_visitors" data-flag-title="libnetfilter_queue的使用" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2019/01/22/libnetfilter-queue/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2019/01/22/libnetfilter-queue/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>最近看了下<a target="_blank" rel="noopener" href="https://github.com/osrg/namazu">namazu</a>，试图使用它来模拟filesystem以及ethernet的抖动以及错误，发现ethernet inspector使用的是netfilter queue；这里对它做一个简单的调研。</p>
+<a id="more"></a>
+
+<h1 id="netlink与netfilter-1"><a href="#netlink与netfilter-1" class="headerlink" title="netlink与netfilter (1)"></a>netlink与netfilter (1)</h1><p>linux的netlink用于在内核和用户态进程之间的通信。它包含两个方面：1.用户态进程的接口：基于socket的，类似于unix domain的接口；2.内核模块的接口：内部kernel API。它们就像一根管子的两端，内核程序员基于后者开发内核模块，用户态程序员基于前者开发用户态程序。本文不涉及后者。对于前者，/usr/include/linux/netlink.h中定义了一种地址类型(sockaddr_nl，类比sockaddr_un，sockaddr_in或者sockaddr_in6)，这种地址类型和domain AF_NETLINK(类比AF_UNIX，AF_INET或AF_INET6)配合，提供基于socket的接口供用户态进程使用。AF_NETLINK里支持很多种协议：NETLINK_ROUTE， NETLINK_USERSOCK，NETLINK_NETFILTER……协议用于选择与之通信的内核模块或者netlink族。本文只关注NETLINK_NETFILTER协议。</p>
+<p>NETLINK_NETFILTER协议对应的是netfilter，netfilter包含3个功能：</p>
+<ul>
+<li>netfilter log</li>
+<li>netfilter queue</li>
+<li>netfilter conntrack。</li>
+</ul>
+<p>这3个功能都包含<strong>内核模块</strong>和<strong>用户态库</strong>两部分。</p>
+<p><strong>内核模块:</strong></p>
+<ul>
+<li>nfnetlink_log</li>
+<li>nfnetlink_queue </li>
+<li>nfnetlink_conntrack</li>
+<li>nfnetlink</li>
+</ul>
+<p>前3个模块对应netfilter的3个功能。最后一个是nfnetlink，它是一个基于netlink的传输层(内核态)，为前3个模块提供一个统一的kernel/userspace接口。</p>
+<p><strong>用户态库:</strong></p>
+<ul>
+<li>libnetfilter_log：与nfnetlink_log对应；</li>
+<li>libnetfilter_queue：与nfnetlink_queue对应；</li>
+<li>libnetfilter_conntrack：与nfnetlink_conntrack对应；</li>
+<li>libnfnetlink：与内核模块nfnetlink对应，提供一些底层的处理函数，是上面3个库的基础。</li>
+</ul>
+<p>前3个库对应netfilter的3个功能。最后一个是libnfnetlink，它是一个基于netlink的传输层(用户态)，为前3个模块提供一个统一的kernel/userspace接口。</p>
+<p>总之:</p>
+<ul>
+<li>netlink是一个内核和用户态进程的通信机制(一种socket)，支持多种协议；</li>
+<li>其中一种协议是NETLINK_NETFILTER，与之对应的是netfilter；</li>
+<li>netfilter包含3个功能，每个功能都包含内核模块和用户态库两部分；</li>
+</ul>
+<p>用一张图表示它们之间的关系：</p>
+<img src="/2019/01/22/libnetfilter-queue/relationship.jpg" class="" title="module">
+
+<h1 id="netfilter-queue-2"><a href="#netfilter-queue-2" class="headerlink" title="netfilter queue (2)"></a>netfilter queue (2)</h1><p>netfilter queue是netfilter的3个功能之一，它涉及到以下内核模块和用户态库：</p>
+<ul>
+<li>nfnetlink_queue：内核模块，linux 2.6版本引入的，用于代替ip_queue。ip_queue用于将数据包从内核空间传递到用户空间，缺点是只能有一个应用程序接收内核数据。nfnetlink_queue兼容ip_queue(从linux 3.5开始就被移除了)，但支持多个应用程序(最大65535)。需要注意的是，从内核到用户空间的通道还是只有一个，这里说的65536个子队列的实现就象802.1Q实现VLAN一样是在数据包中设置ID号来区分的，不同ID的包都通过相同的接口传输，只是在两端根据ID号进行了分类处理。</li>
+<li>nfnetlink：内核模块，其地位和作用见1节。</li>
+<li>libnfnetlink：用户态库，其地位和作用见1节。</li>
+<li>libnetfilter_queue：用户态库，它是本文的主题，见下文。</li>
+</ul>
+<h1 id="libnetfilter-queue的依赖-3"><a href="#libnetfilter-queue的依赖-3" class="headerlink" title="libnetfilter_queue的依赖 (3)"></a>libnetfilter_queue的依赖 (3)</h1><p>简单的讲，netfilter queue涉及到的内核模块和用户态库有4个，libnetfilter_queue依赖于其他3个。</p>
+<h2 id="nfnetlink-queue-3-1"><a href="#nfnetlink-queue-3-1" class="headerlink" title="nfnetlink_queue (3.1)"></a>nfnetlink_queue (3.1)</h2><p>检查内核配置文件(对于CentOS，通常是/usr/src/kernels/3.10.0-327.el7.x86_64/.config或者/boot/config-3.10.0-862.el7.x86_64)，确认以下选项被设置：</p>
+<ul>
+<li>CONFIG_NETFILTER_NETLINK_QUEUE </li>
+<li>CONFIG_NETFILTER_ADVANCED</li>
+</ul>
+<h2 id="nfnetlink-3-2"><a href="#nfnetlink-3-2" class="headerlink" title="nfnetlink (3.2)"></a>nfnetlink (3.2)</h2><p>检查配置文件(对于CentOS，通常是/usr/src/kernels/3.10.0-327.el7.x86_64/.config或者/boot/config-3.10.0-862.el7.x86_64)，确认以下选项被设置：</p>
+<ul>
+<li>CONFIG_NETFILTER_NETLINK</li>
+</ul>
+<h2 id="libnfnetlink-3-3"><a href="#libnfnetlink-3-3" class="headerlink" title="libnfnetlink (3.3)"></a>libnfnetlink (3.3)</h2><p>如前所述，它是一个用户态库，提供一些底层的nfnetlink处理函数，是libnetfilter_log， libnetfilter_queue和libnetfilter_conntrack的基础。</p>
+<h2 id="libmnl-3-4"><a href="#libmnl-3-4" class="headerlink" title="libmnl (3.4)"></a>libmnl (3.4)</h2><p>一个用户态库，面向netlink开发者。因为在netlink开发中，有很多重复性的通用的工作，例如解析，验证，构造netlink头和TLV等等，很容易出错。这个库提供了这些封装，避免每个项目重复造轮子。所以，虽然libnfnetlink和libmnl都是基于netlink socket接口的库，但容易看出它们的不同点在于，libmnl提供netlink开发所需的基本封装，不针对哪一个内核模块和协议，而libnfnetlink针对netfilter和NETLINK_NETFILTER协议。</p>
+<p>libnetfilter_queue有两套接口，新的基于libmnl，而旧的基于libnfnetlink；</p>
+<h1 id="安装libnetfilter-queue-3"><a href="#安装libnetfilter-queue-3" class="headerlink" title="安装libnetfilter_queue(3)"></a>安装libnetfilter_queue(3)</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">wget https:&#x2F;&#x2F;netfilter.org&#x2F;projects&#x2F;libnetfilter_queue&#x2F;files&#x2F;libnetfilter_queue-1.0.2.tar.bz2</span><br><span class="line">tar xjvf libnetfilter_queue-1.0.2.tar.bz2</span><br><span class="line">cd libnetfilter_queue-1.0.2&#x2F;</span><br><span class="line">.&#x2F;configure --prefix&#x3D;&#x2F;usr&#x2F;local&#x2F;libnetfilter_queue-1.0.2</span><br><span class="line">make &amp;&amp; make install</span><br><span class="line"></span><br><span class="line">export LD_LIBRARY_PATH&#x3D;&#x2F;usr&#x2F;local&#x2F;libnetfilter_queue-1.0.2&#x2F;lib:$LD_LIBRARY_PATH</span><br><span class="line">export C_INCLUDE_PATH&#x3D;&#x2F;usr&#x2F;local&#x2F;libnetfilter_queue-1.0.2&#x2F;include:$C_INCLUDE_PATH</span><br><span class="line">export PKG_CONFIG_PATH&#x3D;&#x2F;usr&#x2F;local&#x2F;libnetfilter_queue-1.0.2&#x2F;lib&#x2F;pkgconfig</span><br></pre></td></tr></table></figure>
+
+<h1 id="libnetfilter-queue的编程接口-4"><a href="#libnetfilter-queue的编程接口-4" class="headerlink" title="libnetfilter_queue的编程接口 (4)"></a>libnetfilter_queue的编程接口 (4)</h1><p>如前所述，有两套编程接口。前者不依赖libmnl但已经标记为deprecated；后者依赖于libmnl。源代码路径下，examples/nf-queue.c就是后者的一个例子。我们基于它稍作修改，丢弃50%的包；</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">42c42,46</span><br><span class="line">&lt;       nfq_nlmsg_verdict_put(nlh, id, NF_ACCEPT);</span><br><span class="line">---</span><br><span class="line">&gt;</span><br><span class="line">&gt;   if (id%2&#x3D;&#x3D;0)</span><br><span class="line">&gt;     nfq_nlmsg_verdict_put(nlh, id, NF_ACCEPT);</span><br><span class="line">&gt;   else</span><br><span class="line">&gt;     nfq_nlmsg_verdict_put(nlh, id, NF_DROP);</span><br></pre></td></tr></table></figure>
+
+<p>编译：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"># cat Makefile</span><br><span class="line">.PHONY: all</span><br><span class="line"></span><br><span class="line">SRC&#x3D;nf-queue.c</span><br><span class="line">INCL&#x3D;-I&#x2F;usr&#x2F;local&#x2F;libnetfilter_queue-1.0.2&#x2F;include</span><br><span class="line">LIB&#x3D;-L&#x2F;usr&#x2F;local&#x2F;libnetfilter_queue-1.0.2&#x2F;lib -lnetfilter_queue -lmnl</span><br><span class="line"></span><br><span class="line">build:</span><br><span class="line">        gcc $(INCL) $(LIB) $(SRC) -o nfqueue</span><br><span class="line"></span><br><span class="line">run:</span><br><span class="line">        export LD_LIBRARY_PATH&#x3D;&#x2F;usr&#x2F;local&#x2F;libnetfilter_queue-1.0.2&#x2F;lib</span><br><span class="line">        .&#x2F;nfqueue 3</span><br><span class="line"></span><br><span class="line">clean:</span><br><span class="line">        rm -f nfqueue</span><br><span class="line"></span><br><span class="line"># make</span><br></pre></td></tr></table></figure>
+
+<p>如何测试这段程序呢？这需要iptables的配合。iptables rule有一个特殊的target叫做<code>NFQUEUE</code>，匹配rule的数据包被放到一个queue中发到用户态，即我们这段程序(注意这段程序需要一个参数，即iptables -j NFQUEUE的queue号)。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># iptables -t filter -A OUTPUT -m owner --uid-owner $(id -u $&#123;testuser&#125;) -j NFQUEUE --queue-num 3</span><br><span class="line"># make run </span><br></pre></td></tr></table></figure>
+
+<p>然后打开一个窗口，使用${testuser}登录，随意ping一个IP：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"># ping 192.168.30.100</span><br><span class="line">PING 192.168.30.100 (192.168.30.100) 56(84) bytes of data.</span><br><span class="line">64 bytes from 192.168.30.100: icmp_seq&#x3D;2 ttl&#x3D;64 time&#x3D;0.128 ms</span><br><span class="line">64 bytes from 192.168.30.100: icmp_seq&#x3D;4 ttl&#x3D;64 time&#x3D;0.080 ms</span><br><span class="line">64 bytes from 192.168.30.100: icmp_seq&#x3D;6 ttl&#x3D;64 time&#x3D;0.156 ms</span><br><span class="line">64 bytes from 192.168.30.100: icmp_seq&#x3D;8 ttl&#x3D;64 time&#x3D;0.134 ms</span><br><span class="line">^C</span><br><span class="line">--- 192.168.30.100 ping statistics ---</span><br><span class="line">9 packets transmitted, 4 received, 55% packet loss, time 8000ms</span><br><span class="line">rtt min&#x2F;avg&#x2F;max&#x2F;mdev &#x3D; 0.080&#x2F;0.124&#x2F;0.156&#x2F;0.029 ms</span><br><span class="line">#</span><br><span class="line"># ping 192.168.30.100</span><br><span class="line">PING 192.168.30.100 (192.168.30.100) 56(84) bytes of data.</span><br><span class="line">64 bytes from 192.168.30.100: icmp_seq&#x3D;1 ttl&#x3D;64 time&#x3D;0.163 ms</span><br><span class="line">64 bytes from 192.168.30.100: icmp_seq&#x3D;3 ttl&#x3D;64 time&#x3D;0.148 ms</span><br><span class="line">64 bytes from 192.168.30.100: icmp_seq&#x3D;5 ttl&#x3D;64 time&#x3D;0.152 ms</span><br><span class="line">64 bytes from 192.168.30.100: icmp_seq&#x3D;7 ttl&#x3D;64 time&#x3D;0.174 ms</span><br><span class="line">^C</span><br><span class="line">--- 192.168.30.100 ping statistics ---</span><br><span class="line">7 packets transmitted, 4 received, 42% packet loss, time 6002ms</span><br><span class="line">rtt min&#x2F;avg&#x2F;max&#x2F;mdev &#x3D; 0.148&#x2F;0.159&#x2F;0.174&#x2F;0.013 ms</span><br></pre></td></tr></table></figure>
+
+<h1 id="libnetfilter-queue的性能问题-5"><a href="#libnetfilter-queue的性能问题-5" class="headerlink" title="libnetfilter_queue的性能问题 (5)"></a>libnetfilter_queue的性能问题 (5)</h1><p>就我在CentOS-7(3.10.0-327.36.4.el7.x86_64)的测试而言，libnetfilter_queue有很大的性能问题。<a target="_blank" rel="noopener" href="https://github.com/osrg/namazu">namazu</a>就是一个使用libnetfilter_queue的案例。我在使用namazu的时候，设置延迟100ms丢包率为0，但在网络负载高的时候，延迟会涨到几秒甚至十几秒，丢包率百分之几十。我尝试过如下优化，但都只能在一定程度上解决问题，没有完全达到理想的效果。</p>
+<h2 id="使用多个子队列代替单个队列-5-1"><a href="#使用多个子队列代替单个队列-5-1" class="headerlink" title="使用多个子队列代替单个队列 (5.1)"></a>使用多个子队列代替单个队列 (5.1)</h2><p>前文iptables rule是这样设置的：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">iptables -t filter -A OUTPUT -m owner --uid-owner $(id -u $&#123;testuser&#125;) -j NFQUEUE --queue-num 3</span><br></pre></td></tr></table></figure>
+
+<p>这样的话，所有匹配rule的包都被放进同一个队列，namazu也无法并行处理。可以这样，使用128个子队列：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">iptables -t filter -A OUTPUT -m owner --uid-owner $(id -u $&#123;testuser&#125;) -j NFQUEUE --queue-balance 0:127</span><br></pre></td></tr></table></figure>
+
+<p>然后修改namazu，在其中启用多个routine，每个routine处理一个子queue。这样做还是有很大的效果的。但还是有两个问题：</p>
+<ul>
+<li>如前文所述，这里并不是真正的多个队列，而是虚拟的；</li>
+<li>Linux(也可能只是这边版本的linux)并没有使用全部的128个子队列。通过<code>cat /proc/net/netfilter/nfnetlink_queue</code>发现，只有3-4个子队列上有数据包；</li>
+</ul>
+<p>这些因素(我猜主要是后者)导致性能无法大幅度提升；</p>
+<h2 id="减小package的拷贝range-5-2"><a href="#减小package的拷贝range-5-2" class="headerlink" title="减小package的拷贝range (5.2)"></a>减小package的拷贝range (5.2)</h2><p>/proc/net/netfilter/nfnetlink_queue的结构是这样的：</p>
+<ul>
+<li>queue_number</li>
+<li>peer_portid: good chance it is process ID of software listening to the queue</li>
+<li>queue_total: current number of packets waiting in the queue</li>
+<li>copy_mode: 0 and 1 only message only provide meta data. If 2, the message provides a part of packet of size copy range.</li>
+<li>copy_range: length of packet data to put in message</li>
+<li>queue_dropped: number of packets dropped because queue was full</li>
+<li>user_dropped: number of packets dropped because netlink message could not be sent to userspace. If this counter is not zero, try to increase netlink buffer size. On the application side, you will see gap in packet id if netlink message are lost.</li>
+<li>id_sequence: packet id of last packet</li>
+<li>The last field is always ‘1’ and is ignored.</li>
+</ul>
+<p>其中copy_mode和copy_range可以设置，</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">nfq_set_mode(queue, copy_mode, copy_range);              &#x2F;&#x2F;老接口</span><br><span class="line">nfq_nlmsg_cfg_put_params(queue, copy_mode, copy_range);  &#x2F;&#x2F;新接口</span><br></pre></td></tr></table></figure>
+
+<p>尝试把copy_mode设置为0或者1，避免拷贝package，但无法工作(原因?)；<br>尝试减小copy_range，也没有非常明显的效果；</p>
+<h2 id="其他尝试-5-3"><a href="#其他尝试-5-3" class="headerlink" title="其他尝试 (5.3)"></a>其他尝试 (5.3)</h2><p>如<a target="_blank" rel="noopener" href="https://netfilter.org/projects/libnetfilter_queue/doxygen/html/">libnetfilter_queue的文档</a>所述:</p>
+<ul>
+<li>把nice设置为-20</li>
+<li>增大socket的buffer <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">#include &lt;libnfnetlink&#x2F;libnfnetlink.h&gt;</span><br><span class="line">nfnl_rcvbufsiz(nfq_nfnlh(h), 4 * 1024 * 1024);</span><br></pre></td></tr></table></figure></li>
+<li>增大队列长度<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nfq_set_queue_maxlen(queue, 1024 * 1024);</span><br></pre></td></tr></table></figure>
+
+</li>
+</ul>
+<p>都没有明显的效果；</p>
+<h1 id="结论-6"><a href="#结论-6" class="headerlink" title="结论 (6)"></a>结论 (6)</h1><p>libnetfilter_queue的性能需要进一步研究，目前是用tc来替代namazu的ethernet inspector。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/libnetfilter-queue/" rel="tag"># libnetfilter_queue</a>
+              <a href="/tags/libmnl/" rel="tag"># libmnl</a>
+              <a href="/tags/netlink/" rel="tag"># netlink</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/01/02/jemalloc-heap-profiling/" rel="prev" title="jemalloc的heap profiling">
+      <i class="fa fa-chevron-left"></i> jemalloc的heap profiling
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2019/05/23/fio-notes/" rel="next" title="Linux fio">
+      Linux fio <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#netlink%E4%B8%8Enetfilter-1"><span class="nav-number">1.</span> <span class="nav-text">netlink与netfilter (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#netfilter-queue-2"><span class="nav-number">2.</span> <span class="nav-text">netfilter queue (2)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#libnetfilter-queue%E7%9A%84%E4%BE%9D%E8%B5%96-3"><span class="nav-number">3.</span> <span class="nav-text">libnetfilter_queue的依赖 (3)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#nfnetlink-queue-3-1"><span class="nav-number">3.1.</span> <span class="nav-text">nfnetlink_queue (3.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#nfnetlink-3-2"><span class="nav-number">3.2.</span> <span class="nav-text">nfnetlink (3.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#libnfnetlink-3-3"><span class="nav-number">3.3.</span> <span class="nav-text">libnfnetlink (3.3)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#libmnl-3-4"><span class="nav-number">3.4.</span> <span class="nav-text">libmnl (3.4)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E8%A3%85libnetfilter-queue-3"><span class="nav-number">4.</span> <span class="nav-text">安装libnetfilter_queue(3)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#libnetfilter-queue%E7%9A%84%E7%BC%96%E7%A8%8B%E6%8E%A5%E5%8F%A3-4"><span class="nav-number">5.</span> <span class="nav-text">libnetfilter_queue的编程接口 (4)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#libnetfilter-queue%E7%9A%84%E6%80%A7%E8%83%BD%E9%97%AE%E9%A2%98-5"><span class="nav-number">6.</span> <span class="nav-text">libnetfilter_queue的性能问题 (5)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8%E5%A4%9A%E4%B8%AA%E5%AD%90%E9%98%9F%E5%88%97%E4%BB%A3%E6%9B%BF%E5%8D%95%E4%B8%AA%E9%98%9F%E5%88%97-5-1"><span class="nav-number">6.1.</span> <span class="nav-text">使用多个子队列代替单个队列 (5.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%87%8F%E5%B0%8Fpackage%E7%9A%84%E6%8B%B7%E8%B4%9Drange-5-2"><span class="nav-number">6.2.</span> <span class="nav-text">减小package的拷贝range (5.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%B6%E4%BB%96%E5%B0%9D%E8%AF%95-5-3"><span class="nav-number">6.3.</span> <span class="nav-text">其他尝试 (5.3)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%BB%93%E8%AE%BA-6"><span class="nav-number">7.</span> <span class="nav-text">结论 (6)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

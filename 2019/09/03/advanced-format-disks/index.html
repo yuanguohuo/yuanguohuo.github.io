@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="简单介绍advanced format disks（4K扇区磁盘）的产生与标准，并对比512e磁盘分区对齐与不对齐时的性能。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Advanced Format Disks">
+<meta property="og:url" content="http://yoursite.com/2019/09/03/advanced-format-disks/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="简单介绍advanced format disks（4K扇区磁盘）的产生与标准，并对比512e磁盘分区对齐与不对齐时的性能。">
+<meta property="og:locale">
+<meta property="og:image" content="http://yoursite.com/2019/09/03/advanced-format-disks/advfmt.jpg">
+<meta property="og:image" content="http://yoursite.com/2019/09/03/advanced-format-disks/4knative.jpg">
+<meta property="og:image" content="http://yoursite.com/2019/09/03/advanced-format-disks/512e.jpg">
+<meta property="og:image" content="http://yoursite.com/2019/09/03/advanced-format-disks/512e-rw.jpg">
+<meta property="og:image" content="http://yoursite.com/2019/09/03/advanced-format-disks/512e-align.jpg">
+<meta property="article:published_time" content="2019-09-03T20:20:13.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.463Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="disk">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2019/09/03/advanced-format-disks/advfmt.jpg">
+
+<link rel="canonical" href="http://yoursite.com/2019/09/03/advanced-format-disks/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>Advanced Format Disks | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/09/03/advanced-format-disks/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Advanced Format Disks
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2019-09-03 20:20:13" itemprop="dateCreated datePublished" datetime="2019-09-03T20:20:13+00:00">2019-09-03</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/disk/" itemprop="url" rel="index"><span itemprop="name">disk</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2019/09/03/advanced-format-disks/" class="post-meta-item leancloud_visitors" data-flag-title="Advanced Format Disks" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2019/09/03/advanced-format-disks/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2019/09/03/advanced-format-disks/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>简单介绍advanced format disks（4K扇区磁盘）的产生与标准，并对比512e磁盘分区对齐与不对齐时的性能。</p>
+<a id="more"></a>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+
+<script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+<h1 id="4K扇区-1"><a href="#4K扇区-1" class="headerlink" title="4K扇区 (1)"></a>4K扇区 (1)</h1><p>磁盘的高级格式（Advanced Format）使用4K作为扇区的大小（至少第一代Advanced Format就是指4K扇区）。传统磁盘的扇区大小是512B。有什么问题呢？这得从扇区的结构说起：磁盘上的扇区不是一个接一个紧密排列的，相邻的扇区之间有一个间隙（gap），并且每个扇区前面有一个sync字段和一个address mark字段，接着才是我们所知的512B数据（data），后面还有一个纠错码ECC（error correcting code）。并且：</p>
+<p>$$ gap + sync + address mark = 15B $$<br>$$ data = 512B $$<br>$$ ECC = 50B $$</p>
+<p>这样，磁盘空间的利用率是：</p>
+<p>$$ \frac{512}{15+512+50}=88.7% $$</p>
+<p>显然，增大扇区可以提高空间的利用率。另外，由于纠错码ECC只有50B，纠错算法也受限，无法使用更高级的纠错算法来提高磁盘的可靠性。于是，2010年的时候，International Disk Drive Equipment and Materials Association (IDEMA)完成了一个新的标准：采用4096B作为扇区大小，并且把ECC增大到100B。虽然ECC增大了，但现在一个扇区相当于原来的8个扇区，空间利用率还是提高了：</p>
+<p>$$ gap + sync + address mark = 15B $$<br>$$ data = 4096B $$<br>$$ ECC = 100B $$</p>
+<p>那么，磁盘空间利用率是：</p>
+<p>$$ \frac{4096}{15+4096+100} = 97.3% $$</p>
+<p>从下面一图一表(<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Advanced_Format#cite_note-27%20%E7%BB%B4%E5%9F%BA%E7%99%BE%E7%A7%91">来自维基百科</a>)我们可以看的更直观。</p>
+<table>
+<thead>
+<tr>
+<th>Description</th>
+<th>512B section</th>
+<th>4096B sector</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>gap,sync,address mark</td>
+<td>15B</td>
+<td>15B</td>
+</tr>
+<tr>
+<td>user data</td>
+<td>512B</td>
+<td>4096B</td>
+</tr>
+<tr>
+<td>error correcting code</td>
+<td>50B</td>
+<td>100B</td>
+</tr>
+<tr>
+<td>total</td>
+<td>577B</td>
+<td>4211B</td>
+</tr>
+<tr>
+<td>efficiency</td>
+<td>88.7%</td>
+<td>97.3%</td>
+</tr>
+</tbody></table>
+<img src="/2019/09/03/advanced-format-disks/advfmt.jpg" class="" title="Advanced Format">
+
+<p>总结来说：引入4K扇区有两个好处：</p>
+<ul>
+<li>提高空间利用率；</li>
+<li>可以引入更高级的纠错算法，来提高磁盘的可靠性；</li>
+</ul>
+<h1 id="物理扇区和逻辑扇区-2"><a href="#物理扇区和逻辑扇区-2" class="headerlink" title="物理扇区和逻辑扇区 (2)"></a>物理扇区和逻辑扇区 (2)</h1><p>历史原因，给这个看上去很好的优化带来很多麻烦。因为直到现在，还有很多硬件、软件系统是基于512B的扇区设计的，包括芯片组，操作系统，数据库引擎、磁盘分区工具、文件系统等。为了和现有系统兼容，就引入物理扇区和逻辑扇区的概念。</p>
+<ul>
+<li><strong>物理扇区</strong>是磁盘驱动器读写的最小单元，也就是说，操作系统读写100B，磁盘驱动器也必须读写一整个扇区。</li>
+<li><strong>逻辑扇区</strong>是磁盘的firmware模拟出来的操作系统看到的扇区。比如，为了兼容老的软硬件系统，很多4K扇区的磁盘(512e类型，见下文4K扇区磁盘的分类)，都模拟512B扇区。</li>
+</ul>
+<h1 id="4K扇区磁盘的分类-3"><a href="#4K扇区磁盘的分类-3" class="headerlink" title="4K扇区磁盘的分类 (3)"></a>4K扇区磁盘的分类 (3)</h1><h2 id="4K-native-3-1"><a href="#4K-native-3-1" class="headerlink" title="4K native (3.1)"></a>4K native (3.1)</h2><p>简写为4Kn，这类磁盘firmware里不会把4K的物理扇区模拟成512B的逻辑扇区，也就是说，外部可见的逻辑扇区直接映射到内部的物理扇区。自从2014年开始，企业级的4K native磁盘已经在市场上流通了。这类磁盘的logo如下：</p>
+<img src="/2019/09/03/advanced-format-disks/4knative.jpg" class="" title="4Knative">
+
+<p>但，由于4Kn不能兼容512B扇区的软硬件系统，它的使用并不广泛。虽然Windows(Windows8和Windows Server 2012)和Linux(自从kernel 2.6.31)都支持4Kn的磁盘，然而很多操作系统不能从4Kn磁盘引导(<a target="_blank" rel="noopener" href="https://askubuntu.com/questions/337693/how-to-format-a-4k-sector-hard-drive">见这里</a>和<a target="_blank" rel="noopener" href="https://lwn.net/Articles/377895/">这里</a>)，这些磁盘通常作为外部存储使用。</p>
+<h2 id="512e-3-2"><a href="#512e-3-2" class="headerlink" title="512e (3.2)"></a>512e (3.2)</h2><p>为了向下兼容，磁盘提供商在firmware里模拟512B扇区，目前这也是事实上的标准(<a target="_blank" rel="noopener" href="http://idema.org/?page_id=2900">见这里</a>)。这类磁盘被叫做Advanced Format 512e, 或者512 emulation磁盘。它的logo如下：</p>
+<img src="/2019/09/03/advanced-format-disks/512e.jpg" class="" title="512e">
+
+<p>4096B扇区和512B扇区之间的转换是磁盘的firmware完成的，对外界透明，也就是说，可以像读写传统磁盘一样来读写512e磁盘，如下图所示：</p>
+<img src="/2019/09/03/advanced-format-disks/512e-rw.jpg" class="" title="512e-read-write">
+
+<p>比如，操作系统读取512B数据，磁盘驱动器会：</p>
+<ol>
+<li>读取目标扇区4096B；</li>
+<li>从中抽取被读取的512B返回给操作系统；</li>
+</ol>
+<p>对于读操作来说，这个过程带来的性能损失很小，可以忽略不计。但是对于写操作，问题就麻烦了。操作系统写512B数据，磁盘驱动器必须采用“读-修改-写”(RMW: Read-Modify-Write)的方式：</p>
+<ol>
+<li>读取目标扇区4096B；</li>
+<li>修改其中的512B；</li>
+<li>把目标扇区写回；</li>
+</ol>
+<p>可以预见，这种方式有明显的性能影响。但是，假如操作系统写入的要是整个4K，并且和一个扇区对齐，那么就不必采用RMW的方式了，性能的影响可以规避。</p>
+<h1 id="分区对齐-4"><a href="#分区对齐-4" class="headerlink" title="分区对齐 (4)"></a>分区对齐 (4)</h1><p>为了避免RMW带来性能损耗，最好能做到如下两点：</p>
+<ul>
+<li>写入大小是4K的整数倍；</li>
+<li>写入边界和物理扇区边界对齐； </li>
+</ul>
+<p>Linux系统已经作了优化：</p>
+<ul>
+<li>尽量写入4K的整数倍；</li>
+<li>尽量和分区对齐。</li>
+</ul>
+<p>注意第二点，<strong>这要求分区和物理扇区是对齐的</strong>。假如分区和物理扇区没有对齐，而每个写操作和分区又是对齐的，导致的结果是，每个写操作恰恰和物理扇区没有对齐。如下图所示：</p>
+<img src="/2019/09/03/advanced-format-disks/512e-align.jpg" class="" title="512e-alignment">
+
+<p>可见，系统IO-1和系统IO-2和分区是对齐的。但是，分区和物理扇区没有对齐，导致磁盘IO-1和磁盘IO-2都没对齐，并且每个磁盘IO需要两次RMW，共4个RMW才能完成。所以，<strong>分区和物理扇区的对齐至关重要</strong>。parted可以检查已有分区是否对齐；并且在做新分区时，若没对齐，也会得到警告。下面我们做一个测试。</p>
+<ul>
+<li><strong>磁盘信息</strong></li>
+</ul>
+<p>如下，有一块size为6T转速为7200 rpm的512e的磁盘(512 bytes logical, 4096 bytes physical)：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"># smartctl -a &#x2F;dev&#x2F;sde</span><br><span class="line">smartctl 6.2 2013-07-26 r3841 [x86_64-linux-3.10.0-327.36.4.el7.x86_64] (local build)</span><br><span class="line">Copyright (C) 2002-13, Bruce Allen, Christian Franke, www.smartmontools.org</span><br><span class="line"></span><br><span class="line">&#x3D;&#x3D;&#x3D; START OF INFORMATION SECTION &#x3D;&#x3D;&#x3D;</span><br><span class="line">......</span><br><span class="line">Add. Product Id:  DELL(tm)</span><br><span class="line">Firmware Version: DA25</span><br><span class="line">User Capacity:    6,001,175,126,016 bytes [6.00 TB]</span><br><span class="line">Sector Sizes:     512 bytes logical, 4096 bytes physical</span><br><span class="line">Rotation Rate:    7200 rpm</span><br><span class="line">Device is:        Not in smartctl database [for details use: -P showall]</span><br><span class="line">ATA Version is:   ACS-3 (unknown minor revision code: 0x006d)</span><br><span class="line">SATA Version is:  SATA 3.1, 6.0 Gb&#x2F;s (current: 6.0 Gb&#x2F;s)</span><br><span class="line">Local Time is:    Tue Sep  3 21:04:43 2019 CST</span><br><span class="line">SMART support is: Available - device has SMART capability.</span><br><span class="line">SMART support is: Enabled</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>fio jobs</strong></li>
+</ul>
+<p>我们将分别用这2个job来测试对齐和不对齐情况下，分区和Filesystem的性能：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"># cat job.write.part.4k</span><br><span class="line">[global]</span><br><span class="line">    filename&#x3D;&#x2F;dev&#x2F;sde1</span><br><span class="line">    runtime&#x3D;60</span><br><span class="line"></span><br><span class="line">[seqwrite_job]</span><br><span class="line">    rw&#x3D;write</span><br><span class="line">    bs&#x3D;4k</span><br><span class="line">    size&#x3D;100G</span><br><span class="line">    ioengine&#x3D;psync</span><br><span class="line">    fsync&#x3D;1</span><br><span class="line">    iodepth&#x3D;1</span><br><span class="line">    numjobs&#x3D;1</span><br><span class="line">    new_group&#x3D;1</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"># cat job.write.fs.4k</span><br><span class="line">[global]</span><br><span class="line">    filename&#x3D;&#x2F;mnt&#x2F;fio-test-file</span><br><span class="line">    runtime&#x3D;60</span><br><span class="line"></span><br><span class="line">[seqwrite_job]</span><br><span class="line">    rw&#x3D;write</span><br><span class="line">    bs&#x3D;4k</span><br><span class="line">    size&#x3D;100G</span><br><span class="line">    ioengine&#x3D;psync</span><br><span class="line">    fsync&#x3D;1</span><br><span class="line">    iodepth&#x3D;1</span><br><span class="line">    numjobs&#x3D;1</span><br><span class="line">    new_group&#x3D;1</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>分区对齐时的性能</strong></li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br></pre></td><td class="code"><pre><span class="line"># parted &#x2F;dev&#x2F;sde</span><br><span class="line">GNU Parted 3.1</span><br><span class="line">Using &#x2F;dev&#x2F;sde</span><br><span class="line">Welcome to GNU Parted! Type &#39;help&#39; to view a list of commands.</span><br><span class="line">(parted) mklabel gpt</span><br><span class="line">Warning: The existing disk label on &#x2F;dev&#x2F;sde will be destroyed and all data on this disk will be lost. Do you want to continue?</span><br><span class="line">Yes&#x2F;No? Yes</span><br><span class="line">(parted) mkpart primary 131072k 50%</span><br><span class="line">(parted) align-check opt 1</span><br><span class="line">1 aligned</span><br><span class="line">(parted) quit</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"># .&#x2F;fio job.write.part.4k</span><br><span class="line">seqwrite_job: (g&#x3D;0): rw&#x3D;write, bs&#x3D;(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine&#x3D;psync, iodepth&#x3D;1</span><br><span class="line">fio-3.14</span><br><span class="line">Starting 1 process</span><br><span class="line">Jobs: 1 (f&#x3D;1): [W(1)][100.0%][w&#x3D;480KiB&#x2F;s][w&#x3D;120 IOPS][eta 00m:00s]</span><br><span class="line">seqwrite_job: (groupid&#x3D;0, jobs&#x3D;1): err&#x3D; 0: pid&#x3D;170558: Tue Sep  3 21:53:00 2019</span><br><span class="line">  write: IOPS&#x3D;118, BW&#x3D;474KiB&#x2F;s (486kB&#x2F;s)(27.8MiB&#x2F;60001msec)</span><br><span class="line">    clat (nsec): min&#x3D;4848, max&#x3D;58867, avg&#x3D;10749.07, stdev&#x3D;5038.56</span><br><span class="line">     lat (nsec): min&#x3D;4971, max&#x3D;59524, avg&#x3D;11261.16, stdev&#x3D;5232.99</span><br><span class="line">    clat percentiles (nsec):</span><br><span class="line">     |  1.00th&#x3D;[ 6368],  5.00th&#x3D;[ 6624], 10.00th&#x3D;[ 6688], 20.00th&#x3D;[ 6752],</span><br><span class="line">     | 30.00th&#x3D;[ 6816], 40.00th&#x3D;[ 7072], 50.00th&#x3D;[ 7456], 60.00th&#x3D;[13632],</span><br><span class="line">     | 70.00th&#x3D;[13760], 80.00th&#x3D;[13888], 90.00th&#x3D;[15424], 95.00th&#x3D;[16064],</span><br><span class="line">     | 99.00th&#x3D;[27520], 99.50th&#x3D;[34560], 99.90th&#x3D;[47360], 99.95th&#x3D;[49408],</span><br><span class="line">     | 99.99th&#x3D;[58624]</span><br><span class="line">   bw (  KiB&#x2F;s): min&#x3D;  415, max&#x3D;  488, per&#x3D;100.00%, avg&#x3D;474.07, stdev&#x3D;12.52, samples&#x3D;120</span><br><span class="line">   iops        : min&#x3D;  103, max&#x3D;  122, avg&#x3D;118.47, stdev&#x3D; 3.17, samples&#x3D;120</span><br><span class="line">  lat (usec)   : 10&#x3D;53.59%, 20&#x3D;42.28%, 50&#x3D;4.09%, 100&#x3D;0.04%</span><br><span class="line">  fsync&#x2F;fdatasync&#x2F;sync_file_range:</span><br><span class="line">    sync (usec): min&#x3D;2145, max&#x3D;50031, avg&#x3D;8421.18, stdev&#x3D;1587.52</span><br><span class="line">    sync percentiles (usec):</span><br><span class="line">     |  1.00th&#x3D;[ 8291],  5.00th&#x3D;[ 8291], 10.00th&#x3D;[ 8291], 20.00th&#x3D;[ 8291],</span><br><span class="line">     | 30.00th&#x3D;[ 8291], 40.00th&#x3D;[ 8356], 50.00th&#x3D;[ 8356], 60.00th&#x3D;[ 8356],</span><br><span class="line">     | 70.00th&#x3D;[ 8356], 80.00th&#x3D;[ 8356], 90.00th&#x3D;[ 8356], 95.00th&#x3D;[ 8356],</span><br><span class="line">     | 99.00th&#x3D;[ 8455], 99.50th&#x3D;[ 8717], 99.90th&#x3D;[42206], 99.95th&#x3D;[48497],</span><br><span class="line">     | 99.99th&#x3D;[50070]</span><br><span class="line">  cpu          : usr&#x3D;0.13%, sys&#x3D;0.88%, ctx&#x3D;14225, majf&#x3D;0, minf&#x3D;33</span><br><span class="line">  IO depths    : 1&#x3D;200.0%, 2&#x3D;0.0%, 4&#x3D;0.0%, 8&#x3D;0.0%, 16&#x3D;0.0%, 32&#x3D;0.0%, &gt;&#x3D;64&#x3D;0.0%</span><br><span class="line">     submit    : 0&#x3D;0.0%, 4&#x3D;100.0%, 8&#x3D;0.0%, 16&#x3D;0.0%, 32&#x3D;0.0%, 64&#x3D;0.0%, &gt;&#x3D;64&#x3D;0.0%</span><br><span class="line">     complete  : 0&#x3D;0.0%, 4&#x3D;100.0%, 8&#x3D;0.0%, 16&#x3D;0.0%, 32&#x3D;0.0%, 64&#x3D;0.0%, &gt;&#x3D;64&#x3D;0.0%</span><br><span class="line">     issued rwts: total&#x3D;0,7112,0,7112 short&#x3D;0,0,0,0 dropped&#x3D;0,0,0,0</span><br><span class="line">     latency   : target&#x3D;0, window&#x3D;0, percentile&#x3D;100.00%, depth&#x3D;1</span><br><span class="line"></span><br><span class="line">Run status group 0 (all jobs):</span><br><span class="line">  WRITE: bw&#x3D;474KiB&#x2F;s (486kB&#x2F;s), 474KiB&#x2F;s-474KiB&#x2F;s (486kB&#x2F;s-486kB&#x2F;s), io&#x3D;27.8MiB (29.1MB), run&#x3D;60001-60001msec</span><br><span class="line"></span><br><span class="line">Disk stats (read&#x2F;write):</span><br><span class="line">  sde: ios&#x3D;46&#x2F;14199, merge&#x3D;0&#x2F;0, ticks&#x3D;21&#x2F;59247, in_queue&#x3D;59263, util&#x3D;98.85%</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"># mkfs.ext4 &#x2F;dev&#x2F;sde1</span><br><span class="line"># mount &#x2F;dev&#x2F;sde1 &#x2F;mnt&#x2F;</span><br><span class="line"># .&#x2F;fio job.write.fs.4k</span><br><span class="line">seqwrite_job: (g&#x3D;0): rw&#x3D;write, bs&#x3D;(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine&#x3D;psync, iodepth&#x3D;1</span><br><span class="line">fio-3.14</span><br><span class="line">Starting 1 process</span><br><span class="line">seqwrite_job: Laying out IO file (1 file &#x2F; 102400MiB)</span><br><span class="line">Jobs: 1 (f&#x3D;1): [W(1)][100.0%][w&#x3D;132KiB&#x2F;s][w&#x3D;33 IOPS][eta 00m:00s]</span><br><span class="line">seqwrite_job: (groupid&#x3D;0, jobs&#x3D;1): err&#x3D; 0: pid&#x3D;170723: Tue Sep  3 21:55:59 2019</span><br><span class="line">  write: IOPS&#x3D;29, BW&#x3D;118KiB&#x2F;s (121kB&#x2F;s)(7096KiB&#x2F;60017msec)</span><br><span class="line">    clat (nsec): min&#x3D;10482, max&#x3D;63573, avg&#x3D;18145.23, stdev&#x3D;7382.36</span><br><span class="line">     lat (nsec): min&#x3D;10781, max&#x3D;64236, avg&#x3D;18640.49, stdev&#x3D;7572.48</span><br><span class="line">    clat percentiles (nsec):</span><br><span class="line">     |  1.00th&#x3D;[11200],  5.00th&#x3D;[11456], 10.00th&#x3D;[11968], 20.00th&#x3D;[12224],</span><br><span class="line">     | 30.00th&#x3D;[12352], 40.00th&#x3D;[12480], 50.00th&#x3D;[12608], 60.00th&#x3D;[22912],</span><br><span class="line">     | 70.00th&#x3D;[24448], 80.00th&#x3D;[24704], 90.00th&#x3D;[24960], 95.00th&#x3D;[28288],</span><br><span class="line">     | 99.00th&#x3D;[39168], 99.50th&#x3D;[46848], 99.90th&#x3D;[62208], 99.95th&#x3D;[63744],</span><br><span class="line">     | 99.99th&#x3D;[63744]</span><br><span class="line">   bw (  KiB&#x2F;s): min&#x3D;   56, max&#x3D;  152, per&#x3D;100.00%, avg&#x3D;118.24, stdev&#x3D;13.52, samples&#x3D;120</span><br><span class="line">   iops        : min&#x3D;   14, max&#x3D;   38, avg&#x3D;29.54, stdev&#x3D; 3.38, samples&#x3D;120</span><br><span class="line">  lat (usec)   : 20&#x3D;57.05%, 50&#x3D;42.56%, 100&#x3D;0.39%</span><br><span class="line">  fsync&#x2F;fdatasync&#x2F;sync_file_range:</span><br><span class="line">    sync (msec): min&#x3D;24, max&#x3D;249, avg&#x3D;33.81, stdev&#x3D; 8.94</span><br><span class="line">    sync percentiles (msec):</span><br><span class="line">     |  1.00th&#x3D;[   26],  5.00th&#x3D;[   26], 10.00th&#x3D;[   26], 20.00th&#x3D;[   34],</span><br><span class="line">     | 30.00th&#x3D;[   34], 40.00th&#x3D;[   34], 50.00th&#x3D;[   34], 60.00th&#x3D;[   34],</span><br><span class="line">     | 70.00th&#x3D;[   34], 80.00th&#x3D;[   34], 90.00th&#x3D;[   42], 95.00th&#x3D;[   51],</span><br><span class="line">     | 99.00th&#x3D;[   59], 99.50th&#x3D;[   84], 99.90th&#x3D;[  117], 99.95th&#x3D;[  251],</span><br><span class="line">     | 99.99th&#x3D;[  251]</span><br><span class="line">  cpu          : usr&#x3D;0.03%, sys&#x3D;0.26%, ctx&#x3D;3550, majf&#x3D;0, minf&#x3D;31</span><br><span class="line">  IO depths    : 1&#x3D;200.0%, 2&#x3D;0.0%, 4&#x3D;0.0%, 8&#x3D;0.0%, 16&#x3D;0.0%, 32&#x3D;0.0%, &gt;&#x3D;64&#x3D;0.0%</span><br><span class="line">     submit    : 0&#x3D;0.0%, 4&#x3D;100.0%, 8&#x3D;0.0%, 16&#x3D;0.0%, 32&#x3D;0.0%, 64&#x3D;0.0%, &gt;&#x3D;64&#x3D;0.0%</span><br><span class="line">     complete  : 0&#x3D;0.0%, 4&#x3D;100.0%, 8&#x3D;0.0%, 16&#x3D;0.0%, 32&#x3D;0.0%, 64&#x3D;0.0%, &gt;&#x3D;64&#x3D;0.0%</span><br><span class="line">     issued rwts: total&#x3D;0,1774,0,1774 short&#x3D;0,0,0,0 dropped&#x3D;0,0,0,0</span><br><span class="line">     latency   : target&#x3D;0, window&#x3D;0, percentile&#x3D;100.00%, depth&#x3D;1</span><br><span class="line"></span><br><span class="line">Run status group 0 (all jobs):</span><br><span class="line">  WRITE: bw&#x3D;118KiB&#x2F;s (121kB&#x2F;s), 118KiB&#x2F;s-118KiB&#x2F;s (121kB&#x2F;s-121kB&#x2F;s), io&#x3D;7096KiB (7266kB), run&#x3D;60017-60017msec</span><br><span class="line"></span><br><span class="line">Disk stats (read&#x2F;write):</span><br><span class="line">  sde: ios&#x3D;0&#x2F;6772, merge&#x3D;0&#x2F;5288, ticks&#x3D;0&#x2F;79680, in_queue&#x3D;79702, util&#x3D;99.30%</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>分区不对齐时的性能</strong></li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br></pre></td><td class="code"><pre><span class="line"># parted &#x2F;dev&#x2F;sde</span><br><span class="line">GNU Parted 3.1</span><br><span class="line">Using &#x2F;dev&#x2F;sde</span><br><span class="line">Welcome to GNU Parted! Type &#39;help&#39; to view a list of commands.</span><br><span class="line">(parted) mklabel gpt</span><br><span class="line">Warning: The existing disk label on &#x2F;dev&#x2F;sde will be destroyed and all data on this disk will be lost. Do you want to continue?</span><br><span class="line">Yes&#x2F;No? Yes</span><br><span class="line">(parted) mkpart primary 131074k 50%</span><br><span class="line">Warning: The resulting partition is not properly aligned for best performance.</span><br><span class="line">Ignore&#x2F;Cancel? Ignore</span><br><span class="line">(parted) align-check opt 1</span><br><span class="line">1 not aligned</span><br><span class="line">(parted) quit</span><br><span class="line"></span><br><span class="line"># .&#x2F;fio job.write.part.4k</span><br><span class="line">seqwrite_job: (g&#x3D;0): rw&#x3D;write, bs&#x3D;(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine&#x3D;psync, iodepth&#x3D;1</span><br><span class="line">fio-3.14</span><br><span class="line">Starting 1 process</span><br><span class="line">Jobs: 1 (f&#x3D;1): [W(1)][100.0%][w&#x3D;160KiB&#x2F;s][w&#x3D;40 IOPS][eta 00m:00s]</span><br><span class="line">seqwrite_job: (groupid&#x3D;0, jobs&#x3D;1): err&#x3D; 0: pid&#x3D;170864: Tue Sep  3 21:58:13 2019</span><br><span class="line">  write: IOPS&#x3D;38, BW&#x3D;155KiB&#x2F;s (158kB&#x2F;s)(9280KiB&#x2F;60006msec)</span><br><span class="line">    clat (nsec): min&#x3D;6149, max&#x3D;59737, avg&#x3D;13039.31, stdev&#x3D;5751.16</span><br><span class="line">     lat (nsec): min&#x3D;6287, max&#x3D;60617, avg&#x3D;13552.40, stdev&#x3D;5942.20</span><br><span class="line">    clat percentiles (nsec):</span><br><span class="line">     |  1.00th&#x3D;[ 7136],  5.00th&#x3D;[ 7584], 10.00th&#x3D;[ 7648], 20.00th&#x3D;[ 7776],</span><br><span class="line">     | 30.00th&#x3D;[ 8096], 40.00th&#x3D;[ 8512], 50.00th&#x3D;[11200], 60.00th&#x3D;[16192],</span><br><span class="line">     | 70.00th&#x3D;[16320], 80.00th&#x3D;[17280], 90.00th&#x3D;[19328], 95.00th&#x3D;[22912],</span><br><span class="line">     | 99.00th&#x3D;[29312], 99.50th&#x3D;[33024], 99.90th&#x3D;[53504], 99.95th&#x3D;[59648],</span><br><span class="line">     | 99.99th&#x3D;[59648]</span><br><span class="line">   bw (  KiB&#x2F;s): min&#x3D;   48, max&#x3D;  160, per&#x3D;100.00%, avg&#x3D;154.61, stdev&#x3D;18.17, samples&#x3D;120</span><br><span class="line">   iops        : min&#x3D;   12, max&#x3D;   40, avg&#x3D;38.61, stdev&#x3D; 4.53, samples&#x3D;120</span><br><span class="line">  lat (usec)   : 10&#x3D;45.43%, 20&#x3D;44.83%, 50&#x3D;9.61%, 100&#x3D;0.13%</span><br><span class="line">  fsync&#x2F;fdatasync&#x2F;sync_file_range:</span><br><span class="line">    sync (msec): min&#x3D;8, max&#x3D;141, avg&#x3D;25.85, stdev&#x3D; 6.73</span><br><span class="line">    sync percentiles (msec):</span><br><span class="line">     |  1.00th&#x3D;[   26],  5.00th&#x3D;[   26], 10.00th&#x3D;[   26], 20.00th&#x3D;[   26],</span><br><span class="line">     | 30.00th&#x3D;[   26], 40.00th&#x3D;[   26], 50.00th&#x3D;[   26], 60.00th&#x3D;[   26],</span><br><span class="line">     | 70.00th&#x3D;[   26], 80.00th&#x3D;[   26], 90.00th&#x3D;[   26], 95.00th&#x3D;[   26],</span><br><span class="line">     | 99.00th&#x3D;[   75], 99.50th&#x3D;[   75], 99.90th&#x3D;[  101], 99.95th&#x3D;[  101],</span><br><span class="line">     | 99.99th&#x3D;[  142]</span><br><span class="line">  cpu          : usr&#x3D;0.03%, sys&#x3D;0.33%, ctx&#x3D;4640, majf&#x3D;0, minf&#x3D;34</span><br><span class="line">  IO depths    : 1&#x3D;200.0%, 2&#x3D;0.0%, 4&#x3D;0.0%, 8&#x3D;0.0%, 16&#x3D;0.0%, 32&#x3D;0.0%, &gt;&#x3D;64&#x3D;0.0%</span><br><span class="line">     submit    : 0&#x3D;0.0%, 4&#x3D;100.0%, 8&#x3D;0.0%, 16&#x3D;0.0%, 32&#x3D;0.0%, 64&#x3D;0.0%, &gt;&#x3D;64&#x3D;0.0%</span><br><span class="line">     complete  : 0&#x3D;0.0%, 4&#x3D;100.0%, 8&#x3D;0.0%, 16&#x3D;0.0%, 32&#x3D;0.0%, 64&#x3D;0.0%, &gt;&#x3D;64&#x3D;0.0%</span><br><span class="line">     issued rwts: total&#x3D;0,2320,0,2320 short&#x3D;0,0,0,0 dropped&#x3D;0,0,0,0</span><br><span class="line">     latency   : target&#x3D;0, window&#x3D;0, percentile&#x3D;100.00%, depth&#x3D;1</span><br><span class="line"></span><br><span class="line">Run status group 0 (all jobs):</span><br><span class="line">  WRITE: bw&#x3D;155KiB&#x2F;s (158kB&#x2F;s), 155KiB&#x2F;s-155KiB&#x2F;s (158kB&#x2F;s-158kB&#x2F;s), io&#x3D;9280KiB (9503kB), run&#x3D;60006-60006msec</span><br><span class="line"></span><br><span class="line">Disk stats (read&#x2F;write):</span><br><span class="line">  sde: ios&#x3D;52&#x2F;4631, merge&#x3D;0&#x2F;16212, ticks&#x3D;34&#x2F;59687, in_queue&#x3D;59734, util&#x3D;99.62%</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"># mkfs.ext4 &#x2F;dev&#x2F;sde1</span><br><span class="line"># mount &#x2F;dev&#x2F;sde1 &#x2F;mnt&#x2F;</span><br><span class="line"># .&#x2F;fio job.write.fs.4k</span><br><span class="line">seqwrite_job: (g&#x3D;0): rw&#x3D;write, bs&#x3D;(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine&#x3D;psync, iodepth&#x3D;1</span><br><span class="line">fio-3.14</span><br><span class="line">Starting 1 process</span><br><span class="line">seqwrite_job: Laying out IO file (1 file &#x2F; 102400MiB)</span><br><span class="line">Jobs: 1 (f&#x3D;1): [W(1)][100.0%][w&#x3D;44KiB&#x2F;s][w&#x3D;11 IOPS][eta 00m:00s]</span><br><span class="line">seqwrite_job: (groupid&#x3D;0, jobs&#x3D;1): err&#x3D; 0: pid&#x3D;171321: Tue Sep  3 22:00:11 2019</span><br><span class="line">  write: IOPS&#x3D;11, BW&#x3D;44.9KiB&#x2F;s (45.9kB&#x2F;s)(2692KiB&#x2F;60019msec)</span><br><span class="line">    clat (nsec): min&#x3D;10276, max&#x3D;68360, avg&#x3D;18524.63, stdev&#x3D;8076.31</span><br><span class="line">     lat (nsec): min&#x3D;10564, max&#x3D;69026, avg&#x3D;19006.17, stdev&#x3D;8237.92</span><br><span class="line">    clat percentiles (nsec):</span><br><span class="line">     |  1.00th&#x3D;[10816],  5.00th&#x3D;[11328], 10.00th&#x3D;[11712], 20.00th&#x3D;[12096],</span><br><span class="line">     | 30.00th&#x3D;[12224], 40.00th&#x3D;[12352], 50.00th&#x3D;[12736], 60.00th&#x3D;[23424],</span><br><span class="line">     | 70.00th&#x3D;[24448], 80.00th&#x3D;[24704], 90.00th&#x3D;[24960], 95.00th&#x3D;[30336],</span><br><span class="line">     | 99.00th&#x3D;[49408], 99.50th&#x3D;[60672], 99.90th&#x3D;[68096], 99.95th&#x3D;[68096],</span><br><span class="line">     | 99.99th&#x3D;[68096]</span><br><span class="line">   bw (  KiB&#x2F;s): min&#x3D;   16, max&#x3D;   56, per&#x3D;100.00%, avg&#x3D;44.77, stdev&#x3D; 5.01, samples&#x3D;120</span><br><span class="line">   iops        : min&#x3D;    4, max&#x3D;   14, avg&#x3D;11.12, stdev&#x3D; 1.28, samples&#x3D;120</span><br><span class="line">  lat (usec)   : 20&#x3D;54.83%, 50&#x3D;44.43%, 100&#x3D;0.74%</span><br><span class="line">  fsync&#x2F;fdatasync&#x2F;sync_file_range:</span><br><span class="line">    sync (msec): min&#x3D;74, max&#x3D;450, avg&#x3D;89.16, stdev&#x3D;20.00</span><br><span class="line">    sync percentiles (msec):</span><br><span class="line">     |  1.00th&#x3D;[   75],  5.00th&#x3D;[   75], 10.00th&#x3D;[   84], 20.00th&#x3D;[   84],</span><br><span class="line">     | 30.00th&#x3D;[   84], 40.00th&#x3D;[   84], 50.00th&#x3D;[   84], 60.00th&#x3D;[   84],</span><br><span class="line">     | 70.00th&#x3D;[   84], 80.00th&#x3D;[   84], 90.00th&#x3D;[  117], 95.00th&#x3D;[  117],</span><br><span class="line">     | 99.00th&#x3D;[  142], 99.50th&#x3D;[  159], 99.90th&#x3D;[  451], 99.95th&#x3D;[  451],</span><br><span class="line">     | 99.99th&#x3D;[  451]</span><br><span class="line">  cpu          : usr&#x3D;0.00%, sys&#x3D;0.11%, ctx&#x3D;1347, majf&#x3D;0, minf&#x3D;30</span><br><span class="line">  IO depths    : 1&#x3D;200.0%, 2&#x3D;0.0%, 4&#x3D;0.0%, 8&#x3D;0.0%, 16&#x3D;0.0%, 32&#x3D;0.0%, &gt;&#x3D;64&#x3D;0.0%</span><br><span class="line">     submit    : 0&#x3D;0.0%, 4&#x3D;100.0%, 8&#x3D;0.0%, 16&#x3D;0.0%, 32&#x3D;0.0%, 64&#x3D;0.0%, &gt;&#x3D;64&#x3D;0.0%</span><br><span class="line">     complete  : 0&#x3D;0.0%, 4&#x3D;100.0%, 8&#x3D;0.0%, 16&#x3D;0.0%, 32&#x3D;0.0%, 64&#x3D;0.0%, &gt;&#x3D;64&#x3D;0.0%</span><br><span class="line">     issued rwts: total&#x3D;0,673,0,673 short&#x3D;0,0,0,0 dropped&#x3D;0,0,0,0</span><br><span class="line">     latency   : target&#x3D;0, window&#x3D;0, percentile&#x3D;100.00%, depth&#x3D;1</span><br><span class="line"></span><br><span class="line">Run status group 0 (all jobs):</span><br><span class="line">  WRITE: bw&#x3D;44.9KiB&#x2F;s (45.9kB&#x2F;s), 44.9KiB&#x2F;s-44.9KiB&#x2F;s (45.9kB&#x2F;s-45.9kB&#x2F;s), io&#x3D;2692KiB (2757kB), run&#x3D;60019-60019msec</span><br><span class="line"></span><br><span class="line">Disk stats (read&#x2F;write):</span><br><span class="line">  sde: ios&#x3D;0&#x2F;2894, merge&#x3D;0&#x2F;3017, ticks&#x3D;0&#x2F;89696, in_queue&#x3D;89741, util&#x3D;99.68%</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>对比</strong></li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Aligned</th>
+<th>RawPartition or Filesystem</th>
+<th>BandWidth (KiB/s)</th>
+<th>IOPS</th>
+<th>Avg SyncLatency (ms)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Yes</td>
+<td>RawPartition</td>
+<td>480</td>
+<td>120</td>
+<td>8.4</td>
+</tr>
+<tr>
+<td>No</td>
+<td>RawPartition</td>
+<td>160</td>
+<td>40</td>
+<td>25.85</td>
+</tr>
+<tr>
+<td>Yes</td>
+<td>Filesystem</td>
+<td>132</td>
+<td>33</td>
+<td>33.81</td>
+</tr>
+<tr>
+<td>No</td>
+<td>Filesystem</td>
+<td>44</td>
+<td>11</td>
+<td>89.16</td>
+</tr>
+</tbody></table>
+<p>很明显，不对齐的时候，无论是裸分区还是文件系统，性能都降低至对齐的1/3。值得一提的是，测裸分区时，若使用ioengine=libaio, direct=1，则对齐与不对齐差别不大，原因是没强制sync，磁盘firmware可能对齐后再写到盘片。</p>
+<h1 id="小结-5"><a href="#小结-5" class="headerlink" title="小结 (5)"></a>小结 (5)</h1><p>在了解advanced format disks标准的时候，我们猜测512e磁盘在分区不对齐的情况下会有严重的性能损耗。然后，我们通过实验证实了这一猜想。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/disk/" rel="tag"># disk</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/08/28/linux-blktrace/" rel="prev" title="Linux blktrace">
+      <i class="fa fa-chevron-left"></i> Linux blktrace
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2019/09/06/megaraid/" rel="next" title="megaraid">
+      megaraid <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#4K%E6%89%87%E5%8C%BA-1"><span class="nav-number">1.</span> <span class="nav-text">4K扇区 (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%89%A9%E7%90%86%E6%89%87%E5%8C%BA%E5%92%8C%E9%80%BB%E8%BE%91%E6%89%87%E5%8C%BA-2"><span class="nav-number">2.</span> <span class="nav-text">物理扇区和逻辑扇区 (2)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#4K%E6%89%87%E5%8C%BA%E7%A3%81%E7%9B%98%E7%9A%84%E5%88%86%E7%B1%BB-3"><span class="nav-number">3.</span> <span class="nav-text">4K扇区磁盘的分类 (3)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#4K-native-3-1"><span class="nav-number">3.1.</span> <span class="nav-text">4K native (3.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#512e-3-2"><span class="nav-number">3.2.</span> <span class="nav-text">512e (3.2)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%88%86%E5%8C%BA%E5%AF%B9%E9%BD%90-4"><span class="nav-number">4.</span> <span class="nav-text">分区对齐 (4)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93-5"><span class="nav-number">5.</span> <span class="nav-text">小结 (5)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

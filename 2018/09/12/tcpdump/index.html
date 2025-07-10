@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="本文介绍抓包工具tcpdump在linux下的使用。Linux的tcpdump manual中包含许多选项以及复杂的filter表达式，我们工作中往往用不到这么多的选项和太复杂的filter。所以本文介绍一些常用的选项和filter规则，尽可能的通过一些例子来说明。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="tcpdump的使用">
+<meta property="og:url" content="http://yoursite.com/2018/09/12/tcpdump/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="本文介绍抓包工具tcpdump在linux下的使用。Linux的tcpdump manual中包含许多选项以及复杂的filter表达式，我们工作中往往用不到这么多的选项和太复杂的filter。所以本文介绍一些常用的选项和filter规则，尽可能的通过一些例子来说明。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2018-09-12T22:50:12.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.544Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="network">
+<meta property="article:tag" content="tcpdump">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2018/09/12/tcpdump/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>tcpdump的使用 | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/09/12/tcpdump/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          tcpdump的使用
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2018-09-12 22:50:12" itemprop="dateCreated datePublished" datetime="2018-09-12T22:50:12+00:00">2018-09-12</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2018/09/12/tcpdump/" class="post-meta-item leancloud_visitors" data-flag-title="tcpdump的使用" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2018/09/12/tcpdump/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2018/09/12/tcpdump/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>本文介绍抓包工具tcpdump在linux下的使用。Linux的tcpdump manual中包含许多选项以及复杂的filter表达式，我们工作中往往用不到这么多的选项和太复杂的filter。所以本文介绍一些常用的选项和filter规则，尽可能的通过一些例子来说明。</p>
+<a id="more"></a>
+
+<h1 id="常用选项-1"><a href="#常用选项-1" class="headerlink" title="常用选项 (1)"></a>常用选项 (1)</h1><h2 id="选择网络接口-1-1"><a href="#选择网络接口-1-1" class="headerlink" title="选择网络接口 (1.1)"></a>选择网络接口 (1.1)</h2><p>常用的是通过<code>-D</code>选项列出所有的网络接口，然后通过<code>-i</code>来选择网络接口进行抓包。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"># tcpdump -D</span><br><span class="line">1.bluetooth0 (Bluetooth adapter number 0)</span><br><span class="line">2.nflog (Linux netfilter log (NFLOG) interface)</span><br><span class="line">3.nfqueue (Linux netfilter queue (NFQUEUE) interface)</span><br><span class="line">4.usbmon1 (USB bus number 1)</span><br><span class="line">5.usbmon2 (USB bus number 2)</span><br><span class="line">6.eno16777736</span><br><span class="line">7.any (Pseudo-device that captures on all interfaces)</span><br><span class="line">8.lo</span><br><span class="line"></span><br><span class="line"># tcpdump -i 6 </span><br><span class="line">tcpdump: verbose output suppressed, use -v or -vv for full protocol decode</span><br><span class="line">listening on eno16777736, link-type EN10MB (Ethernet), capture size 65535 bytes</span><br><span class="line">21:58:42.249107 IP 192.168.221.100.ssh &gt; 192.168.221.1.64136: Flags [P.], seq 962061353:962061549, ack 63437321, win 313, options [nop,nop,TS val 4294759135 ecr 68900541], length 196</span><br><span class="line">21:58:42.249257 IP 192.168.221.1.64136 &gt; 192.168.221.100.ssh: Flags [.], ack 196, win 4089, options [nop,nop,TS val 68900689 ecr 4294759135], length 0</span><br></pre></td></tr></table></figure>
+
+<h2 id="读写文件-1-2"><a href="#读写文件-1-2" class="headerlink" title="读写文件 (1.2)"></a>读写文件 (1.2)</h2><p>默认情况下，tcpdump把抓到的包打印到标准输出(打印方式见1.3节)。我们还可以让tcpdump把抓到的包写入文件，文件名一般以.pcap结尾。pcap文件是二进制文件，还需要用tcpdump读取(也可以使用图形化工具wireshark打开)。涉及到的选项主要是<code>-w</code>和<code>-r</code>。<br><code>-w</code>: 抓包并写入指定的pcap文件，例如，<code>tcpdump -i 6 -w packs.pcap</code><br><code>-r</code>: 从指定的pcap文件读取包并处理，例如，<code>tcpdump -i 6 -r packs.pcap</code></p>
+<h2 id="打印选项-1-3"><a href="#打印选项-1-3" class="headerlink" title="打印选项 (1.3)"></a>打印选项 (1.3)</h2><p>最常用的打印选项是<code>-X</code>，以16进制和ASCII码两种方式打印抓到的包。另一个常用选项是<code>-A</code>，以ASCII码方式来打印。</p>
+<p>需要注意的是：</p>
+<ul>
+<li>打印的内容是从IP头开始的，不包括数据链路层的头部(Ethernet Header)；</li>
+<li>它们只是控制打印方式，和写入文件(<code>-w</code>选项)的格式无关。抓包并写入文件的时候没有必要指定打印方式，通过<code>-r</code>选项读文件的时候才需要；</li>
+</ul>
+<p><strong>抓包并打印</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"># tcpdump -i 6 -X &#39;icmp&#39;</span><br><span class="line">tcpdump: verbose output suppressed, use -v or -vv for full protocol decode</span><br><span class="line">listening on eno16777736, link-type EN10MB (Ethernet), capture size 65535 bytes</span><br><span class="line">22:03:09.829237 IP 192.168.221.1 &gt; 192.168.221.100: ICMP echo request, id 64280, seq 14, length 64</span><br><span class="line">    0x0000:  4500 0054 f154 0000 4001 4d9d c0a8 dd01  E..T.T..@.M.....</span><br><span class="line">    0x0010:  c0a8 dd64 0800 687e fb18 000e 5b9b bf9d  ...d..h~....[...</span><br><span class="line">    0x0020:  000c 8e12 0809 0a0b 0c0d 0e0f 1011 1213  ................</span><br><span class="line">    0x0030:  1415 1617 1819 1a1b 1c1d 1e1f 2021 2223  .............!&quot;#</span><br><span class="line">    0x0040:  2425 2627 2829 2a2b 2c2d 2e2f 3031 3233  $%&amp;&#39;()*+,-.&#x2F;0123</span><br><span class="line">    0x0050:  3435 3637                                4567</span><br><span class="line">22:03:09.829282 IP 192.168.221.100 &gt; 192.168.221.1: ICMP echo reply, id 64280, seq 14, length 64</span><br><span class="line">    0x0000:  4500 0054 97c5 0000 4001 a72c c0a8 dd64  E..T....@..,...d</span><br><span class="line">    0x0010:  c0a8 dd01 0000 707e fb18 000e 5b9b bf9d  ......p~....[...</span><br><span class="line">    0x0020:  000c 8e12 0809 0a0b 0c0d 0e0f 1011 1213  ................</span><br><span class="line">    0x0030:  1415 1617 1819 1a1b 1c1d 1e1f 2021 2223  .............!&quot;#</span><br><span class="line">    0x0040:  2425 2627 2829 2a2b 2c2d 2e2f 3031 3233  $%&amp;&#39;()*+,-.&#x2F;0123</span><br><span class="line">    0x0050:  3435 3637                                4567</span><br></pre></td></tr></table></figure>
+
+<p><strong>抓包并存入文件(无须指定打印方式)</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"># tcpdump -i 6 -w packs.pcap &#39;icmp&#39;</span><br><span class="line">tcpdump: listening on eno16777736, link-type EN10MB (Ethernet), capture size 65535 bytes</span><br><span class="line">^C2 packets captured</span><br><span class="line">2 packets received by filter</span><br><span class="line">0 packets dropped by kernel</span><br></pre></td></tr></table></figure>
+
+<p><strong>读取文件并以16进制和ASCII码打印</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"># tcpdump -i 6 -X -r packs.pcap</span><br><span class="line">reading from file packs.pcap, link-type EN10MB (Ethernet)</span><br><span class="line">22:10:48.020587 IP 192.168.221.1 &gt; 192.168.221.100: ICMP echo request, id 12057, seq 15, length 64</span><br><span class="line">    0x0000:  4500 0054 bc91 0000 4001 8260 c0a8 dd01  E..T....@..&#96;....</span><br><span class="line">    0x0010:  c0a8 dd64 0800 8767 2f19 000f 5b9b c168  ...d...g&#x2F;...[..h</span><br><span class="line">    0x0020:  0000 3969 0809 0a0b 0c0d 0e0f 1011 1213  ..9i............</span><br><span class="line">    0x0030:  1415 1617 1819 1a1b 1c1d 1e1f 2021 2223  .............!&quot;#</span><br><span class="line">    0x0040:  2425 2627 2829 2a2b 2c2d 2e2f 3031 3233  $%&amp;&#39;()*+,-.&#x2F;0123</span><br><span class="line">    0x0050:  3435 3637                                4567</span><br><span class="line">22:10:48.020631 IP 192.168.221.100 &gt; 192.168.221.1: ICMP echo reply, id 12057, seq 15, length 64</span><br><span class="line">    0x0000:  4500 0054 97f3 0000 4001 a6fe c0a8 dd64  E..T....@......d</span><br><span class="line">    0x0010:  c0a8 dd01 0000 8f67 2f19 000f 5b9b c168  .......g&#x2F;...[..h</span><br><span class="line">    0x0020:  0000 3969 0809 0a0b 0c0d 0e0f 1011 1213  ..9i............</span><br><span class="line">    0x0030:  1415 1617 1819 1a1b 1c1d 1e1f 2021 2223  .............!&quot;#</span><br><span class="line">    0x0040:  2425 2627 2829 2a2b 2c2d 2e2f 3031 3233  $%&amp;&#39;()*+,-.&#x2F;0123</span><br><span class="line">    0x0050:  3435 3637                                4567</span><br></pre></td></tr></table></figure>
+
+<p><strong>读取文件并以ASCII码打印</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"># tcpdump -i 6 -A -r packs.pcap</span><br><span class="line">reading from file packs.pcap, link-type EN10MB (Ethernet)</span><br><span class="line">22:10:48.020587 IP 192.168.221.1 &gt; 192.168.221.100: ICMP echo request, id 12057, seq 15, length 64</span><br><span class="line">E..T....@..&#96;.......d...g&#x2F;...[..h..9i.    </span><br><span class="line">.................. !&quot;#$%&amp;&#39;()*+,-.&#x2F;01234567</span><br><span class="line">22:10:48.020631 IP 192.168.221.100 &gt; 192.168.221.1: ICMP echo reply, id 12057, seq 15, length 64</span><br><span class="line">E..T....@......d.......g&#x2F;...[..h..9i.    </span><br><span class="line">.................. !&quot;#$%&amp;&#39;()*+,-.&#x2F;01234567</span><br></pre></td></tr></table></figure>
+
+<h2 id="抓包的长度-1-4"><a href="#抓包的长度-1-4" class="headerlink" title="抓包的长度 (1.4)"></a>抓包的长度 (1.4)</h2><p>Tcpdump抓包的长度有一个默认值，不同系统不同，有的是65535 bytes，有的是262,144 bytes。可以使用<code>-s</code>来指定长度。有几点需要注意：</p>
+<ul>
+<li><code>-s</code>指定的长度是写入pcap文件的包的长度。比如<code>-s 32</code>的情况下，写入pcap文件的包长度就是32 bytes，多余的部分被截断(假如原来包长度大于等于32 bytes)。</li>
+<li><code>-s</code>指定的长度是包括数据链路层的头部的。比如Ethernet的头是14字节。</li>
+<li>虽然<code>-s</code>的长度包含数据链路层的头部，但是，使用<code>-X</code>打印的时候却不包含；也就是说，你使用<code>-s 32</code>截取32字节，<code>-X</code>只打印出18字节。 </li>
+<li>数据包的长度大于<code>-s</code>指定的长度时，数据包就会被截断。一个数据包开头是Ethernet Header，接着是IP header，接着可能是TCP或者ICMP header……<code>-s</code>指定的值不同，被截断的位置也不同。tcpdump打印一个<code>[|proto]</code>来告诉你被截断的是什么协议；</li>
+<li>增大长度不但会增加包的处理时间，也会减少缓存的包的数量，这两个因素都可能造成丢包。所以，使用<code>-s</code>时，指定一个够用(包含所需信息)的值即可。</li>
+<li><code>-s</code>只能用于抓包时，不能读取包时。例如，抓包时使用<code>-s 32</code>来抓取前32 bytes；读包时使用<code>-s 16</code>来只读取前16 bytes是行不通的(还是会读取全部的32 bytes，<code>-s 16</code>好像被忽略)。反之抓取前16 bytes读取32 bytes更不可能行的通。</li>
+</ul>
+<p><strong>截断协议是ethernet</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"># tcpdump -i 6 -s 10 -w packs.pcap </span><br><span class="line">tcpdump: listening on eno16777736, link-type EN10MB (Ethernet), capture size 10 bytes</span><br><span class="line">^C6 packets captured</span><br><span class="line">9 packets received by filter</span><br><span class="line">0 packets dropped by kernel</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"># tcpdump -i 6 -X -r packs.pcap </span><br><span class="line">reading from file packs.pcap, link-type EN10MB (Ethernet)</span><br><span class="line">23:27:21.977928 [|ether]</span><br><span class="line">23:27:21.978135 [|ether]</span><br><span class="line">23:27:22.464298 [|ether]</span><br><span class="line">23:27:22.464341 [|ether]</span><br><span class="line">23:27:23.466692 [|ether]</span><br><span class="line">23:27:23.466738 [|ether]</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>首先，<code>[|ether]</code>告诉我们截断的是ethernet协议。</li>
+<li>其次，由于<code>-X</code>打印从IP头开始，而数据包从ethernet头就被截断了，所以，没有打印出任何数据。</li>
+</ul>
+<p><strong>截断协议是IP</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"># tcpdump -i 6 -s 32 -w packs.pcap </span><br><span class="line">tcpdump: listening on eno16777736, link-type EN10MB (Ethernet), capture size 32 bytes</span><br><span class="line">^C10 packets captured</span><br><span class="line">13 packets received by filter</span><br><span class="line">0 packets dropped by kernel</span><br><span class="line"></span><br><span class="line"># tcpdump -i 6 -X -r packs.pcap </span><br><span class="line">reading from file packs.pcap, link-type EN10MB (Ethernet)</span><br><span class="line">23:32:37.863628 IP [|ip]</span><br><span class="line">    0x0000:  4512 00b0 1df0 4000 4006 e08e c0a8 dd64  E.....@.@......d</span><br><span class="line">    0x0010:  c0a8                                     ..</span><br><span class="line">23:32:37.863970 IP [|ip]</span><br><span class="line">    0x0000:  4510 0034 0000 4000 4006 fefc c0a8 dd01  E..4..@.@.......</span><br><span class="line">    0x0010:  c0a8                                     ..</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>首先，<code>[|ip]</code>告诉我们截断的是IP协议。</li>
+<li>其次，<code>-s</code>指定的长度32 bytes包含Ethernet头14 bytes，而<code>-X</code>打印从IP头开始，所以只打印出18 bytes。</li>
+</ul>
+<p><strong>读取包时-s被忽略</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"># tcpdump -i 6 -s 32 -w packs1.pcap </span><br><span class="line">tcpdump: listening on eno16777736, link-type EN10MB (Ethernet), capture size 32 bytes</span><br><span class="line">^C3 packets captured</span><br><span class="line">3 packets received by filter</span><br><span class="line">0 packets dropped by kernel</span><br><span class="line"></span><br><span class="line"># tcpdump -i 6 -X -s 16 -r packs1.pcap </span><br><span class="line">reading from file packs1.pcap, link-type EN10MB (Ethernet)</span><br><span class="line">00:09:10.660424 IP [|ip]</span><br><span class="line">    0x0000:  4512 00b0 ddfb 4000 4006 2083 c0a8 dd64  E.....@.@......d</span><br><span class="line">    0x0010:  c0a8                                     ..</span><br><span class="line">00:09:10.660633 IP [|ip]</span><br><span class="line">    0x0000:  4510 0034 0000 4000 4006 fefc c0a8 dd01  E..4..@.@.......</span><br><span class="line">    0x0010:  c0a8                                     ..</span><br><span class="line">00:09:18.762511 IP [|ip]</span><br><span class="line">    0x0000:  4512 0058 0000 4000 4006 fed6 c0a8 dd01  E..X..@.@.......</span><br><span class="line">    0x0010:  c0a8                                     ..</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>读取包时我们指定<code>-s 16</code>没有起作用，否则应该只打印2 bytes(因为Ethernet头14 bytes)。而现在打印出18 bytes，加上Ethernet头14 bytes，其实就是抓包时指定的32 bytes。</p>
+<h2 id="host与port-1-5"><a href="#host与port-1-5" class="headerlink" title="host与port (1.5)"></a>host与port (1.5)</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">source host是192.168.30.180</span><br><span class="line"># tcpdump -i 1 -s 8192 src host 192.168.30.180 -w from.180.pcap</span><br><span class="line"></span><br><span class="line">destination host是192.168.30.181</span><br><span class="line"># tcpdump -i 1 -s 8192 dst host 192.168.30.181 -w to.181.pcap</span><br><span class="line"></span><br><span class="line">source host或destination host是192.168.30.180</span><br><span class="line"># tcpdump -i 1 -s 8192 host 192.168.30.180 -w to.from.180.pcap</span><br><span class="line"></span><br><span class="line">source port是1234</span><br><span class="line"># tcpdump -i 1 -s 8192 src port 1234 -w from.port.1234.pcap</span><br><span class="line"></span><br><span class="line">destination port是7890</span><br><span class="line"># tcpdump -i 1 -s 8192 dst port 7890 -w to.port.7890.pcap</span><br><span class="line"></span><br><span class="line">source port或destination port是7890</span><br><span class="line"># tcpdump -i 1 -s 8192 port 7890 -w to.from.port.7890.pcap</span><br><span class="line"></span><br><span class="line">这些条件可以用and连接起来：</span><br><span class="line"></span><br><span class="line">从192.168.30.180:1234到192.168.30.181:7890 (只抓单向的包)</span><br><span class="line"># tcpdump -i 1 -s 8192 src host 192.168.30.180 and src port 1234 and dst host 192.168.30.181 and dst port 7890 -w from.180.1234.to.181.7890.pcap</span><br><span class="line"></span><br><span class="line">通信的一端(source或destination)是192.168.30.181:7890 (抓双向的包)</span><br><span class="line"># tcpdump -i 1 -s 8192 host 192.168.30.181 and port 7890 -w to.from.181.7890.pcap</span><br></pre></td></tr></table></figure>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/network/" rel="tag"># network</a>
+              <a href="/tags/tcpdump/" rel="tag"># tcpdump</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2018/06/08/cpp17-template-meta-programming/" rel="prev" title="C++使用模版进行元编程">
+      <i class="fa fa-chevron-left"></i> C++使用模版进行元编程
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2018/11/11/go-vim-dev-environment/" rel="next" title="搭建vim的go开发环境">
+      搭建vim的go开发环境 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B8%B8%E7%94%A8%E9%80%89%E9%A1%B9-1"><span class="nav-number">1.</span> <span class="nav-text">常用选项 (1)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%80%89%E6%8B%A9%E7%BD%91%E7%BB%9C%E6%8E%A5%E5%8F%A3-1-1"><span class="nav-number">1.1.</span> <span class="nav-text">选择网络接口 (1.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AF%BB%E5%86%99%E6%96%87%E4%BB%B6-1-2"><span class="nav-number">1.2.</span> <span class="nav-text">读写文件 (1.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%89%93%E5%8D%B0%E9%80%89%E9%A1%B9-1-3"><span class="nav-number">1.3.</span> <span class="nav-text">打印选项 (1.3)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%8A%93%E5%8C%85%E7%9A%84%E9%95%BF%E5%BA%A6-1-4"><span class="nav-number">1.4.</span> <span class="nav-text">抓包的长度 (1.4)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#host%E4%B8%8Eport-1-5"><span class="nav-number">1.5.</span> <span class="nav-text">host与port (1.5)</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

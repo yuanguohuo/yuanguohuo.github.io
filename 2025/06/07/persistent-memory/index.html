@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="初识Persistent Memory，记录相关概念，编程模型，及一些初步测试。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Persistent Memory">
+<meta property="og:url" content="http://yoursite.com/2025/06/07/persistent-memory/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="初识Persistent Memory，记录相关概念，编程模型，及一些初步测试。">
+<meta property="og:locale">
+<meta property="og:image" content="http://yoursite.com/2025/06/07/persistent-memory/memory-storage-hierarchy.png">
+<meta property="og:image" content="http://yoursite.com/2025/06/07/persistent-memory/memory-storage-hiararchy-with-pmem.png">
+<meta property="og:image" content="http://yoursite.com/2025/06/07/persistent-memory/optane-pmem-vs-ssd.png">
+<meta property="og:image" content="http://yoursite.com/2025/06/07/persistent-memory/pmem-mode-mem-vs-appdirect.png">
+<meta property="og:image" content="http://yoursite.com/2025/06/07/persistent-memory/pmem-provisioning.png">
+<meta property="og:image" content="http://yoursite.com/2025/06/07/persistent-memory/pmem-programming-model.png">
+<meta property="og:image" content="http://yoursite.com/2025/06/07/persistent-memory/pmdk.png">
+<meta property="og:image" content="http://yoursite.com/2025/06/07/persistent-memory/pmemobj-tx-states.png">
+<meta property="article:published_time" content="2025-06-07T11:22:30.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.539Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="pmdk">
+<meta property="article:tag" content="pmem">
+<meta property="article:tag" content="scm">
+<meta property="article:tag" content="daos">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2025/06/07/persistent-memory/memory-storage-hierarchy.png">
+
+<link rel="canonical" href="http://yoursite.com/2025/06/07/persistent-memory/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>Persistent Memory | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2025/06/07/persistent-memory/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Persistent Memory
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2025-06-07 11:22:30" itemprop="dateCreated datePublished" datetime="2025-06-07T11:22:30+00:00">2025-06-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/daos/" itemprop="url" rel="index"><span itemprop="name">daos</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2025/06/07/persistent-memory/" class="post-meta-item leancloud_visitors" data-flag-title="Persistent Memory" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/06/07/persistent-memory/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/06/07/persistent-memory/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>初识Persistent Memory，记录相关概念，编程模型，及一些初步测试。</p>
+<a id="more"></a>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+
+<script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+<h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h1><p>过去几十年来，计算机系统一直采用如图1所示的内存-存储层级结构。这个层级结构利用了“局部性原理”，即把频繁访问的数据放在离CPU更近的地方，以提高性能。</p>
+<p><img src="memory-storage-hierarchy.png" alt="figure1"></p>
+<div style="text-align: center;"><em>图1</em></div>
+
+<p>然而，易失性内存（DRAM）和非易失性存储（如NAND SSD或硬盘）在容量、价格和速度方面未能跟上CPU的发展步伐，很快成为了系统和应用性能的瓶颈。</p>
+<p>持久内存（PMem, Persistent Memory），也被称为非易失性双列直插式内存模块（NVDIMM, Non-Volatile Dual In-line Memory Module）或存储级内存（SCM, Storage Class Memory），为内存-存储层级结构引入了一个新的层级，填补了传统内存与存储之间的性能和容量差距，如图2所示：</p>
+<p><img src="memory-storage-hiararchy-with-pmem.png" alt="figure2"></p>
+<div style="text-align: center;"><em>图2</em></div>
+
+<p>借助持久内存，应用程序现在有了一个新的数据存储层级。除了传统的内存和存储层级外，持久内存层级提供了比DRAM更大的容量，同时性能远超传统存储设备。应用程序可以像访问传统内存一样访问持久内存，从而无需再将数据在内存和存储之间来回分页传输，大大提升了效率。</p>
+<p>Intel® Optane™ Persistent Memory就是一个这样的产品。注意：区分Optane Persistent Memroy和Optane SSD；前者是本文的主题PMem，后者则是一款比传统NAND SSD性能更好的SSD（还是块存储，而非字节寻址的持久化内存）。它们的层级如图3所示。</p>
+<p><img src="optane-pmem-vs-ssd.png" alt="figure3"></p>
+<div style="text-align: center;"><em>图3</em></div>
+
+<h1 id="概念"><a href="#概念" class="headerlink" title="概念"></a>概念</h1><ul>
+<li>PMem模块的工作模式：这是PMem模块固件层面的工作方式。<ul>
+<li>Memory Mode：In Memory Mode, the installed Intel® Optane™ PMem modules act as main system memory, and <strong>the DRAM capacity becomes an extra level of cache</strong>. The CPU’s memory controller manages the persistent memory capacity. Although the media is natively persistent, data is always volatile in Memory mode by cryptographically erasing all the data during every system reboot. </li>
+<li>AppDirect Mode：PMem and DRAM DIMMs act as independent memory resources under direct load/store control of the application. This allows the PMem capacity to be used as byte-addressable persistent memory that is mapped into the System Physical Address (SPA) space and directly accessible by applications.</li>
+</ul>
+</li>
+</ul>
+<p><img src="pmem-mode-mem-vs-appdirect.png" alt="figure4"></p>
+<div style="text-align: center;"><em>图4</em></div>
+
+<ul>
+<li><p>Interleave-Set（交错集）：是指将多个PMem模块（DIMMs）组合成一个逻辑单元，数据以条带化（striping）的方式分布在这些模块上。其目的是通过并行访问多个模块，提高带宽和性能（类似于RAID 0）。同时也提供了更大的连续地址空间。<strong>注意</strong>：一个Interleave-Set通常由同一CPU Socket（NUMA节点）上的多个PMem模块组成，以避免跨NUMA访问延迟。Interleaving is a technique that allows spreading adjacent virtual addresses (within a page) across multiple memory devices. This hardware-level parallelism increases the available bandwidth from the devices. Interleave-Set是PMem模块固件层面的配置。</p>
+</li>
+<li><p>Region（区域）：是操作系统对Interleave-Set的表示，由内核在启动时根据ACPI NFIT表创建。一个Region对应一个Interleave-Set，反之亦然。待验证：AppDirectNotInterleaved模式下，一个PMmem（即一个Non-Interleave-Set）对应一个Region。</p>
+</li>
+<li><p>Direct Access (DAX)：DAX allows applications to directly access persistent media using memory-mapped files. Filesystems that support DAX include Linux ext4 and XFS, and Windows NTFS. These filesystems bypass the page cache, I/O subsystem and avoid interrupts and context switching, allowing the application to perform byte-addressable load/store memory operations. For PMem, this is the fastest and shortest path to stored data. Eliminating the I/O stack’s software overhead is essential to take advantage of persistent memory’s extremely low latencies and high bandwidth capabilities, which is critical for small and random I/O operations.</p>
+</li>
+<li><p>Namespace（命名空间）：Namespace是在Region之上划分的逻辑设备。一个Region可以划分为多个Namespace（类似于磁盘分区），也可以整个Region作为一个Namespace。Namespace是最终暴露给操作系统的设备（如<code>/dev/pmem0</code>），应用程序或文件系统可以直接使用这些设备。Namespaces are associated with AppDirect Mode only. <strong>Memory Mode没有Namespace一说</strong>。Namespace有不同的模式，决定了如何访问持久内存：</p>
+<ul>
+<li>fsdax（Filesystem DAX）：如上Direct Access所述。</li>
+<li>devdax（Device DAX）：Devcie DAX enables similar mmap(2) DAX mapping capabilities as Filesystem DAX. However, instead of a block-device that can support a DAX-enabled filesystem, this mode emits a single character device file (/dev/daxX.Y). Use this mode to assign PMem to a virtual-machine, register persistent memory for RDMA, or when gigantic mappings are needed. 将整个Namespace作为一个字符设备（如<code>/dev/dax0.0</code>）暴露，应用程序可以直接mmap这个设备，实现极低延迟的持久内存访问。</li>
+<li>sector：可以作为一个传统的块设备以及on块设备的文件系统，且这个文件系统不限制类型（任意文件系，不需要dax支持）。这种模式通常用于兼容旧系统或不支持DAX的文件系统。</li>
+<li>raw：当作一个内存盘（memory disk）直接访问，不支持DAX。</li>
+</ul>
+</li>
+<li><p>Label Storage Area（标签存储区）：PMem模块上的元数据存储区，位于PMem模块的保留区域（通常为256KB）。它存储模块的物理拓扑信息（DIMM 位置、容量），记录模块所属的Interleave-Set，Namespace配置，维护健康状态和故障域信息。标签存储区独立于主存储区，即使主存储区被重新配置，标签区也能保持配置信息。<strong>注意</strong>：标签存储区是PMem模块级别的，每个PMem模块都有自己的标签存储区。通过NFIT(NVDIMM Firmware Interface Table)暴露给操作系统，使用BTT(Block Translation Table)实现原子写。</p>
+</li>
+<li><p>Configuration Goal：配置PMem的模式，Memory Mode，AppDirect mode，或者部分Memory Mode，部分AppDirect Mode；对于AppDirect模式，还需要配置是否interleaving（AppDirect/AppDirectNotInterleaved）。可以通过BIOS配置，也可以通过ipmctl工具配置（ipmctl是Intel® Optane™的专属工具）。Goal配置存储在Label Storage Area中，for the BIOS to read on the next reboot. 重启之后，就自动配置好了Interleave-Set/Non-Interleave-Set和Region。</p>
+<ul>
+<li>AppDirect：一个Interleave-Set对应一个Region；这种模式下，只有一个PMem也会创建Interleave-Set；</li>
+<li>AppDirectNotInterleaved：一个PMmem（即一个Non-Interleave-Set）对应一个Region（待验证）；</li>
+</ul>
+</li>
+</ul>
+<p>随着DRAM空间的增大，AppDirect成为主要模式；在这种模式下，上述概念呈现如下图：</p>
+<p><img src="pmem-provisioning.png" alt="figure5"></p>
+<div style="text-align: center;"><em>图5</em></div>
+
+<h1 id="编程模型"><a href="#编程模型" class="headerlink" title="编程模型"></a>编程模型</h1><p>Both Windows and Linux support memory-mapped files, a feature that has been around for a long time but not commonly used. For persistent memory, the APIs for memory mapping files are very useful; in fact, they are at the heart of the persistent memory programming model published by the Storage Networking Industry Association (SNIA)。</p>
+<p>就是说，PMem主要依赖memory mapping API。对于Windows，创建mmap的接口是<code>CreateFileMapping</code>和<code>MapViewOfFile</code>，对于Linux则是<code>mmap</code>。内存映射创建好之后，the file appears in the address space of the application, allowing load/store access to the file contents。</p>
+<p>不过，为了兼容legacy applications（使用<code>open</code>, <code>read</code>, <code>write</code>接口），也可以把PMem当成高速块存储，有三种方式：</p>
+<ul>
+<li>Standard Raw Device Access：把PMem当成普通块存储，<code>open</code>裸的block设备，然后<code>read</code>, <code>write</code>, <code>fsync</code>；</li>
+<li>Standard File API + Non PMem-Aware Filesystem：把PMem当成块存储，创建Non-PMem-Aware Filesystem，然后<code>open</code>文件，并<code>read</code>, <code>write</code>, <code>fsync</code>；</li>
+<li>Standard File API + PMem-Aware Filesystem：还是把PMem当成块存储，但创建PMem-Aware Filesystem，然后<code>open</code>文件，并<code>read</code>, <code>write</code>, <code>fsync</code>(还需要吗?)；PMem-Aware Filesystem即支持DAX的文件系统(<code>mount</code>命令支持<code>-o dax</code>选项)，如Windows NTFS和Linux EXT4和XFS。DAX文件系统能够感知底层存储是PMem，进而bypass PageCache，直接读写底层PMem。</li>
+</ul>
+<p>这三种方式对应下图左侧深黄色区域（前两种）和右侧浅黄色区域的左半边（第三种）。它们的共同特点是通过Standard API（<code>open</code>, <code>read</code>, <code>write</code>, <code>fsync</code>）访问，原有application不用修改。并且原有application还是把PMem当作块来使用：如数据库，还是把内存中的数据序列化，然后存储到PMem。这和memory mapping方式截然不同。</p>
+<p><img src="pmem-programming-model.png" alt="figure6"></p>
+<div style="text-align: center;"><em>图6</em></div>
+
+<p>我们最感兴趣的还是SNIA推荐的memory mapping API（即上图中浅黄色区域的右半边）：把内存数据，不经过序列化，直接保存在PMem上。细分的话，又有两种模式：</p>
+<ul>
+<li>Memory Mapping API + PMem-Aware Filesystem：把PMem-Aware Filesystem中的文件映射到application的内存空间，然后直接以字节粒度访问。</li>
+<li>PMDK用户态库：跳过内核态文件系统（EXT4, XFS, NTFS），直接访问PMem (devdax namespace)；<a target="_blank" rel="noopener" href="https://pmem.io/blog/2014/09/nvm-library-overview/">NVM Library Overview</a>中介绍了PMDK的设计初衷与理念：不是<code>malloc()</code> and <code>free()</code> that allocates from the system’s pool of persistent memory（因为这样的接口不理解persistence，会导致persistent memory leak以及inconsistency），而是一个pmem-aware malloc() library；An application that wants to do things <strong>like</strong> <code>malloc()</code>, <code>free()</code>, and some sort of transactions may find the NVM Library useful（不是<code>malloc()</code>, <code>free()</code>但像它们，并且支持transaction）。</li>
+</ul>
+<h1 id="PMDK"><a href="#PMDK" class="headerlink" title="PMDK"></a>PMDK</h1><p>PMDK is a collection of open-source libraries and tools that are available today for both Linux and Windows.</p>
+<p><img src="pmdk.png" alt="figure7"></p>
+<div style="text-align: center;"><em>图7</em></div>
+
+<p>注意：上图已过时，目前PMDK已经把<code>libpmemblk</code>, <code>libpmemlog</code>, <code>librpmem</code>等库标记为deprecated；当前支持的库是：</p>
+<ul>
+<li>libpmem: provides low-level persistent memory support.</li>
+<li>libpmem2: provides low-level persistent memory support, is a new version of libpmem.</li>
+<li>libpmemobj: provides a transactional object store, providing memory allocation, transactions, and general facilities for persistent memory programming.</li>
+<li>libpmempool: provides support for off-line pool management and diagnostics.</li>
+</ul>
+<h2 id="libpmemobj"><a href="#libpmemobj" class="headerlink" title="libpmemobj"></a>libpmemobj</h2><h3 id="transaction"><a href="#transaction" class="headerlink" title="transaction"></a>transaction</h3><p><img src="pmemobj-tx-states.png" alt="figure8"></p>
+<div style="text-align: center;"><em>图8</em></div>
+
+<p>使用<code>pmemobj_tx_*</code>函数族编程可能比较复杂，为了便利，libpmemobj定义了几个宏，使得transaction编程有点像C++中的<code>try-cache-finally</code>（事实上，底层实现也很像，都是基于<code>setjmp/longjmp</code>实现）：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* TX_STAGE_NONE */</span></span><br><span class="line"></span><br><span class="line">TX_BEGIN(pop) &#123;</span><br><span class="line">    <span class="comment">/* TX_STAGE_WORK */</span></span><br><span class="line">&#125; TX_ONCOMMIT &#123;</span><br><span class="line">    <span class="comment">/* TX_STAGE_ONCOMMIT */</span></span><br><span class="line">&#125; TX_ONABORT &#123;</span><br><span class="line">    <span class="comment">/* TX_STAGE_ONABORT */</span></span><br><span class="line">&#125; TX_FINALLY &#123;</span><br><span class="line">    <span class="comment">/* TX_STAGE_FINALLY */</span></span><br><span class="line">&#125; TX_END</span><br><span class="line"></span><br><span class="line"><span class="comment">/* TX_STAGE_NONE */</span></span><br></pre></td></tr></table></figure>
+
+<p>这个结构看上去很清晰，不过要注意以下几点：</p>
+<p>第一，在<code>TX_BEGIN</code>之前就存在的，且在<code>TX_BEGIN/TX_END</code>之间修改的变量，尽量加<code>volatile</code>。因为底层实现机制是<code>setjmp/longjmp</code>。</p>
+<p>回顾<code>setjmp/longjmp</code>：非volatile变量的值可能在跳转后回滚到<code>setjmp</code>调用时的状态。这是由编译器优化和CPU寄存器恢复机制共同导致的。其根本原因在于，编译器会将频繁使用的局部变量存储在寄存器而非内存中，以加速访问（称为”寄存器分配”优化）；对于非volatile变量，编译器认为其值不会被外部机制改变，因此可以安全优化。而<code>setjmp</code>调用时会保存当前寄存器值到jmp_buf(对于x86架构：PC, SP, BP, EAX, EBX, …)；<code>longjmp</code>会强制恢复所有寄存器值到<code>setjmp</code>时的状态。所以，非volatile变量的值可能就被回滚了。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">int</span> counter = <span class="number">0</span>; <span class="comment">//非 volatile 变量</span></span><br><span class="line"><span class="keyword">if</span> (setjmp(env) == <span class="number">0</span>) &#123; <span class="comment">//从setjmp返回0；从longjmp返回非0；有点类似于fork；</span></span><br><span class="line">    counter++;</span><br><span class="line">    longjmp(env, <span class="number">1</span>);</span><br><span class="line">&#125; <span class="keyword">else</span> &#123; <span class="comment">//从longjmp返回</span></span><br><span class="line">    <span class="comment">//这里counter可能为0；</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>基于相同的原因，<code>TX_BEGIN/TX_END</code>之间修改的变量，尽量加<code>volatile</code>（除非它的值在longjmp之后没有意义）；</p>
+<p>第二，<code>TX_BEGIN/TX_END</code>结构可以嵌套。不过，这也给程序员留下一个坑：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">do_work</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">my_task</span> *<span class="title">task</span> = <span class="title">malloc</span>(<span class="title">sizeof</span> *<span class="title">task</span>);</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (task == <span class="literal">NULL</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    TX_BEGIN(pop) &#123;</span><br><span class="line">        <span class="comment">/* important work */</span></span><br><span class="line">        <span class="keyword">if</span> (some_error) &#123;</span><br><span class="line">            pmemobj_tx_abort(<span class="number">-1</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; TX_END</span><br><span class="line"></span><br><span class="line">    <span class="built_in">free</span>(task);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">TX_BEGIN(pop)</span><br><span class="line">    do_work();</span><br><span class="line">TX_END</span><br></pre></td></tr></table></figure>
+
+<p>这里存在内存泄露：当some_error发生时，<code>do_work</code>中的transaction会longjmp到外部transaction，跳过了<code>free(task)</code>，虽然程序上看，没有<code>longjmp</code>，也没有<code>throw excption</code>（这是C语言，本身也没有excption的概念）。底层大抵是这样：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (setjmp(env) == <span class="number">0</span>) &#123; <span class="comment">//外部TX_BEGIN</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (setjmp(env) == <span class="number">0</span>) &#123; <span class="comment">//内部TX_BEGIN</span></span><br><span class="line">        <span class="comment">/* important work */</span></span><br><span class="line">        <span class="keyword">if</span> (some_error) &#123;</span><br><span class="line">            longjmp(env);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123; <span class="comment">//内部transaction发生error；</span></span><br><span class="line">        longjmp(env); <span class="comment">//内部transaction处理error：回滚，继续跳转导致外围transaction感知到error；</span></span><br><span class="line">    &#125; <span class="comment">//内部TX_END</span></span><br><span class="line"></span><br><span class="line">    <span class="built_in">free</span>(task); <span class="comment">//不被调用，内存泄露</span></span><br><span class="line"></span><br><span class="line">&#125; <span class="keyword">else</span> &#123; <span class="comment">//外部transaction发生error；</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* 外部transaction处理error */</span></span><br><span class="line"></span><br><span class="line">&#125; <span class="comment">//外部TX_END</span></span><br></pre></td></tr></table></figure>
+
+<p>看上去是不是和C++的<code>try-cache</code>非常像？对，解决办法也一样：使用<code>TX_FINALLY</code>宏：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">do_work</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">my_task</span> *<span class="title">task</span> = <span class="title">malloc</span>(<span class="title">sizeof</span> *<span class="title">task</span>);</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (task == <span class="literal">NULL</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    TX_BEGIN(pop) &#123;</span><br><span class="line">        <span class="comment">/* important work */</span></span><br><span class="line">        <span class="keyword">if</span> (some_error) &#123;</span><br><span class="line">            pmemobj_tx_abort(<span class="number">-1</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; TX_FINALLY &#123;</span><br><span class="line">        <span class="built_in">free</span>(task);</span><br><span class="line">    &#125; TX_END</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">TX_BEGIN(pop)</span><br><span class="line">    do_work();</span><br><span class="line">TX_END</span><br></pre></td></tr></table></figure>
+
+<p>第三，transaction的原子性是通过undo-log实现的。函数<code>pmemobj_tx_add_range</code>和<code>pmemobj_tx_add_range_direct</code>就是用来生成undo-log的：当它们被调用时，会分配一个新对象并将对象的原值拷贝过去，这就是undo-log。若transaction commit，则undo-log就无用了，将被丢弃。否则transaction abort，则使用undo-log将对象恢复到trasaction之前的状态。</p>
+<h1 id="工具"><a href="#工具" class="headerlink" title="工具"></a>工具</h1><p>主要有两个：ipmctl和ndctl。两者的功能和特性有很大程度上的overlap，但它们的初衷不同。</p>
+<h2 id="ipmctl"><a href="#ipmctl" class="headerlink" title="ipmctl"></a>ipmctl</h2><ul>
+<li>Intel® Optane™ Only</li>
+<li>Linux, Windows, UEFI</li>
+<li>Manage Hardware Features:<ul>
+<li>Discover</li>
+<li>Config Memory or AppDirect mode</li>
+<li>View and Update Firmware</li>
+<li>Monitor Health</li>
+<li>Track Performance</li>
+<li>Debug and Trubleshoot</li>
+</ul>
+</li>
+</ul>
+<h2 id="ndctl"><a href="#ndctl" class="headerlink" title="ndctl"></a>ndctl</h2><ul>
+<li>Vendor Neutral</li>
+<li>Linux Only</li>
+<li>Manage Hardware Features and <strong>OS Features</strong><ul>
+<li>Show Module Information</li>
+<li>Manage Namespace and Config Labels</li>
+<li>Monitor Health</li>
+<li>Manage Security - Passphrases and Secure Erase</li>
+<li>Error Injection and Testing</li>
+</ul>
+</li>
+</ul>
+<h1 id="初识Optane-Persistent-Memory"><a href="#初识Optane-Persistent-Memory" class="headerlink" title="初识Optane Persistent Memory"></a>初识Optane Persistent Memory</h1><h2 id="发现"><a href="#发现" class="headerlink" title="发现"></a>发现</h2><p>Optane Persistent Memory物理形态为内存条（DIMM模块），而非PCIe扩展卡，通过DDR-T内存通道连接CPU。引用自<a target="_blank" rel="noopener" href="https://www.intel.com/content/www/us/en/developer/articles/technical/introduction-to-programming-with-persistent-memory-from-intel.html">Introduction to Programming with Intel® Optane™ DC Persistent Memory</a>：By connecting the media to the memory bus, the CPU can access the data directly, without any driver or PCIe overhead。操作系统通过ACPI NFIT表和内存映射I/O (MMIO)管理PMem，所以<code>lspci</code>看不到它。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># dmesg | egrep -i &#39;nfit|pmem|nvdimm&#39;</span><br><span class="line">[    0.031524] ACPI: NFIT 0x0000000067082000 0000D8 (v01 ALASKA A M I    00000002 INTL 20091013)</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"># ipmctl show -dimm</span><br><span class="line"></span><br><span class="line"> DimmID | Capacity    | LockState | HealthState | FWVersion</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"> 0x0011 | 126.742 GiB | Disabled  | Healthy     | 02.02.00.1553</span><br></pre></td></tr></table></figure>
+
+<p>由于没有创建Region，故<code>ndctl list -R</code>返回空：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"># ndctl list -R</span><br></pre></td></tr></table></figure>
+
+<p>不过，可以通过<code>ndctl list -D</code>显示：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"># ndctl list -D</span><br><span class="line">[</span><br><span class="line">  &#123;</span><br><span class="line">    &quot;dev&quot;:&quot;nmem0&quot;,</span><br><span class="line">    &quot;id&quot;:&quot;8089-a2-2116-00003917&quot;,</span><br><span class="line">    &quot;handle&quot;:17,</span><br><span class="line">    &quot;phys_id&quot;:25,</span><br><span class="line">    &quot;flag_failed_map&quot;:true</span><br><span class="line">  &#125;</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<h2 id="配置AppDirect-Mode"><a href="#配置AppDirect-Mode" class="headerlink" title="配置AppDirect Mode"></a>配置AppDirect Mode</h2><p>有个疑问：<code>ipmctl</code>显示<code>Healthy</code>但<code>ndctl list -D</code>显示<code>flag_failed_map:true</code>，这是因为未配置AppDirect模式。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"># ipmctl create -goal PersistentMemoryType&#x3D;AppDirect</span><br><span class="line"></span><br><span class="line">The following configuration will be applied:</span><br><span class="line"></span><br><span class="line"> SocketID | DimmID | MemorySize | AppDirect1Size | AppDirect2Size</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"> 0x0000   | 0x0011 | 0.000 GiB  | 126.000 GiB    | 0.000 GiB</span><br><span class="line"></span><br><span class="line">Do you want to continue? [y&#x2F;n] y</span><br><span class="line">Created following region configuration goal</span><br><span class="line"></span><br><span class="line"> SocketID | DimmID | MemorySize | AppDirect1Size | AppDirect2Size</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"> 0x0000   | 0x0011 | 0.000 GiB  | 126.000 GiB    | 0.000 GiB</span><br><span class="line"></span><br><span class="line">A reboot is required to process new memory allocation goals.</span><br><span class="line"></span><br><span class="line"># reboot</span><br></pre></td></tr></table></figure>
+
+<p>重启之后，<code>flag_failed_map:true</code>消失：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"># ndctl list -D</span><br><span class="line">[</span><br><span class="line">  &#123;</span><br><span class="line">    &quot;dev&quot;:&quot;nmem0&quot;,</span><br><span class="line">    &quot;id&quot;:&quot;8089-a2-2116-00003917&quot;,</span><br><span class="line">    &quot;handle&quot;:17,</span><br><span class="line">    &quot;phys_id&quot;:25</span><br><span class="line">  &#125;</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<p>并且可以使用<code>ndctl list -R</code>看到Region:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"># ndctl list -R</span><br><span class="line">[</span><br><span class="line">  &#123;</span><br><span class="line">    &quot;dev&quot;:&quot;region0&quot;,</span><br><span class="line">    &quot;size&quot;:135291469824,</span><br><span class="line">    &quot;available_size&quot;:135291469824,</span><br><span class="line">    &quot;max_available_extent&quot;:135291469824,</span><br><span class="line">    &quot;type&quot;:&quot;pmem&quot;,</span><br><span class="line">    &quot;iset_id&quot;:-5807432881699911134,</span><br><span class="line">    &quot;persistence_domain&quot;:&quot;memory_controller&quot;</span><br><span class="line">  &#125;</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<p>创建size为80G的<code>fsdax</code> Namespace。它是一个blockdev：<code>/dev/pmem0</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"># ndctl create-namespace --region&#x3D;region0 --mode&#x3D;fsdax --align&#x3D;2M --size&#x3D;$(echo 1024*1024*1024*80|bc)</span><br><span class="line">&#123;</span><br><span class="line">  &quot;dev&quot;:&quot;namespace0.0&quot;,</span><br><span class="line">  &quot;mode&quot;:&quot;fsdax&quot;,</span><br><span class="line">  &quot;map&quot;:&quot;dev&quot;,</span><br><span class="line">  &quot;size&quot;:&quot;78.75 GiB (84.56 GB)&quot;,</span><br><span class="line">  &quot;uuid&quot;:&quot;06da9bcc-c03e-48a0-8cb3-1ed7f2891284&quot;,</span><br><span class="line">  &quot;sector_size&quot;:512,</span><br><span class="line">  &quot;align&quot;:2097152,</span><br><span class="line">  &quot;blockdev&quot;:&quot;pmem0&quot;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"># ls -l &#x2F;dev&#x2F;pmem0</span><br><span class="line">brw-rw---- 1 root disk 259, 3 May 30 10:46 &#x2F;dev&#x2F;pmem0</span><br><span class="line"></span><br><span class="line"># cat &#x2F;proc&#x2F;partitions</span><br><span class="line">major minor  #blocks  name</span><br><span class="line">...   ...    ...      ...</span><br><span class="line">259   3      82573312 pmem0</span><br></pre></td></tr></table></figure>
+
+<p>创建size为10G的<code>devdax</code> Namespace。它是一个chardev：<code>/dev/dax0.4</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"># ndctl create-namespace --region&#x3D;region0 --mode&#x3D;devdax --align&#x3D;2M --size&#x3D;$(echo 1024*1024*1024*10|bc)</span><br><span class="line">&#123;</span><br><span class="line">  &quot;dev&quot;:&quot;namespace0.4&quot;,</span><br><span class="line">  &quot;mode&quot;:&quot;devdax&quot;,</span><br><span class="line">  &quot;map&quot;:&quot;dev&quot;,</span><br><span class="line">  &quot;size&quot;:&quot;9.84 GiB (10.57 GB)&quot;,</span><br><span class="line">  &quot;uuid&quot;:&quot;1d13f3f8-5ff4-42cb-9400-91210539de18&quot;,</span><br><span class="line">  &quot;daxregion&quot;:&#123;</span><br><span class="line">    &quot;id&quot;:0,</span><br><span class="line">    &quot;size&quot;:&quot;9.84 GiB (10.57 GB)&quot;,</span><br><span class="line">    &quot;align&quot;:2097152,</span><br><span class="line">    &quot;devices&quot;:[</span><br><span class="line">      &#123;</span><br><span class="line">        &quot;chardev&quot;:&quot;dax0.4&quot;,</span><br><span class="line">        &quot;size&quot;:&quot;9.84 GiB (10.57 GB)&quot;</span><br><span class="line">      &#125;</span><br><span class="line">    ]</span><br><span class="line">  &#125;,</span><br><span class="line">  &quot;align&quot;:2097152</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"># ls -l &#x2F;dev&#x2F;dax0.4</span><br><span class="line">crw------- 1 root root 250, 5 May 30 10:47 &#x2F;dev&#x2F;dax0.4</span><br></pre></td></tr></table></figure>
+
+<p>创建size为10G的<code>sector</code> Namespace。它是一个blockdev：<code>/dev/pmem0.1s</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"># ndctl create-namespace --region&#x3D;region0 --mode&#x3D;sector --size&#x3D;$(echo 1024*1024*1024*10|bc)</span><br><span class="line">&#123;</span><br><span class="line">  &quot;dev&quot;:&quot;namespace0.1&quot;,</span><br><span class="line">  &quot;mode&quot;:&quot;sector&quot;,</span><br><span class="line">  &quot;size&quot;:&quot;9.99 GiB (10.73 GB)&quot;,</span><br><span class="line">  &quot;uuid&quot;:&quot;afa29b2c-716c-472b-9c4d-41724b099bb3&quot;,</span><br><span class="line">  &quot;sector_size&quot;:4096,</span><br><span class="line">  &quot;blockdev&quot;:&quot;pmem0.1s&quot;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"># ls -l &#x2F;dev&#x2F;pmem0.1s</span><br><span class="line">brw-rw---- 1 root disk 259, 5 May 30 10:52 &#x2F;dev&#x2F;pmem0.1s</span><br><span class="line"></span><br><span class="line"># cat &#x2F;proc&#x2F;partitions</span><br><span class="line">major minor  #blocks  name</span><br><span class="line">...   ...    ...      ...</span><br><span class="line">259   5      10474476 pmem0.1s</span><br></pre></td></tr></table></figure>
+
+<p>创建size为10G的<code>raw</code> Namespace。它也是一个blockdev：<code>/dev/pmem0.2</code></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"># ndctl create-namespace --region&#x3D;region0 --mode&#x3D;raw --size&#x3D;$(echo 1024*1024*1024*10|bc)</span><br><span class="line">&#123;</span><br><span class="line">  &quot;dev&quot;:&quot;namespace0.2&quot;,</span><br><span class="line">  &quot;mode&quot;:&quot;raw&quot;,</span><br><span class="line">  &quot;size&quot;:&quot;10.00 GiB (10.74 GB)&quot;,</span><br><span class="line">  &quot;uuid&quot;:&quot;374c317e-648d-4d1e-823b-372ef9be3eb3&quot;,</span><br><span class="line">  &quot;sector_size&quot;:512,</span><br><span class="line">  &quot;blockdev&quot;:&quot;pmem0.2&quot;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"># ls -l &#x2F;dev&#x2F;pmem0.2</span><br><span class="line">brw-rw---- 1 root disk 259, 6 May 30 10:54 &#x2F;dev&#x2F;pmem0.2</span><br><span class="line"></span><br><span class="line">#cat &#x2F;proc&#x2F;partitions</span><br><span class="line">major minor  #blocks  name</span><br><span class="line">...   ...    ...      ...</span><br><span class="line">259   6      10485760 pmem0.2</span><br></pre></td></tr></table></figure>
+
+<p>使用<code>ndctl list -N</code>查看全部Namespace：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"># ndctl list -N</span><br><span class="line">[</span><br><span class="line">  &#123;</span><br><span class="line">    &quot;dev&quot;:&quot;namespace0.2&quot;,</span><br><span class="line">    &quot;mode&quot;:&quot;raw&quot;,</span><br><span class="line">    &quot;size&quot;:10737418240,</span><br><span class="line">    &quot;uuid&quot;:&quot;374c317e-648d-4d1e-823b-372ef9be3eb3&quot;,</span><br><span class="line">    &quot;sector_size&quot;:512,</span><br><span class="line">    &quot;blockdev&quot;:&quot;pmem0.2&quot;</span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    &quot;dev&quot;:&quot;namespace0.4&quot;,</span><br><span class="line">    &quot;mode&quot;:&quot;devdax&quot;,</span><br><span class="line">    &quot;map&quot;:&quot;dev&quot;,</span><br><span class="line">    &quot;size&quot;:10567548928,</span><br><span class="line">    &quot;uuid&quot;:&quot;1d13f3f8-5ff4-42cb-9400-91210539de18&quot;,</span><br><span class="line">    &quot;chardev&quot;:&quot;dax0.4&quot;,</span><br><span class="line">    &quot;align&quot;:2097152</span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    &quot;dev&quot;:&quot;namespace0.1&quot;,</span><br><span class="line">    &quot;mode&quot;:&quot;sector&quot;,</span><br><span class="line">    &quot;size&quot;:10725863424,</span><br><span class="line">    &quot;uuid&quot;:&quot;afa29b2c-716c-472b-9c4d-41724b099bb3&quot;,</span><br><span class="line">    &quot;sector_size&quot;:4096,</span><br><span class="line">    &quot;blockdev&quot;:&quot;pmem0.1s&quot;</span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    &quot;dev&quot;:&quot;namespace0.0&quot;,</span><br><span class="line">    &quot;mode&quot;:&quot;fsdax&quot;,</span><br><span class="line">    &quot;map&quot;:&quot;dev&quot;,</span><br><span class="line">    &quot;size&quot;:84555071488,</span><br><span class="line">    &quot;uuid&quot;:&quot;06da9bcc-c03e-48a0-8cb3-1ed7f2891284&quot;,</span><br><span class="line">    &quot;sector_size&quot;:512,</span><br><span class="line">    &quot;align&quot;:2097152,</span><br><span class="line">    &quot;blockdev&quot;:&quot;pmem0&quot;</span><br><span class="line">  &#125;</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<p>销毁namespace:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">for ns in namespace0.0 namespace0.1 namespace0.2 namespace0.4 ; do \</span><br><span class="line">      ndctl disable-namespace $ns ; \</span><br><span class="line">      ndctl destroy-namespace $ns ; \</span><br><span class="line">done</span><br></pre></td></tr></table></figure>
+
+<h2 id="配置Memory-Mode"><a href="#配置Memory-Mode" class="headerlink" title="配置Memory Mode"></a>配置Memory Mode</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"># free -g</span><br><span class="line">              total        used        free      shared  buff&#x2F;cache   available</span><br><span class="line">Mem:            503          18         479           0           5         480</span><br><span class="line">Swap:             0           0           0</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"># ipmctl create -goal MemoryMode&#x3D;100</span><br><span class="line"></span><br><span class="line">The following configuration will be applied:</span><br><span class="line"> SocketID | DimmID | MemorySize  | AppDirect1Size | AppDirect2Size</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"> 0x0000   | 0x0011 | 126.000 GiB | 0.000 GiB      | 0.000 GiB</span><br><span class="line"></span><br><span class="line">WARNING! The requested memory mode size is below the recommended NM:FM limit of 1:3.6</span><br><span class="line">Do you want to continue? [y&#x2F;n] y</span><br><span class="line"></span><br><span class="line">Created following region configuration goal</span><br><span class="line"> SocketID | DimmID | MemorySize  | AppDirect1Size | AppDirect2Size</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"> 0x0000   | 0x0011 | 126.000 GiB | 0.000 GiB      | 0.000 GiB</span><br><span class="line">A reboot is required to process new memory allocation goals.</span><br><span class="line"></span><br><span class="line"># reboot</span><br></pre></td></tr></table></figure>
+
+<p>按照<a target="_blank" rel="noopener" href="https://www.intel.com/content/www/us/en/developer/videos/provisioning-optane-dc-persistent-memory-modules-in-linux.html#tab-blade-1-1">Provisionin Intel® Optane™ DC Persistent Memory In Linux</a>的描述（视频第17分钟）：if any part of it (PMem) is configured in Memory Mode，then 100% of the DRAM in the system will becomes the cache …，并且，视频中的demo也展示了这一点，<code>free -g</code>看到的是PMem的空间大小；这也和前文Memory Mode概念处的描述一致。</p>
+<p>但在我的测试中，结果却不一致：重启之后内存仍是DRAM的空间</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"># free -g</span><br><span class="line">              total        used        free      shared  buff&#x2F;cache   available</span><br><span class="line">Mem:            503          16         484           0           1         482</span><br><span class="line">Swap:             0           0           0</span><br></pre></td></tr></table></figure>
+
+<p>原因在于PMem为inaccessible:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"># ipmctl show -memoryresources</span><br><span class="line"></span><br><span class="line"> MemoryType   | DDR         | PMemModule  | Total</span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"> Volatile     | 512.000 GiB | 0.000 GiB   | 512.000 GiB</span><br><span class="line"> AppDirect    | -           | 0.000 GiB   | 0.000 GiB</span><br><span class="line"> Cache        | 0.000 GiB   | -           | 0.000 GiB</span><br><span class="line"> Inaccessible | 0.000 GiB   | 126.742 GiB | 126.742 GiB</span><br><span class="line"> Physical     | 512.000 GiB | 126.742 GiB | 638.742 GiB</span><br></pre></td></tr></table></figure>
+
+<p>我们不会使用Memory Mode，暂不深入研究。</p>
+<h1 id="引用"><a href="#引用" class="headerlink" title="引用"></a>引用</h1><ol>
+<li><a target="_blank" rel="noopener" href="https://docs.pmem.io/persistent-memory/getting-started-guide/what-is-pmdk">PMDK Introduction</a></li>
+<li><a target="_blank" rel="noopener" href="https://pmem.io/blog/2014/09/nvm-library-overview/">NVM Library Overview</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.intel.com/content/www/us/en/developer/articles/technical/introduction-to-programming-with-persistent-memory-from-intel.html">Introduction to Programming with Intel® Optane™ DC Persistent Memory</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.intel.com/content/www/us/en/developer/videos/provisioning-optane-dc-persistent-memory-modules-in-linux.html#tab-blade-1-1">Provisionin Intel® Optane™ DC Persistent Memory In Linux</a></li>
+</ol>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/pmdk/" rel="tag"># pmdk</a>
+              <a href="/tags/pmem/" rel="tag"># pmem</a>
+              <a href="/tags/scm/" rel="tag"># scm</a>
+              <a href="/tags/daos/" rel="tag"># daos</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/03/08/llm-multi-head-attenion/" rel="prev" title="MultiHead Attention">
+      <i class="fa fa-chevron-left"></i> MultiHead Attention
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%AE%80%E4%BB%8B"><span class="nav-number">1.</span> <span class="nav-text">简介</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%A6%82%E5%BF%B5"><span class="nav-number">2.</span> <span class="nav-text">概念</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%BC%96%E7%A8%8B%E6%A8%A1%E5%9E%8B"><span class="nav-number">3.</span> <span class="nav-text">编程模型</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#PMDK"><span class="nav-number">4.</span> <span class="nav-text">PMDK</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#libpmemobj"><span class="nav-number">4.1.</span> <span class="nav-text">libpmemobj</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#transaction"><span class="nav-number">4.1.1.</span> <span class="nav-text">transaction</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B7%A5%E5%85%B7"><span class="nav-number">5.</span> <span class="nav-text">工具</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#ipmctl"><span class="nav-number">5.1.</span> <span class="nav-text">ipmctl</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ndctl"><span class="nav-number">5.2.</span> <span class="nav-text">ndctl</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%88%9D%E8%AF%86Optane-Persistent-Memory"><span class="nav-number">6.</span> <span class="nav-text">初识Optane Persistent Memory</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%91%E7%8E%B0"><span class="nav-number">6.1.</span> <span class="nav-text">发现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%85%8D%E7%BD%AEAppDirect-Mode"><span class="nav-number">6.2.</span> <span class="nav-text">配置AppDirect Mode</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%85%8D%E7%BD%AEMemory-Mode"><span class="nav-number">6.3.</span> <span class="nav-text">配置Memory Mode</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%BC%95%E7%94%A8"><span class="nav-number">7.</span> <span class="nav-text">引用</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

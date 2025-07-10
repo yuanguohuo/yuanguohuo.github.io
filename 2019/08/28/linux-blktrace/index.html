@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="iostat可以获取到特定device的IO请求信息，如read&#x2F;write数，合并数，request size，等待时间等。但这些都是基于device统计的，我们无法获取到基于IO的详细信息，特别是等待时间都花在哪里了？比如多少时间是在IO scheduler（device的queue）中排队，从发送到device driver到完成又是多少时间。blktrace可以提供这些信息。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Linux blktrace">
+<meta property="og:url" content="http://yoursite.com/2019/08/28/linux-blktrace/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="iostat可以获取到特定device的IO请求信息，如read&#x2F;write数，合并数，request size，等待时间等。但这些都是基于device统计的，我们无法获取到基于IO的详细信息，特别是等待时间都花在哪里了？比如多少时间是在IO scheduler（device的queue）中排队，从发送到device driver到完成又是多少时间。blktrace可以提供这些信息。">
+<meta property="og:locale">
+<meta property="og:image" content="http://yoursite.com/2019/08/28/linux-blktrace/io-flow.jpg">
+<meta property="og:image" content="http://yoursite.com/2019/08/28/linux-blktrace/blkparse-output-1.png">
+<meta property="og:image" content="http://yoursite.com/2019/08/28/linux-blktrace/blkparse-output-2.png">
+<meta property="og:image" content="http://yoursite.com/2019/08/28/linux-blktrace/blktrace-stags.jpg">
+<meta property="article:published_time" content="2019-08-28T20:48:12.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.512Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="io">
+<meta property="article:tag" content="blktrace">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2019/08/28/linux-blktrace/io-flow.jpg">
+
+<link rel="canonical" href="http://yoursite.com/2019/08/28/linux-blktrace/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>Linux blktrace | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/08/28/linux-blktrace/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Linux blktrace
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2019-08-28 20:48:12" itemprop="dateCreated datePublished" datetime="2019-08-28T20:48:12+00:00">2019-08-28</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/tracing/" itemprop="url" rel="index"><span itemprop="name">tracing</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2019/08/28/linux-blktrace/" class="post-meta-item leancloud_visitors" data-flag-title="Linux blktrace" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2019/08/28/linux-blktrace/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2019/08/28/linux-blktrace/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p><a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2019/08/17/linux-iostat/">iostat</a>可以获取到特定device的IO请求信息，如read/write数，合并数，request size，<strong>等待时间</strong>等。但这些都是基于device统计的，我们无法获取到基于IO的详细信息，特别是<strong>等待时间</strong>都花在哪里了？比如多少时间是在IO scheduler（device的queue）中排队，从发送到device driver到完成又是多少时间。blktrace可以提供这些信息。</p>
+<a id="more"></a>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+
+<script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+<h1 id="blktrace简介-1"><a href="#blktrace简介-1" class="headerlink" title="blktrace简介 (1)"></a>blktrace简介 (1)</h1><p>blktrace是block层的trace机制，它可以跟踪IO请求的生成、进入队列、发到driver以及完成等事件。blktrace包含3个组件：</p>
+<ul>
+<li>一个内核模块</li>
+<li>一个把内核模块跟踪到的IO信息导出到用户态的工具(blktrace命令)</li>
+<li>一些分析和展示IO信息的工具(blkparse, btt命令)</li>
+</ul>
+<p>所以广义的blktrace包含这3个部分，狭义的blktrace只是blktrace命令。本文介绍广义的blktrace：包括使用blktrace命令导出IO信息，然后使用blkparse和btt分析展示。blktrace命令通过 debug file system 从内核导出数据：</p>
+<ul>
+<li>blktrace从kernel接收数据并通过debug file system的buffer传递到用户态；debug file system默认是/sys/kernel/debug，可以使用blktrace命令的<code>-r</code>选项来覆盖。buffer的大小和数量默认分别是512KiB和4，可以通过<code>-b</code>和<code>-n</code>来覆盖。blktrace运行的的时候，可以看见debug file system里有一个block/{device}(默认是/sys/kernel/debug/block/{device})目录被创建出来，里面有一些trace{cpu}文件。</li>
+<li>blktrace默认地搜集所有trace到的事件，可以使用blktrace命令的<code>-a</code>选项来指定事件。</li>
+<li>blktrace把从内核接收到的数据写到当前目录，文件名为<code>&#123;device&#125;.blktrace.&#123;cpu&#125;</code>，内容是二进制数据（对于人来说是不可读的；blkparse用于解析这些二进制数据）。例如<code>blktrace -d /dev/sdc</code>会生成sdc.blktrace.0, sdc.blktrace.1, … sdc.blktrace.N-1个文件，N为cpu个数。也可使用<code>-o</code>选项来自定义<code>&#123;device&#125;</code>部分，这方便和blkparse结合使用：blktrace的<code>-o</code>参数对应blkparse的<code>-i</code>参数。</li>
+<li>blktrace默认地会一直运行，直到被<code>ctrl-C</code>停掉。可以使用<code>-w</code>选项来指定运行时间，单位是秒。</li>
+</ul>
+<p>blktrace会区分两类请求:</p>
+<ul>
+<li>文件系统请求(fs requests)：通常是用户态进程产生的，读写disk的特定位置和特定大小的数据。当然，也有可能由内核产生：flush脏页或sync文件系统的元数据(super block或journal block等)。</li>
+<li>SCSI命令(pc requests)：blktrace直接把SCSI命令发送到用户态，blkparse可以解析它。</li>
+</ul>
+<p>简单情况下，可以<strong>实时解析</strong>：一边导出IO事件，一边解析。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">blktrace -d &#x2F;dev&#x2F;sde -o - | blkparse -i -</span><br></pre></td></tr></table></figure>
+
+<p>更常见的是<strong>事后解析</strong>：先用blktrace把trace到的IO事件导出来保存在文件中，然后使用<code>blkparse</code>进行解析。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">blktrace -d &#x2F;dev&#x2F;sde</span><br><span class="line">blkparse -i sde </span><br></pre></td></tr></table></figure>
+
+<h1 id="IO流程与event-2"><a href="#IO流程与event-2" class="headerlink" title="IO流程与event (2)"></a>IO流程与event (2)</h1><p>一个IO可能发起于:</p>
+<ul>
+<li>Filesystem (PageCache)</li>
+<li>Application</li>
+<li>remap (md/dm). 这种情况，blktrace会trace到，并为IO生成一个A(remap)事件。</li>
+</ul>
+<p>IO发起之后，主要会经历以下阶段(事件)：</p>
+<ul>
+<li><code>Q</code>: queued. request尚未生成，只是queue到指定的位置(不清楚)。</li>
+<li><code>G</code>: get request. 分配一个<code>struct request</code>实例，生成request。</li>
+<li><code>I</code>: inserted. request被发送到IO scheduler（device的queue）。</li>
+<li><code>D</code>: issued. IO scheduler（device的queue）中的请求被发送到driver。</li>
+<li><code>C</code>: complete. 发送到driver中的请求已经完成了。这个事件会描述IO的初始sector和size(位置和大小)，以及是成功还是失败。</li>
+</ul>
+<p>首先，<code>Q-&gt;G</code>之间可能有一个S(sleep)阶段：</p>
+<ul>
+<li>S: sleep. 系统没有可用的<code>struct request</code>实例，所以需要等待别的实例被释放。</li>
+</ul>
+<p>其次，<code>G-&gt;I</code>之间可能有plug/unplug阶段。为了把小请求合成大请求以提高效率，linux在<code>struct task_struct</code>上维护一个plug队列。在plug状态（即堵住队列出口）下，该进程的发起请求进入这个队列，以期望在此得到合并（和device的队列一样）。在unplug的时候，再把这个队列中的请求（可能是合并后的大请求）移到IO scheduler（device的queue）。因为plug队列是per-process的，所以请求入队时不需要锁。也就是说，plug/unplug机制是在per-process的队列上，进行一个merge尝试；因为无需加锁，效率更高。具体见<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2019/10/04/linux-block-layer-plug-unplug/">block layer的plug和unplug</a>。</p>
+<ul>
+<li>P: plug. plug开始。1. 进程进入plug状态后，第一个请求到来时；2. 当前plug队列长度已达到最大，flush它，然后开始新的plug时；</li>
+<li>U: unplug. flush plug队列。</li>
+</ul>
+<p>一个细节：这两个事件并不是per-request的，而是进程开始plug和结束plug的事件。所以，它们对于分析request的延迟等并不重要。</p>
+<p>其次，<code>S-G-&gt;P-&gt;U-&gt;I</code>这一过程可能被merge取代，也就是说，请求不是作为一个独立的<code>struct request</code>进入IO scheduler（device的queue），而是合并到IO scheduler中的某个<code>struct request</code>中；在这种情况下，不用分配<code>struct request</code>实例。</p>
+<ul>
+<li>M: back merge. 当前请求被合并到IO scheduler（device的queue）中的某个请求之后。</li>
+<li>F: front merge. 当前请求被合并到IO scheduler（device的queue）中的某个请求之前。</li>
+</ul>
+<p>下图粗略显示一个IO的流程：</p>
+<img src="/2019/08/28/linux-blktrace/io-flow.jpg" class="" title="io-flow-chart">
+
+<p>左边比较详细，其中灰色的阶段（事件）可能经历也可能不经历（多数情况不经历）；而红色和绿色阶段（事件）是多种可能，且最可能是绿色。按照进入IO scheduler（device的queue）方式，可以分成两个路径：</p>
+<ul>
+<li>Q-&gt;G-&gt;I-&gt;D: 请求作为独立的request进入IO scheduler（device的queue）。这里忽略一些细节，比如请求可能没有经历<code>G-&gt;I</code>而是合并到plug队列；因为plug/unplug事件不是per-request的，我们不考虑plug/unplug细节，而把这个路径简化为：分配<code>struct request</code>，然后insert到IO scheduler（device的queue）。</li>
+<li>Q-&gt;M-&gt;D：请求直接合并到一个已经存在于IO scheduler（device的queue）的request中。</li>
+</ul>
+<p>右边是一个简化流程，也是典型流程：没有合并，没有可选阶段，是我们工作中最常见的情况。</p>
+<h1 id="使用blktrace导出原始数据-3"><a href="#使用blktrace导出原始数据-3" class="headerlink" title="使用blktrace导出原始数据 (3)"></a>使用blktrace导出原始数据 (3)</h1><p>如前所述，运行blktrace可以导出内核组件trace到的IO events，并把信息写到当前目录下。常用的选项有：</p>
+<ul>
+<li><code>-d</code>: 指定被trace的device。</li>
+<li><code>-o</code>: 指定生成文件名<code>&#123;device&#125;.blktrace.&#123;cpu&#125;</code>的<code>&#123;device&#125;</code>部分。不指定时，默认为形如<code>sda</code>,<code>sdb</code>的设备名。这个通常用于和blkparse配合使用：1. <strong>实时解析</strong>：blktrace的<code>-o</code>选项为<code>-</code>，blkparse的<code>-i</code>选项也为<code>-</code>；2. <strong>事后解析</strong>：blktrace的<code>-o</code>选项为<code>x</code>，blkparse的<code>-i</code>选项也必须为<code>x</code>(若blktrace不指定<code>-o</code>选项，则使用默认的形如<code>sda</code>的设备名，此时blkparse的<code>-i</code>选项也必须是形如<code>sda</code>的设备名)。另外，可以使用多个<code>-d</code>选项来同时trace多个device，在这种情况下，<code>-o</code>无法使用（会报错）；然而，通常情况下，我们也不会同时trace多个device。</li>
+<li><code>-a</code>: mask，也就是让blktrace只trace指定的IO。</li>
+<li><code>-w</code>: 运行时间，单位是秒。若不指定，一直运行，直到被Ctrl-C停止。</li>
+</ul>
+<p>支持的mask有：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">barrier: barrier attribute</span><br><span class="line">complete: completed by driver</span><br><span class="line">fs: requests</span><br><span class="line">issue: issued to driver</span><br><span class="line">pc: packet command events</span><br><span class="line">queue: queue operations</span><br><span class="line">read: read traces</span><br><span class="line">requeue: requeue operations</span><br><span class="line">sync: synchronous attribute</span><br><span class="line">write: write traces</span><br><span class="line">notify: trace messages</span><br><span class="line">drv_data: additional driver specific trace</span><br></pre></td></tr></table></figure>
+
+<p>例如，<code>-a write</code>过滤写事件；<code>-a sync</code>过滤sync事件。多个<code>-a</code>选项是<strong>逻辑与</strong>的关系。一般情况下，blktrace不用指定mask，而是把所有的事件都trace下来。blkparse有同样的<code>-a</code>选项，可以使用它来指定只解析某些事件，这可以提供更大的灵活性：trace时把全信息保存下来，然后通过mask按需解析不同事件。当然，影响性能的时候除外。所以，通常在<strong>事后处理</strong>模式下，只需<code>-d</code>和<code>-w</code>选项，例如，在一个32核的服务器上trace设备/dev/sde：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"># blktrace -d &#x2F;dev&#x2F;sde -w 60</span><br><span class="line"></span><br><span class="line"># ll -h</span><br><span class="line">total 3.7M</span><br><span class="line">-rw-r--r-- 1 root root    0 Aug 30 11:19 sde.blktrace.0</span><br><span class="line">-rw-r--r-- 1 root root  472 Aug 30 11:19 sde.blktrace.1</span><br><span class="line">-rw-r--r-- 1 root root    0 Aug 30 11:19 sde.blktrace.10</span><br><span class="line">-rw-r--r-- 1 root root    0 Aug 30 11:19 sde.blktrace.11</span><br><span class="line">...</span><br><span class="line">-rw-r--r-- 1 root root    0 Aug 30 11:19 sde.blktrace.19</span><br><span class="line">-rw-r--r-- 1 root root 620K Aug 30 11:19 sde.blktrace.2</span><br><span class="line">-rw-r--r-- 1 root root 621K Aug 30 11:19 sde.blktrace.20</span><br><span class="line">-rw-r--r-- 1 root root  472 Aug 30 11:19 sde.blktrace.21</span><br><span class="line">...</span><br><span class="line">-rw-r--r-- 1 root root    0 Aug 30 11:19 sde.blktrace.29</span><br><span class="line">-rw-r--r-- 1 root root  360 Aug 30 11:19 sde.blktrace.3</span><br><span class="line">-rw-r--r-- 1 root root    0 Aug 30 11:19 sde.blktrace.30</span><br><span class="line">-rw-r--r-- 1 root root    0 Aug 30 11:19 sde.blktrace.31</span><br><span class="line">-rw-r--r-- 1 root root 620K Aug 30 11:19 sde.blktrace.4</span><br><span class="line">...</span><br><span class="line">-rw-r--r-- 1 root root    0 Aug 30 11:19 sde.blktrace.9</span><br></pre></td></tr></table></figure>
+
+<h1 id="使用blkparse分析数据-4"><a href="#使用blkparse分析数据-4" class="headerlink" title="使用blkparse分析数据 (4)"></a>使用blkparse分析数据 (4)</h1><p>blktrace导出的信息是二进制的不可读的，需要blkparse来解析。</p>
+<p>blkparse的输出包含两个部分：1. IO事件；2. summary</p>
+<ul>
+<li><strong>IO事件</strong></li>
+</ul>
+<img src="/2019/08/28/linux-blktrace/blkparse-output-1.png" class="" title="io events">
+
+
+<ul>
+<li>第1列：<code>8,0</code>是设备号，major和minor；</li>
+<li>第2列：<code>3</code>是cpuid；</li>
+<li>第3列：<code>11</code>是序列号；</li>
+<li>第4列：<code>0.009507758</code>是时间偏移；</li>
+<li>第5列：<code>697</code>是发起IO的进程的PID；</li>
+<li>第6列：<code>C</code>是Event，见第2节；</li>
+<li>第7列：R:Read; W:Write; D:Block; B:Barrier-Operation; S:Sync; N:Notify(比较新的内核才有，比如linux kernel 3.10)；</li>
+<li>第8列：<code>223490 + 56</code>是IO的起始sector号和读写的sector数；即offset和size；</li>
+<li>第9列：<code>kjournald</code>是进程名；</li>
+</ul>
+<p>其实这是默认输出格式，我们也可以通过<code>-f</code>选项自定义其格式(类似于<code>date</code>命令自定义日期时间格式)：<code>%M</code>是major设备号；<code>%m</code>是minor设备号；<code>%c</code>表示cpuid；<code>%s</code>表示序列号；<code>%T</code>表示时间(秒)；<code>%t</code>表示时间(纳秒)；<code>%P</code>是进程PID；<code>%a</code>是事件；等等，详见<code>man blkparse</code>。</p>
+<ul>
+<li><strong>Summary</strong></li>
+</ul>
+<p>Summary包括CPU和device两个维度:</p>
+<img src="/2019/08/28/linux-blktrace/blkparse-output-2.png" class="" title="blkparse output">
+
+<p>其中对于每个CPU或者对于Total：</p>
+<ul>
+<li>Writes Queued：trace时间内，Q(queue)的requests个数；</li>
+<li>Writes Requeued：trace时间内，requeue数。requeue可能来自于multi-layer？</li>
+<li>Write Dispatches：trace时间内，block layer发送到driver的requests数；</li>
+<li>Write Merges：trace时间内，merge的requests数；</li>
+<li>Writes Completed：trace时间内，完成的requests数；</li>
+<li>Timer unplugs：超时导致的unplug数？</li>
+</ul>
+<p>$Writes Queued$与$Writes Requeued$之和是trace时间内block layer接收的requests总数（incomming requests）。$Write Dispatches$和$Write Merges$之和是trace时间内block layer发出的（到driver）requests数（outgoing requests）。进等于出，所以：</p>
+<p>$$ Writes Queued + Writes Requeued = Write Dispatches + Write Merges $$</p>
+<p>$Write Dispatches$是block layer发送到driver的requests数，但不是所有发送到driver的都完成了，其中有一部分被requeue了，即：</p>
+<p>$$ Write Dispatches = Writes Completed + Writes Requeued $$</p>
+<p><strong>例1</strong>：把/dev/sde(设备号:8,64)整个盘格式化成ext4，挂载到/mnt并使用fio写/mnt/fio-test-file (rw=randwrite ioengine=psync bs=4k fsync=1)，同时trace /dev/sde</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line"># blktrace -d &#x2F;dev&#x2F;sde -w 60</span><br><span class="line"></span><br><span class="line"># blkparse -i sde</span><br><span class="line"></span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">  8,64  11     2944    33.779658276 90790  Q   W 7614344 + 24 [fio]</span><br><span class="line">  8,64  11     2945    33.779659493 90790  G   W 7614344 + 24 [fio]</span><br><span class="line">  8,64  11     2946    33.779660124 90790  P   N [fio]</span><br><span class="line">  8,64  11     2947    33.779661287 90790  I   W 7614344 + 24 [fio]</span><br><span class="line">  8,64  11     2948    33.779661791 90790  U   N [fio] 1</span><br><span class="line">  8,64  11     2949    33.779662409 90790  D   W 7614344 + 24 [fio]</span><br><span class="line">  8,64  11     2950    33.791580458     0  C   W 7614344 + 24 [0]</span><br><span class="line">  8,64  11     2951    33.791608964 90790  Q  WS 7614368 + 8 [fio]</span><br><span class="line">  8,64  11     2952    33.791609940 90790  G  WS 7614368 + 8 [fio]</span><br><span class="line">  8,64  11     2953    33.791610381 90790  P   N [fio]</span><br><span class="line">  8,64  11     2954    33.791611867 90790  I  WS 7614368 + 8 [fio]</span><br><span class="line">  8,64  11     2955    33.791612372 90790  U   N [fio] 1</span><br><span class="line">  8,64  11     2956    33.791612977 90790  D  WS 7614368 + 8 [fio]</span><br><span class="line">  8,64  11     2957    33.799933777     0  C  WS 7614368 + 8 [0]</span><br><span class="line">  8,64  13     5709    33.799963426 90708  Q  WS 3905206216 + 8 [jbd2&#x2F;sde-8]</span><br><span class="line">  8,64  13     5710    33.799964662 90708  G  WS 3905206216 + 8 [jbd2&#x2F;sde-8]</span><br><span class="line">  8,64  13     5711    33.799965100 90708  P   N [jbd2&#x2F;sde-8]</span><br><span class="line">  8,64  13     5712    33.799965942 90708  Q  WS 3905206224 + 8 [jbd2&#x2F;sde-8]</span><br><span class="line">  8,64  13     5713    33.799966423 90708  M  WS 3905206224 + 8 [jbd2&#x2F;sde-8]</span><br><span class="line">  8,64  13     5714    33.799967148 90708  Q  WS 3905206232 + 8 [jbd2&#x2F;sde-8]</span><br><span class="line"></span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">CPU8 (sde):</span><br><span class="line"> Reads Queued:           0,        0KiB  Writes Queued:         195,   29,228KiB</span><br><span class="line"> Read Dispatches:        0,        0KiB  Write Dispatches:      170,   29,228KiB</span><br><span class="line"> Reads Requeued:         0               Writes Requeued:         0</span><br><span class="line"> Reads Completed:        0,        0KiB  Writes Completed:      170,   29,228KiB</span><br><span class="line"> Read Merges:            0,        0KiB  Write Merges:           25,      100KiB</span><br><span class="line"> Read depth:             0               Write depth:            20</span><br><span class="line"> IO unplugs:           104               Timer unplugs:           0</span><br><span class="line">CPU9 (sde):</span><br><span class="line"> Reads Queued:           0,        0KiB  Writes Queued:         991,   16,156KiB</span><br><span class="line"> Read Dispatches:        0,        0KiB  Write Dispatches:      574,   16,156KiB</span><br><span class="line"> Reads Requeued:         0               Writes Requeued:         0</span><br><span class="line"> Reads Completed:        0,        0KiB  Writes Completed:      574,   16,156KiB</span><br><span class="line"> Read Merges:            0,        0KiB  Write Merges:          417,    1,668KiB</span><br><span class="line"> Read depth:             0               Write depth:            20</span><br><span class="line"> IO unplugs:           346               Timer unplugs:           0</span><br><span class="line">......</span><br><span class="line">Total (sde):</span><br><span class="line"> Reads Queued:           0,        0KiB  Writes Queued:       8,763,  352,192KiB</span><br><span class="line"> Read Dispatches:        0,        0KiB  Write Dispatches:    5,380,  352,192KiB</span><br><span class="line"> Reads Requeued:         0               Writes Requeued:         0</span><br><span class="line"> Reads Completed:        0,        0KiB  Writes Completed:    5,380,  352,196KiB</span><br><span class="line"> Read Merges:            0,        0KiB  Write Merges:        3,383,   13,532KiB</span><br><span class="line"> IO unplugs:         3,092               Timer unplugs:           0</span><br><span class="line"></span><br><span class="line">Throughput (R&#x2F;W): 0KiB&#x2F;s &#x2F; 5,872KiB&#x2F;s</span><br><span class="line">Events (sde): 39,850 entries</span><br><span class="line">Skips: 0 forward (0 -   0.0%)</span><br></pre></td></tr></table></figure>
+
+<p>我们尝试把一个特定request的事件给找出来(grep一个特定的起始sector号，而不是grep一个序列号):</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"># blkparse -i sde | grep -w 7614368</span><br><span class="line">  8,64  11     2951    33.791608964 90790  Q  WS 7614368 + 8 [fio]</span><br><span class="line">  8,64  11     2952    33.791609940 90790  G  WS 7614368 + 8 [fio]</span><br><span class="line">  8,64  11     2954    33.791611867 90790  I  WS 7614368 + 8 [fio]</span><br><span class="line">  8,64  11     2956    33.791612977 90790  D  WS 7614368 + 8 [fio]</span><br><span class="line">  8,64  11     2957    33.799933777     0  C  WS 7614368 + 8 [0]</span><br></pre></td></tr></table></figure>
+
+<p>这是一个Write+Sync请求，起始sector是7614368，大小是8个secotr(即4k)。它是一个典型的request：经历了<code>Q-&gt;G-&gt;I-&gt;D-C</code>几个阶段，总耗时：33.799933777-33.791608964 = 8324813纳秒 = 8.3毫秒。</p>
+<p>Summary部分的Total(sde)：</p>
+<ul>
+<li>$$ Incomming Requests = Writes Queued + Writes Requeued = 8763 + 0 = 8763 $$</li>
+<li>$$ Outgoing Requests = Write Dispatches + Write Merges = 5380 + 3383 = 8763 $$</li>
+</ul>
+<p>另外，可以看到各个read指标都为0，因为fio全是写操作且大小和文件系统block对齐。可以对比还是全写操作但bs=5k(不再和文件系统block对齐)的情形，这时候read指标就不为0了，因为不对齐，文件系统需要把部分修改的block读出来，修改然后再写回去。</p>
+<p><strong>例2</strong>：把/dev/sde(设备号:8,64)分区并把/dev/sde2(设备号:8,66)格式化成ext4，挂载到/mnt并使用fio写/mnt/fio-test-file (rw=randwrite ioengine=psync bs=4k fsync=1)，同时还是trace /dev/sde：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"># blktrace -d &#x2F;dev&#x2F;sde -w 60</span><br><span class="line"># blkparse -i sde</span><br><span class="line"></span><br><span class="line">  8,64  14     1000    21.217022761 96519  D  WS 5857775072 + 8 [jbd2&#x2F;sde2-8]</span><br><span class="line">  8,64  14     1001    21.225342198     0  C  WS 5857775072 + 8 [0]</span><br><span class="line">  8,64  20     1160    21.225404128 98523  A  WS 3927579616 + 8 &lt;- (8,66) 20560864</span><br><span class="line">  8,64  20     1161    21.225405121 98523  Q  WS 3927579616 + 8 [fio]</span><br><span class="line">  8,64  20     1162    21.225407092 98523  G  WS 3927579616 + 8 [fio]</span><br><span class="line">  8,64  20     1163    21.225407687 98523  P   N [fio]</span><br><span class="line">  8,64  20     1164    21.225409225 98523  I  WS 3927579616 + 8 [fio]</span><br><span class="line">  8,64  20     1165    21.225410004 98523  U   N [fio] 1</span><br><span class="line">  8,64  20     1166    21.225411107 98523  D  WS 3927579616 + 8 [fio]</span><br><span class="line">  8,64   0     1176    21.238455782     0  C  WS 3927579616 + 8 [0]</span><br><span class="line">  8,64  14     1002    21.238482169 96519  A  WS 5857775080 + 8 &lt;- (8,66) 1950756328</span><br><span class="line">  8,64  14     1003    21.238482610 96519  Q  WS 5857775080 + 8 [jbd2&#x2F;sde2-8]</span><br><span class="line">  8,64  14     1004    21.238483773 96519  G  WS 5857775080 + 8 [jbd2&#x2F;sde2-8]</span><br><span class="line"></span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">Total (sde):</span><br><span class="line"> Reads Queued:           0,        0KiB  Writes Queued:       7,558,  339,096KiB</span><br><span class="line"> Read Dispatches:        0,        0KiB  Write Dispatches:    5,707,  339,096KiB</span><br><span class="line"> Reads Requeued:         0               Writes Requeued:         0</span><br><span class="line"> Reads Completed:        0,        0KiB  Writes Completed:    5,707,  339,096KiB</span><br><span class="line"> Read Merges:            0,        0KiB  Write Merges:        1,851,    7,404KiB</span><br><span class="line"> IO unplugs:         3,402               Timer unplugs:           0</span><br><span class="line"></span><br><span class="line"># blkparse -i sde | grep -w 3927579616</span><br><span class="line">  8,64  20     1160    21.225404128 98523  A  WS 3927579616 + 8 &lt;- (8,66) 20560864</span><br><span class="line">  8,64  20     1161    21.225405121 98523  Q  WS 3927579616 + 8 [fio]</span><br><span class="line">  8,64  20     1162    21.225407092 98523  G  WS 3927579616 + 8 [fio]</span><br><span class="line">  8,64  20     1164    21.225409225 98523  I  WS 3927579616 + 8 [fio]</span><br><span class="line">  8,64  20     1166    21.225411107 98523  D  WS 3927579616 + 8 [fio]</span><br><span class="line">  8,64   0     1176    21.238455782     0  C  WS 3927579616 + 8 [0]</span><br></pre></td></tr></table></figure>
+
+<p>看起始位置为3927579616的request，和例1中的request相比，这个request多了一个<code>A</code>事件，因为这个IO是从/dev/sde2(设备号:8,66)remap到/dev/sde(设备号:8,64)的。总耗时21.238455782-21.225404128 = 13051654纳秒 = 13.05毫秒。</p>
+<p><strong>例3</strong>：基于例2的数据，我们找一个merge的请求:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"># blkparse -i sde | grep -w M</span><br><span class="line">  ......</span><br><span class="line">  8,64  13     4434    59.194332313 96519  M  WS 5857801440 + 8 [jbd2&#x2F;sde2-8]</span><br><span class="line">  ......</span><br><span class="line"></span><br><span class="line"># blkparse -i sde | grep -w 5857801440</span><br><span class="line">  8,64  13     4432    59.194331558 96519  A  WS 5857801440 + 8 &lt;- (8,66) 1950782688</span><br><span class="line">  8,64  13     4433    59.194331878 96519  Q  WS 5857801440 + 8 [jbd2&#x2F;sde2-8]</span><br><span class="line">  8,64  13     4434    59.194332313 96519  M  WS 5857801440 + 8 [jbd2&#x2F;sde2-8]</span><br></pre></td></tr></table></figure>
+
+<p>这个请求从remap到queued，然后再merge到一个已存在的请求中，之后便追踪不到了：因为它是其他某个请求的一部分，而不是一个独立的请求。假如知道它被merge到哪个请求了，去追踪那个请求，就能知道后续各个阶段。另外注意，被合并的情况下，没有get request (G)阶段，而直接被合并了（参考第2节结尾的IO流程图）。</p>
+<p>通过这三个例子我们可以看出，blktrace可以追踪到一个特定request的各个阶段，及各个阶段的耗时。但这太详细了，我们无法逐一查看各个request。这时<code>btt</code>命令就派上用场了，它可以生成报表。blkparse还有一个功能：把blktrace生成的<code>&#123;device&#125;.blktrace.&#123;cpu&#125;</code>一堆文件dump成一个二进制文件，输出到<code>-d</code>指定的文件中（忽略标准输出）。这个功能正好方便<code>btt</code>的使用。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"># blkparse -i sde -d sde.blktrace.bin</span><br><span class="line"># ls sde.blktrace.bin</span><br><span class="line">sde.blktrace.bin</span><br></pre></td></tr></table></figure>
+
+<h1 id="使用btt生成报表-5"><a href="#使用btt生成报表-5" class="headerlink" title="使用btt生成报表 (5)"></a>使用btt生成报表 (5)</h1><h2 id="阶段定义-5-1"><a href="#阶段定义-5-1" class="headerlink" title="阶段定义 (5.1)"></a>阶段定义 (5.1)</h2><p>我们再用一个图来表示各阶段的时延：</p>
+<img src="/2019/08/28/linux-blktrace/blktrace-stags.jpg" class="" title="stage chart">
+
+<p>其中各个阶段的定义如下：</p>
+<ul>
+<li>Q2Q: time between requests sent to the block layer</li>
+<li>Q2G: time from a block I/O is queued to the time it gets a request allocated for it</li>
+<li>G2I: time from a request is allocated to the time it is Inserted into the device’s queue</li>
+<li>Q2M: time from a block I/O is queued to the time it gets merged with an existing request</li>
+<li>I2D: time from a request is inserted into the device’s queue to the time it is actually issued to the device</li>
+<li>M2D: time from a block I/O is merged with an exiting request until the request is issued to the device</li>
+<li>D2C: service time of the request by the device</li>
+<li>Q2C: total time spent in the block layer for a request</li>
+</ul>
+<p>注意以下几点：</p>
+<ul>
+<li>Q2Q是表示两个reqeusts之间的间隔；而其他都是表示一个request的各个阶段的间隔。</li>
+<li>和第2节中的IO的流程图一致，分为两个路径：上面绿色<code>Q-&gt;G-&gt;I-&gt;D</code>表示一个典型request（没有被merge的request）特有的阶段；下面红色为<code>Q-&gt;M-&gt;D</code>表示一个被merge的request特有的阶段；黄色部分表示公共阶段。</li>
+<li>Q2G一般比较小，若它比较大，说明分配不到<code>struct request</code>，中途经历了S(sleep)阶段。</li>
+</ul>
+<h2 id="btt的默认输出-5-2"><a href="#btt的默认输出-5-2" class="headerlink" title="btt的默认输出 (5.2)"></a>btt的默认输出 (5.2)</h2><p>以第2节中例2的数据为例，btt最简单的使用方式如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"># btt -i sde.blktrace.bin -o bttout</span><br><span class="line"># ll</span><br><span class="line">total 2388</span><br><span class="line">-rw-r--r-- 1 root root     362 Sep  2 22:06 8,64_iops_fp.dat</span><br><span class="line">-rw-r--r-- 1 root root     710 Sep  2 22:06 8,64_mbps_fp.dat</span><br><span class="line">-rw-r--r-- 1 root root    3468 Sep  2 22:06 bttout.avg</span><br><span class="line">-rw-r--r-- 1 root root   17023 Sep  2 22:06 bttout.dat</span><br><span class="line">-rw-r--r-- 1 root root    7220 Sep  2 22:06 bttout_dhist.dat</span><br><span class="line">-rw-r--r-- 1 root root       0 Sep  2 22:06 bttout.msg</span><br><span class="line">-rw-r--r-- 1 root root    7236 Sep  2 22:06 bttout_qhist.dat</span><br><span class="line">-rw-r--r-- 1 root root 2387128 Sep  2 22:06 sde.blktrace.bin</span><br><span class="line">-rw-r--r-- 1 root root     362 Sep  2 22:06 sys_iops_fp.dat</span><br><span class="line">-rw-r--r-- 1 root root     710 Sep  2 22:06 sys_mbps_fp.dat</span><br></pre></td></tr></table></figure>
+
+<p>btt的输入<code>-i</code>是blkparse生成（dump）的二进制文件（见第4节），默认输出包括：</p>
+<ul>
+<li>标准输出：很多信息，下面细说。</li>
+<li><code>&#123;major,minor设备号&#125;_iops_fp.dat</code>：包含两列，第一列为时间（以秒为单位，从第0秒开始）；第二列为IOPS；</li>
+<li><code>&#123;major,minor设备号&#125;_mbps_fp.dat</code>：包含两列，第一列为时间（以秒为单位，从第0秒开始）；第二列为带宽，即MB/s；</li>
+<li><code>sys_iops_fp.dat</code>：只trace一个设备的时候，和<code>&#123;major,minor设备号&#125;_iops_fp.dat</code>一样（两个文件的MD5相同）。</li>
+<li><code>sys_mbps_fp.dat</code>：只trace一个设备的时候，和<code>&#123;major,minor设备号&#125;_mbps_fp.dat</code>一样（两个文件的MD5相同）</li>
+</ul>
+<p>其中标准输出很多，把屏幕搞的很乱，看不清主要信息。为此，我们加一个<code>-o bttout</code>选项，这时屏幕上就没有任何信息，但生成以下四个文件：</p>
+<ul>
+<li><strong>bttout.avg</strong></li>
+</ul>
+<p>这个输出文件最重要，里面包含各种统计信息，我们逐一解读（数据来自于第2节中的例2）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; All Devices &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">            ALL           MIN           AVG           MAX           N</span><br><span class="line">--------------- ------------- ------------- ------------- -----------</span><br><span class="line"></span><br><span class="line">Q2Q               0.000000915   0.007937919   0.103788139        7557</span><br><span class="line">Q2G               0.000000410   0.000001214   0.000030594        5707</span><br><span class="line">G2I               0.000000278   0.000001805   0.000033501        5707</span><br><span class="line">Q2M               0.000000164   0.000000498   0.000014527        1851</span><br><span class="line">I2D               0.000000308   0.000001078   0.000002753        5707</span><br><span class="line">M2D               0.000001169   0.000002162   0.000032612        1851</span><br><span class="line">D2C               0.001751673   0.013116498   0.103759327        7557</span><br><span class="line">Q2C               0.001753524   0.013120242   0.103761266        7557</span><br></pre></td></tr></table></figure>
+
+<p>这部分显示了各个阶段的最小、平均及最大耗时，单位是秒。阶段的定义见第5.1节，不细说。这里着重看最后一列，它显示了<strong>各个事件发生的次数数</strong>（一个request经历多个事件/阶段）。参考第2节的IO流程图和第5.1节的阶段图，我们知道一个request：</p>
+<ul>
+<li>要么作为独立的请求进入device driver，经历路径：<code>Q-&gt;G-&gt;I-&gt;D</code></li>
+<li>要么被合并到另一个request，经历路径：<code>Q-&gt;M-&gt;D</code></li>
+</ul>
+<p>所以，我们得知：</p>
+<ul>
+<li>$ N(Q2G) = N(G2I) = N(I2D) $是经历<code>Q-&gt;G-&gt;I-&gt;D</code>的request个数；</li>
+<li>$ N(Q2M) = N(M2D) $是经历<code>Q-&gt;M-&gt;D</code>的request的个数；</li>
+<li>$ N(D2C) = N(Q2C) $是request总个数；</li>
+</ul>
+<p>并且：</p>
+<p>$$ N(Q2G) + N(Q2M) = N(D2C) $$</p>
+<p>代入上面的数据，可验证。<strong>这部分数据和blkparse输出的summary是一致的</strong>，见第4节的例2。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; Device Overhead &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">       DEV |       Q2G       G2I       Q2M       I2D       D2C</span><br><span class="line">---------- | --------- --------- --------- --------- ---------</span><br><span class="line"> (  8, 64) |   0.0070%   0.0104%   0.0009%   0.0062%  99.9715%</span><br><span class="line">---------- | --------- --------- --------- --------- ---------</span><br><span class="line">   Overall |   0.0070%   0.0104%   0.0009%   0.0062%  99.9715%</span><br></pre></td></tr></table></figure>
+
+<p>这部分显示了几个重要阶段在总耗时中的占比。Overall是所有被trace的设备的总体情况，我们只trace了一个设备（major,minor设备号为8,64），所以Overall这一行和（8, 64）这一行一样。通过这些数据，我发现占比的计算不只是 <strong>阶段耗时</strong>除以**Q2C(总耗时)**，而且考虑到个数的加权，其公式是这样的：</p>
+<p>$$ \frac{AvgStage * N_1}{AvgQ2C * N_2} $$</p>
+<p>例如：</p>
+<p>$$ \frac{AvgD2C * 7557}{AvgQ2C * 7557} = \frac{0.013116498 * 7557}{0.013120242 * 7557} = 99.9715% $$<br>$$ \frac{AvgI2D * 5707}{AvgQ2C * 7557} = \frac{0.000001078 * 5707}{0.013120242 * 7557} = 0.0062% $$<br>$$ \frac{AvgQ2M * 1851}{AvgQ2C * 7557} = \frac{0.000000498 * 1851}{0.013120242 * 7557} = 0.0009% $$</p>
+<p>某个占比小，一方面可能是这个阶段耗时少，另一方面可能是经历这个路径的request少。也就是说，占比小<strong>并不一定意味着这个阶段耗时少，也可能表示经历这个路径的request数少</strong>。当然，由于经历<code>D-&gt;C</code>的requests数和经历<code>Q-&gt;C</code>的request数一样，所以，D2C占比反映的就是<strong>D2C阶段的耗时</strong>。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; Device Merge Information &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">       DEV |       #Q       #D   Ratio |   BLKmin   BLKavg   BLKmax    Total</span><br><span class="line">---------- | -------- -------- ------- | -------- -------- -------- --------</span><br><span class="line"> (  8, 64) |     7558     5707     1.3 |        8      118     1024   678184</span><br></pre></td></tr></table></figure>
+
+<p>这部分主要用于显示merge率。<code>#Q</code>是block层接到的incoming requests数；<code>#D</code>是最后发到driver的outgoing requests数，它们的差值就是merge数。Ratio是它们的比率，即:</p>
+<p>$$ Ratio = \frac{N_Q}{N_D} $$</p>
+<p>可见Ratio越大，表明merge越多，可期的效率越高，性能（吞吐量）越好。</p>
+<p>右边的<code>BLKmin</code>，<code>BLKavg</code>和<code>BLKmax</code>分别表示：<strong>合并之后发送到driver的</strong>最小、平均和最大<strong>request size</strong>，单位是sector。在本例中，由于配置了/sys/block/sde/queue/max_sectors_kb=512，所以最大request size是512KiB，即1024 sectors。平均是118 sectors（59 KiB）；最小8 sectors（4 KiB）。</p>
+<p><code>Total</code>是trace期间总共传输的数据量，以sector为单位。本例中678184 sectors（339092 KiB）。<strong>这和blkparse输出的summary也是一致的</strong>，看第4节中的例2，blkparse的summary部分显示：<code>Writes Queued</code>，<code>Write Dispatches</code>  和<code>Writes Completed</code>是339096 KiB，基本一致。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; Device Q2Q Seek Information &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">       DEV |          NSEEKS            MEAN          MEDIAN | MODE</span><br><span class="line">---------- | --------------- --------------- --------------- | ---------------</span><br><span class="line"> (  8, 64) |            7558     894100249.2               0 | 0(3937)</span><br><span class="line">---------- | --------------- --------------- --------------- | ---------------</span><br><span class="line">   Overall |          NSEEKS            MEAN          MEDIAN | MODE</span><br><span class="line">   Average |            7558     894100249.2               0 | 0(3937)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; Device D2D Seek Information &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">       DEV |          NSEEKS            MEAN          MEDIAN | MODE</span><br><span class="line">---------- | --------------- --------------- --------------- | ---------------</span><br><span class="line"> (  8, 64) |            5707    1184091411.0               0 | 0(2086)</span><br><span class="line">---------- | --------------- --------------- --------------- | ---------------</span><br><span class="line">   Overall |          NSEEKS            MEAN          MEDIAN | MODE</span><br><span class="line">   Average |            5707    1184091411.0               0 | 0(2086)</span><br></pre></td></tr></table></figure>
+
+<p>这部分是seek距离的统计。默认情况下，seek距离是按”closeness”方式统计的，即当前IO和前一个IO的seek距离是：min{当前IO的起点和前一个IO的终点的距离，当前IO的终点和前一个IO的起点的距离}。可以使用btt的<code>-a</code>(–seek-absolute)选项改变这个方式，即改成绝对seek距离：前一个IO的终点和当前IO的起点的距离。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; Plug Information &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">       DEV |    # Plugs # Timer Us  | % Time Q Plugged</span><br><span class="line">---------- | ---------- ----------  | ----------------</span><br><span class="line"> (  8, 64) |       3402(         0) |   0.014552920%</span><br><span class="line"></span><br><span class="line">       DEV |    IOs&#x2F;Unp   IOs&#x2F;Unp(to)</span><br><span class="line">---------- | ----------   ----------</span><br><span class="line"> (  8, 64) |        1.0          0.0</span><br><span class="line">---------- | ----------   ----------</span><br><span class="line">   Overall |    IOs&#x2F;Unp   IOs&#x2F;Unp(to)</span><br><span class="line">   Average |        1.0          0.0</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; Active Requests At Q Information &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">       DEV |  Avg Reqs @ Q</span><br><span class="line">---------- | -------------</span><br><span class="line"> (  8, 64) |           0.2</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; I&#x2F;O Active Period Information &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">       DEV |     # Live      Avg. Act     Avg. !Act % Live</span><br><span class="line">---------- | ---------- ------------- ------------- ------</span><br><span class="line"> (  8, 64) |       4925   0.012143126   0.000036958  99.70</span><br><span class="line">---------- | ---------- ------------- ------------- ------</span><br><span class="line"> Total Sys |       4925   0.012143126   0.000036958  99.70</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>bttout.dat</strong></li>
+</ul>
+<p>此文件是一些debug信息。</p>
+<ul>
+<li><strong>bttout_dhist.dat</strong></li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"># D buckets</span><br><span class="line">   1 0</span><br><span class="line">   2 0</span><br><span class="line">   3 0</span><br><span class="line">   4 0</span><br><span class="line">   ......</span><br><span class="line">1022 0</span><br><span class="line">1023 0</span><br><span class="line">1024 608</span><br><span class="line"></span><br><span class="line"># D bucket for &gt; 1024</span><br><span class="line">1024 0</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>bttout.msg</strong></li>
+</ul>
+<p>此文件为空。</p>
+<ul>
+<li><strong>bttout_qhist.dat</strong></li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"># BTT histogram data</span><br><span class="line"># Q buckets</span><br><span class="line">   1 0</span><br><span class="line">   2 0</span><br><span class="line">   3 0</span><br><span class="line">   4 0</span><br><span class="line">   5 0</span><br><span class="line"></span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">1020 0</span><br><span class="line">1021 0</span><br><span class="line">1022 0</span><br><span class="line">1023 0</span><br><span class="line">1024 608</span><br><span class="line"></span><br><span class="line"># Q bucket for &gt; 1024</span><br><span class="line">1024 0</span><br></pre></td></tr></table></figure>
+
+<h1 id="案例分析"><a href="#案例分析" class="headerlink" title="案例分析"></a>案例分析</h1><p>这是一个实际案例:</p>
+<ul>
+<li>15台server的存储集群；</li>
+<li>读写请求size都全是4MB；</li>
+<li>读写比为1:99；</li>
+<li>数据重要性不高但要求吞吐最大化，所以没有DIRECT_IO也没有sync；</li>
+</ul>
+<p>所以，磁盘非常忙，一阵阵的util达到100%。这是正常情况。但是:</p>
+<ul>
+<li>有一部分read请求非常慢，达到几百毫秒到几秒;</li>
+<li>经调查发现，这些慢的请求绝大多数都落在其中1台server上；</li>
+<li>用<code>iostat -mx 1</code>发现这台server的磁盘<code>r_await</code>偶尔达到几百毫秒甚至一两秒；</li>
+</ul>
+<p>由于一时无法找到它和别的机器的差异，我决定用blktrace跟踪一下。</p>
+<h2 id="只统计读请求-6-1"><a href="#只统计读请求-6-1" class="headerlink" title="只统计读请求 (6.1)"></a>只统计读请求 (6.1)</h2><p>使用blkparse的<code>-a read</code>选项来过滤读请求并用btt解析：</p>
+<p><strong>那台异常server</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; All Devices &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">            ALL           MIN           AVG           MAX           N</span><br><span class="line">--------------- ------------- ------------- ------------- -----------</span><br><span class="line"></span><br><span class="line">Q2Q               0.000015784   2.062873024  29.753236896          44</span><br><span class="line">Q2G               0.000001001   0.000002687   0.000007028          38</span><br><span class="line">G2I               0.000001083   0.000040408   0.000276085          38</span><br><span class="line">Q2M               0.000000746   0.000001351   0.000002069           7</span><br><span class="line">I2D               0.000000586   0.046668000   0.629537673          38</span><br><span class="line">M2D               0.000001866   0.000002773   0.000004588           7</span><br><span class="line">D2C               0.003144937   0.091795331   1.062084338          44</span><br><span class="line">Q2C               0.004561255   0.127629367   1.102851970          44</span><br><span class="line"></span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; Device Overhead &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">       DEV |       Q2G       G2I       Q2M       I2D       D2C</span><br><span class="line">---------- | --------- --------- --------- --------- ---------</span><br><span class="line"> (  8,160) |   0.0018%   0.0273%   0.0002%  31.5791%  71.9234%</span><br><span class="line">---------- | --------- --------- --------- --------- ---------</span><br><span class="line">   Overall |   0.0018%   0.0273%   0.0002%  31.5791%  71.9234%</span><br></pre></td></tr></table></figure>
+
+<p><strong>其他正常server</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; All Devices &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">            ALL           MIN           AVG           MAX           N</span><br><span class="line">--------------- ------------- ------------- ------------- -----------</span><br><span class="line"></span><br><span class="line">Q2Q               0.000003642   1.020459345  28.121166380          85</span><br><span class="line">Q2G               0.000000511   0.000003183   0.000010038          73</span><br><span class="line">G2I               0.000000740   0.000048666   0.000275039          73</span><br><span class="line">Q2M               0.000000655   0.000001472   0.000003222          13</span><br><span class="line">I2D               0.000003644   0.017472977   0.137696083          73</span><br><span class="line">M2D               0.000006108   0.007889195   0.102306217          13</span><br><span class="line">D2C               0.003358836   0.030193407   0.186194240          86</span><br><span class="line">Q2C               0.003478576   0.046261906   0.193864269          86</span><br><span class="line"></span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; Device Overhead &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">       DEV |       Q2G       G2I       Q2M       I2D       D2C</span><br><span class="line">---------- | --------- --------- --------- --------- ---------</span><br><span class="line"> (  8,160) |   0.0058%   0.0893%   0.0005%  32.0603%  65.2662%</span><br><span class="line">---------- | --------- --------- --------- --------- ---------</span><br><span class="line">   Overall |   0.0058%   0.0893%   0.0005%  32.0603%  65.2662%</span><br></pre></td></tr></table></figure>
+
+<p><code>Q2Q</code>显示那台异常server接收到的读请求比较少，这我们不关心，因为请求是客户端打来的，除此之外，主要区别是：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">异常server:    I2D               0.000000586   0.046668000   0.629537673          38</span><br><span class="line">正常server:    I2D               0.000003644   0.017472977   0.137696083          73</span><br><span class="line"></span><br><span class="line">异常server:    D2C               0.003144937   0.091795331   1.062084338          44</span><br><span class="line">正常server:    D2C               0.003358836   0.030193407   0.186194240          86</span><br><span class="line"></span><br><span class="line">异常server:    Q2C               0.004561255   0.127629367   1.102851970          44</span><br><span class="line">正常server:    Q2C               0.003478576   0.046261906   0.193864269          86</span><br></pre></td></tr></table></figure>
+
+<p>单独看读请求，异常server上<code>I2D</code>和<code>D2C</code>都比较高，分别是46ms和91ms，最终导致<code>Q2C</code>比较高，即127ms。下面再读写一起看看。</p>
+<h2 id="读写请求一起统计-6-2"><a href="#读写请求一起统计-6-2" class="headerlink" title="读写请求一起统计 (6.2)"></a>读写请求一起统计 (6.2)</h2><p>blkparse不加<code>-a</code>选项：</p>
+<p><strong>那台异常server</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; All Devices &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">            ALL           MIN           AVG           MAX           N</span><br><span class="line">--------------- ------------- ------------- ------------- -----------</span><br><span class="line"></span><br><span class="line">Q2Q               0.000001995   0.010033461  10.023989208        9815</span><br><span class="line">Q2G               0.000000347   0.003843207   0.696858530        9552</span><br><span class="line">S2G               0.048137359   0.145633808   0.696857847         252</span><br><span class="line">G2I               0.000000142   0.328743363   2.776173431       33946</span><br><span class="line">Q2M               0.000000208   0.000000812   0.000002409         264</span><br><span class="line">I2D               0.000000132   0.137160059   2.776167198       33946</span><br><span class="line">M2D               0.000001866   0.539617620   1.967329760         914</span><br><span class="line">D2C               0.000216501   0.130975084   3.220956219        9806</span><br><span class="line">Q2C               0.000246199   0.623738004   3.722805145        9806</span><br><span class="line"></span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; Device Overhead &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">       DEV |       Q2G       G2I       Q2M       I2D       D2C</span><br><span class="line">---------- | --------- --------- --------- --------- ---------</span><br><span class="line"> (  8,160) |   0.6002% 182.4532%   0.0000%  76.1241%  20.9984%</span><br><span class="line">---------- | --------- --------- --------- --------- ---------</span><br><span class="line">   Overall |   0.6002% 182.4532%   0.0000%  76.1241%  20.9984%</span><br></pre></td></tr></table></figure>
+
+<p><strong>其他正常server</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; All Devices &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">            ALL           MIN           AVG           MAX           N</span><br><span class="line">--------------- ------------- ------------- ------------- -----------</span><br><span class="line"></span><br><span class="line">Q2Q               0.000001890   0.010906159  10.023224943        8643</span><br><span class="line">Q2G               0.000000312   0.003979822   0.372903417        8401</span><br><span class="line">S2G               0.053733843   0.149889471   0.372902366         223</span><br><span class="line">G2I               0.000000108   0.000001933   0.000275039        8401</span><br><span class="line">Q2M               0.000000193   0.000000814   0.000003222         243</span><br><span class="line">I2D               0.000001472   0.506893154   1.107299400        8401</span><br><span class="line">M2D               0.000006108   0.524695447   1.021934348         243</span><br><span class="line">D2C               0.000188799   0.120154070   1.465156680        8644</span><br><span class="line">Q2C               0.000205362   0.631417524   2.251692980        8644</span><br><span class="line"></span><br><span class="line">&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; Device Overhead &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">       DEV |       Q2G       G2I       Q2M       I2D       D2C</span><br><span class="line">---------- | --------- --------- --------- --------- ---------</span><br><span class="line"> (  8,160) |   0.6126%   0.0003%   0.0000%  78.0218%  19.0293%</span><br><span class="line">---------- | --------- --------- --------- --------- ---------</span><br><span class="line">   Overall |   0.6126%   0.0003%   0.0000%  78.0218%  19.0293%</span><br></pre></td></tr></table></figure>
+
+<p>其主要区别在于<code>G2I</code>和<code>I2D</code>两项：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">异常server:    G2I               0.000000142   0.328743363   2.776173431       33946</span><br><span class="line">正常server:    G2I               0.000000108   0.000001933   0.000275039        8401</span><br><span class="line"></span><br><span class="line">异常server:    I2D               0.000000132   0.137160059   2.776167198       33946</span><br><span class="line">正常server:    I2D               0.000001472   0.506893154   1.107299400        8401</span><br></pre></td></tr></table></figure>
+
+<p>异常机器<code>G2I</code>高但<code>I2D</code>低，正常server则相反；这很是调度算法的不同导致的。一查果然，异常server是<code>deadline</code>而正常server是<code>cfq</code>。修正之后，症状消失。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/io/" rel="tag"># io</a>
+              <a href="/tags/blktrace/" rel="tag"># blktrace</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/08/23/java-error-exception/" rel="prev" title="Java的Error和Exception">
+      <i class="fa fa-chevron-left"></i> Java的Error和Exception
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2019/09/03/advanced-format-disks/" rel="next" title="Advanced Format Disks">
+      Advanced Format Disks <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#blktrace%E7%AE%80%E4%BB%8B-1"><span class="nav-number">1.</span> <span class="nav-text">blktrace简介 (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#IO%E6%B5%81%E7%A8%8B%E4%B8%8Eevent-2"><span class="nav-number">2.</span> <span class="nav-text">IO流程与event (2)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8blktrace%E5%AF%BC%E5%87%BA%E5%8E%9F%E5%A7%8B%E6%95%B0%E6%8D%AE-3"><span class="nav-number">3.</span> <span class="nav-text">使用blktrace导出原始数据 (3)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8blkparse%E5%88%86%E6%9E%90%E6%95%B0%E6%8D%AE-4"><span class="nav-number">4.</span> <span class="nav-text">使用blkparse分析数据 (4)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8btt%E7%94%9F%E6%88%90%E6%8A%A5%E8%A1%A8-5"><span class="nav-number">5.</span> <span class="nav-text">使用btt生成报表 (5)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%98%B6%E6%AE%B5%E5%AE%9A%E4%B9%89-5-1"><span class="nav-number">5.1.</span> <span class="nav-text">阶段定义 (5.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#btt%E7%9A%84%E9%BB%98%E8%AE%A4%E8%BE%93%E5%87%BA-5-2"><span class="nav-number">5.2.</span> <span class="nav-text">btt的默认输出 (5.2)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%A1%88%E4%BE%8B%E5%88%86%E6%9E%90"><span class="nav-number">6.</span> <span class="nav-text">案例分析</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%AA%E7%BB%9F%E8%AE%A1%E8%AF%BB%E8%AF%B7%E6%B1%82-6-1"><span class="nav-number">6.1.</span> <span class="nav-text">只统计读请求 (6.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AF%BB%E5%86%99%E8%AF%B7%E6%B1%82%E4%B8%80%E8%B5%B7%E7%BB%9F%E8%AE%A1-6-2"><span class="nav-number">6.2.</span> <span class="nav-text">读写请求一起统计 (6.2)</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

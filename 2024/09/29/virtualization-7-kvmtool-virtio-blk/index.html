@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="本文介绍kvmtool中的blk模块。其实所涉及的要点在前几篇文章中都已经讲过，所以本文相当于一个阶段性回顾。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="虚拟化入门笔记--kvmtool virtio-blk设备">
+<meta property="og:url" content="http://yoursite.com/2024/09/29/virtualization-7-kvmtool-virtio-blk/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="本文介绍kvmtool中的blk模块。其实所涉及的要点在前几篇文章中都已经讲过，所以本文相当于一个阶段性回顾。">
+<meta property="og:locale">
+<meta property="og:image" content="http://yoursite.com/2024/09/29/virtualization-7-kvmtool-virtio-blk/virtio-blk-config-and-io-flow.png">
+<meta property="article:published_time" content="2024-09-29T20:15:40.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.575Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="virtualization">
+<meta property="article:tag" content="kvm">
+<meta property="article:tag" content="kvmtool">
+<meta property="article:tag" content="virtio">
+<meta property="article:tag" content="blk">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2024/09/29/virtualization-7-kvmtool-virtio-blk/virtio-blk-config-and-io-flow.png">
+
+<link rel="canonical" href="http://yoursite.com/2024/09/29/virtualization-7-kvmtool-virtio-blk/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>虚拟化入门笔记--kvmtool virtio-blk设备 | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2024/09/29/virtualization-7-kvmtool-virtio-blk/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          虚拟化入门笔记--kvmtool virtio-blk设备
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2024-09-29 20:15:40" itemprop="dateCreated datePublished" datetime="2024-09-29T20:15:40+00:00">2024-09-29</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/kvm/" itemprop="url" rel="index"><span itemprop="name">kvm</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2024/09/29/virtualization-7-kvmtool-virtio-blk/" class="post-meta-item leancloud_visitors" data-flag-title="虚拟化入门笔记--kvmtool virtio-blk设备" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/09/29/virtualization-7-kvmtool-virtio-blk/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/09/29/virtualization-7-kvmtool-virtio-blk/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>本文介绍kvmtool中的blk模块。其实所涉及的要点在前几篇文章中都已经讲过，所以本文相当于一个阶段性回顾。</p>
+<a id="more"></a>
+
+<h1 id="总体流程-0"><a href="#总体流程-0" class="headerlink" title="总体流程 (0)"></a>总体流程 (0)</h1><p><img src="virtio-blk-config-and-io-flow.png" alt="figure1"></p>
+<div style="text-align: center;"><em>图1: 总体流程</em></div>
+
+<h1 id="PCI-CAM-ECAM初始化-1"><a href="#PCI-CAM-ECAM初始化-1" class="headerlink" title="PCI CAM/ECAM初始化 (1)"></a>PCI CAM/ECAM初始化 (1)</h1><p>PCI CAM/ECAM是指PCI的Configuration Access Mechanism和Enhanced Configuration Access Mechanism。PCI是virtio的transport，所以，先看PCI的初始化。CAM/ECAM使得guest系统能够读写系统中所有PCI设备的configuration space；实现在pci.c:pci__init()中。具体见<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2024/07/22/virtualization-4-kvmtool-pci/">kvmtool pci virtualization</a>第2节。</p>
+<p>说明:</p>
+<ul>
+<li>PCI CAM/ECAM初始化是系统级别(guest系统)的，整个系统只做一次。</li>
+<li>CAM/ECAM使得guest系统能够读写系统中所有PCI设备的configuration space，但现在并没有做任何读写，因为还没有enumerate PCI设备呢！这里只是初始化这个机制。</li>
+</ul>
+<h1 id="Virtio设备初始化：创建虚拟device实例-2"><a href="#Virtio设备初始化：创建虚拟device实例-2" class="headerlink" title="Virtio设备初始化：创建虚拟device实例 (2)"></a>Virtio设备初始化：创建虚拟device实例 (2)</h1><p>从<code>virtio_blk__init_one()</code>开始: 首先，构造一个<code>struct blk_dev</code>实例并加入<code>bdevs</code>列表。这就是虚拟device实例。用面向对象的角度看，自然还要模拟它的行为，即设置钩子函数：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">virtio_init</span><span class="params">(struct kvm *kvm, <span class="keyword">void</span> *dev, struct virtio_device *vdev,</span></span></span><br><span class="line"><span class="function"><span class="params">        struct virtio_ops *ops, <span class="keyword">enum</span> virtio_trans trans,</span></span></span><br><span class="line"><span class="function"><span class="params">        <span class="keyword">int</span> device_id, <span class="keyword">int</span> subsys_id, <span class="keyword">int</span> class)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">void</span> *virtio;</span><br><span class="line">    <span class="keyword">int</span> r;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">switch</span> (trans) &#123;</span><br><span class="line">    <span class="comment">// ......</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">//以PCI作为virtio的transport;</span></span><br><span class="line">    <span class="keyword">case</span> VIRTIO_PCI:</span><br><span class="line">        virtio = <span class="built_in">calloc</span>(<span class="keyword">sizeof</span>(struct virtio_pci), <span class="number">1</span>);</span><br><span class="line">        <span class="keyword">if</span> (!virtio)</span><br><span class="line">            <span class="keyword">return</span> -ENOMEM;</span><br><span class="line">        vdev-&gt;virtio            = virtio;</span><br><span class="line">        vdev-&gt;ops           = ops;</span><br><span class="line">        vdev-&gt;ops-&gt;signal_vq        = virtio_pci__signal_vq;     <span class="comment">//common-queue触发中断的钩子函数</span></span><br><span class="line">        vdev-&gt;ops-&gt;signal_config    = virtio_pci__signal_config; <span class="comment">//configure-queue触发中断的钩子函数</span></span><br><span class="line">        vdev-&gt;ops-&gt;init         = virtio_pci__init;</span><br><span class="line">        vdev-&gt;ops-&gt;<span class="built_in">exit</span>         = virtio_pci__exit;</span><br><span class="line">        vdev-&gt;ops-&gt;reset        = virtio_pci__reset;</span><br><span class="line">        <span class="comment">//开始初始化</span></span><br><span class="line">        r = vdev-&gt;ops-&gt;init(kvm, dev, vdev, device_id, subsys_id, class);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ......</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">//以MMIO作为virtio的transport;</span></span><br><span class="line">    <span class="keyword">case</span> VIRTIO_MMIO:</span><br><span class="line"></span><br><span class="line">        <span class="comment">// ......</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">default</span>:</span><br><span class="line">        r = <span class="number">-1</span>;</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> r;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="Virtio设备初始化：PCI-configuration-space-3"><a href="#Virtio设备初始化：PCI-configuration-space-3" class="headerlink" title="Virtio设备初始化：PCI configuration space (3)"></a>Virtio设备初始化：PCI configuration space (3)</h1><p>接着开始初始化，即调用<code> vdev-&gt;ops-&gt;init</code>；我们只关注PCI作为transport的情况，对应函数就是<code>virtio_pci__init()</code>。顾名思义，这里进行PCI相关的初始化，以及virtio这类特殊PCI设备的初始化。主要就是configuration space，BAR, BAR的callback等。具体地：</p>
+<ul>
+<li>VendorID, DeviceID, BAR, Status(支持Capability-List), 第一个Capability (MSI-X)的位置等configuration space寄存器(内存模拟)。注意：kvmtool中都是使用3个BAR，其region的地址被kvmtool直接分配(这也符合PCI协议吗？物理环境下bar-region的base addr是BIOS或者OS分配的，然后写入pci设备的bar)。</li>
+<li>为上述3个BAR的region注册callback：其中BAR-0和BAR-1的callback相同，都是<code>virtio_pci_modern__io_mmio_callback</code>；只不过BAR-0是port-map到guest的地址空间，而BAR-1是memory-map到guest的地址空间。BAR-2的callback是<code>virtio_pci__msix_mmio_callback</code>，专门用于配置MSI-X中断，见<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2024/08/11/virtualization-5-kvmtool-interrupt/">kvmtool interrupt virtualization</a>.</li>
+<li>MSI-X Capability相关的configuration space寄存器(内存模拟)：<ul>
+<li>msix.ctrl=32：有32个common-queue;</li>
+<li>msix.table_offset = <code>0 &lt;&lt; 29 | 2</code>；低3位表示哪个BAR region用于存放MSI-X table；高29位表示在region中的位置。这里是BAR-2，偏移0。</li>
+<li>msix.pba_offset = <code>msix_table_size &lt;&lt; 29 | 2</code>；低3位表示哪个BAR region用于存放PBA；高29位表示在region中的位置。这里是BAR-2，紧挨着MSI-X table。</li>
+</ul>
+</li>
+<li>添加到全局PCI设备注册表：<code>device_trees[DEVICE_BUS_PCI]</code>. 它代表一个PCI bus; kvmtool中只模拟一条PCI bus. 结构中有一个<code>dev_num</code>成员，用于递增地分配PCI device number. 所以，这里还进行device number的分配。如<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2024/07/22/virtualization-4-kvmtool-pci/">kvmtool pci virtualization</a>中所述，PCI enumeration时，物理环境下依赖IDSEL选择设备进行回复；而kvmtool中，就是匹配这个device number。</li>
+</ul>
+<p>接着<code>virtio_pci__init</code>调用<code>virtio_pci_modern_init</code>，进行virtio其它capability的初始化，它们也是configuration space中的寄存器(当然，这里是通过内存模拟的)：</p>
+<ul>
+<li>virtio common capability: 名字叫common，其实也是一个实实在在的capability；它支持的操作就是<code>virtio_pci_modern__io_mmio_callback</code> -&gt; <code>virtio_pci_access</code> -&gt; <code>virtio_pci__common_read/write</code>；</li>
+<li>virtio.notify capability: 支持的操作是<code>virtio_pci_modern__io_mmio_callback</code> -&gt; <code>virtio_pci_access</code> -&gt; <code>virtio_pci__notify_write</code>；</li>
+<li>virtio.isr capability: 支持的操作是<code>virtio_pci_modern__io_mmio_callback</code> -&gt; <code>virtio_pci_access</code> -&gt; <code>virtio_pci__isr_read</code>；</li>
+<li>virtio.device capability: 叫config更好。支持的操作是<code>virtio_pci_modern__io_mmio_callback</code> -&gt; <code>virtio_pci_access</code> -&gt; <code>virtio_pci__config_read/write</code>；读写设备类型相关的config，例如blk的capacity, cylinder/head/sector，virtio-net的mac, mtu等。</li>
+</ul>
+<p>这些capabilities在configuration space中构成一个链表，guest会读取它们，见第6节。</p>
+<h1 id="设置blk设备的completion-callback-4"><a href="#设置blk设备的completion-callback-4" class="headerlink" title="设置blk设备的completion callback (4)"></a>设置blk设备的completion callback (4)</h1><p>设置<code>disk-&gt;disk_req_cb</code>为<code>virtio_blk_complete</code>函数。可想而知，这是disk请求处理完成之后调用的callback，其中有两个重要的事情：</p>
+<ul>
+<li>把used buffer放进vring;</li>
+<li>触发中断；</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">virtio_blk_complete</span><span class="params">(<span class="keyword">void</span> *param, <span class="keyword">long</span> len)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">blk_dev_req</span> *<span class="title">req</span> = <span class="title">param</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">blk_dev</span> *<span class="title">bdev</span> = <span class="title">req</span>-&gt;<span class="title">bdev</span>;</span></span><br><span class="line">    <span class="keyword">int</span> queueid = req-&gt;vq - bdev-&gt;vqs;</span><br><span class="line">    u8 *status;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* status */</span></span><br><span class="line">    status = req-&gt;status;</span><br><span class="line">    *status = (len &lt; <span class="number">0</span>) ? VIRTIO_BLK_S_IOERR : VIRTIO_BLK_S_OK;</span><br><span class="line"></span><br><span class="line">    mutex_lock(&amp;bdev-&gt;mutex);</span><br><span class="line">    <span class="comment">//used-buffer放进vring；</span></span><br><span class="line">    virt_queue__set_used_elem(req-&gt;vq, req-&gt;head, len);</span><br><span class="line">    mutex_unlock(&amp;bdev-&gt;mutex);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//触发中断；对于PCI transport，signal_vq指向virtio_pci__signal_vq()函数；</span></span><br><span class="line">    <span class="keyword">if</span> (virtio_queue__should_signal(&amp;bdev-&gt;vqs[queueid]))</span><br><span class="line">        bdev-&gt;vdev.ops-&gt;signal_vq(req-&gt;kvm, &amp;bdev-&gt;vdev, queueid);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="PCI-enumeration-5"><a href="#PCI-enumeration-5" class="headerlink" title="PCI enumeration (5)"></a>PCI enumeration (5)</h1><ul>
+<li>Guest通过CAM机制，往PCI_CONFIG_ADDRESS port写PCI设备的address=0x80000800(bdf=0:1.0, offset=0)；见<code>pci_config_address_mmio</code>函数；</li>
+<li>Guest通过CAM机制，从PCI_CONFIG_DATA port读数据。Kvmtool从全局设备注册表<code>device_trees[DEVICE_BUS_PCI]</code>找到blk设备，并返回它的configuration space(内存模拟)中的VendorID/DeviceID，0x10421af4，即VendorID=0x1af4(Red Hat, Inc.)，DeviceID=0x1042(Virtio block device). Guest通过VendorID/DeviceID知道加载哪个驱动。</li>
+</ul>
+<h1 id="PCI配置-读取Capability-List-6"><a href="#PCI配置-读取Capability-List-6" class="headerlink" title="PCI配置: 读取Capability-List (6)"></a>PCI配置: 读取Capability-List (6)</h1><ul>
+<li>Guest往PCI_CONFIG_ADDRESS port写0x80000804(bdf=0:1.0, offset=0x04=4)；offset=4-8在configuration space中是Command和Status；从上下文可知，guest是要查询Status，看是否支持Capability-List.</li>
+<li>Guest从PCI_CONFIG_DATA port读数据。Kvmtool返回0x0010，其中Status=0x10，即支持Capability-List.</li>
+<li>Guest往PCI_CONFIG_ADDRESS port写0x80000834(bdf=0:1.0, offset=0x34=52)；offset=52是指Cap.Pointer寄存器，即Capability-List的头在configuration space中的位置。也就是说，guest向device查讯Capability-List头在哪里。</li>
+<li>Guest从PCI_CONFIG_DATA port读数据。Kvmtool返回0x40，即64，也就是紧挨着configuration header(64字节)的位置。</li>
+<li>Guest往PCI_CONFIG_ADDRESS port写0x80000840(bdf=0:1.0, offset=0x40=64)，指向第一个Capability；</li>
+<li>Guest从PCI_CONFIG_DATA port读数据。Kvmtool返回0x7011：它表示msix_cap.cap=0x11=PCI_CAP_ID_MSIX; msix_cap.next=0x70=112(下一个Capability在112处);</li>
+<li>Guest往PCI_CONFIG_ADDRESS port写0x80000870(bdf=0:1.0, offset=0x70=112)，指向下一个Capability；</li>
+<li>Guest从PCI_CONFIG_DATA port读数据。Kvmtool返回0x8009：它表示msix_cap.cap=0x09=PCI_CAP_ID_VNDR; msix_cap.next=0x80=128(下一个Capability在128处);</li>
+<li>Guest往PCI_CONFIG_ADDRESS port写0x80000880(bdf=0:1.0, offset=0x80=128)，指向下一个Capability；</li>
+<li>Guest从PCI_CONFIG_DATA port读数据。Kvmtool返回0x9409：它表示msix_cap.cap=0x09=PCI_CAP_ID_VNDR; msix_cap.next=0x94=148(下一个Capability在148处);</li>
+<li>Guest往PCI_CONFIG_ADDRESS port写0x80000894(bdf=0:1.0, offset=0x94=148)，指向下一个Capability；</li>
+<li>Guest从PCI_CONFIG_DATA port读数据。Kvmtool返回0xa409：它表示msix_cap.cap=0x09=PCI_CAP_ID_VNDR; msix_cap.next=0xa4=164(下一个Capability在164处);</li>
+<li>Guest往PCI_CONFIG_ADDRESS port写0x800008a4(bdf=0:1.0, offset=0xa4=164)，指向下一个Capability；</li>
+<li>Guest从PCI_CONFIG_DATA port读数据。Kvmtool返回0xb409：它表示msix_cap.cap=0x09=PCI_CAP_ID_VNDR; msix_cap.next=0xb4=180(下一个Capability在180处);</li>
+<li>Guest往PCI_CONFIG_ADDRESS port写0x800008b4(bdf=0:1.0, offset=0xb4=180)，指向下一个Capability；</li>
+<li>Guest从PCI_CONFIG_DATA port读数据。Kvmtool返回0x0009：它表示msix_cap.cap=0x09=PCI_CAP_ID_VNDR; msix_cap.next=0x00(Capability-List结束)；</li>
+</ul>
+<h1 id="PCI配置-探测BAR-region-size-7"><a href="#PCI配置-探测BAR-region-size-7" class="headerlink" title="PCI配置: 探测BAR region size (7)"></a>PCI配置: 探测BAR region size (7)</h1><p>上面看到了CAM机制如何工作的，分成两个步骤：先写入一个addr，然后在进行read/write操作；后文不再赘述，直接描述成读写某个寄存器(offset)。</p>
+<p>探测一个BAR region size的过程见<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2024/07/22/virtualization-4-kvmtool-pci/">kvmtool pci virtualization</a>第1.6节。如前所述，虚拟环境下region的起始地址是kvmtool分配的，guest需要先把region起始保存起来(save)；然后探测region size；最后再恢复(restore)。Command寄存器也需要同样的操作。所以，整个过程是这样的：</p>
+<ul>
+<li>读Command寄存器原来的值，save；</li>
+<li>设置Command寄存器=0x0000;</li>
+<li>读BAR寄存器原来的值，save；</li>
+<li>探测BAR region size：设置BAR寄存器=0xffffffff;</li>
+<li>探测BAR region size：读回BAR寄存器;</li>
+<li>Restore BAR寄存器原来的值；</li>
+<li>Restore Command寄存器原来的值；</li>
+</ul>
+<p>以BAR-0为例：</p>
+<ul>
+<li>读0x80000804指向的寄存器(bdf=0:1.0,offset=0x04,Command寄存器)，kvmtool返回0x0003；</li>
+<li>写0x80000804指向的寄存器(bdf=0:1.0,offset=0x04,Command寄存器)，值0x0000；</li>
+<li>读0x80000810指向的寄存器(bdf=0:1.0,offset=0x10,BAR-0寄存器)；kvmtool返回0x00006301，即起始地址是0x6300(最后的0x1表示BAR region为IO port-mapped); 看<code>pci_get_io_port_block</code>可知，port-mapped region从PCI_IOPORT_START(0x6200)开始分配；应该是其它设备分配了0x6200，blk接着分配了0x6300；</li>
+<li>写0x80000810指向的寄存器(bdf=0:1.0,offset=0x10,BAR-0寄存器)，值0xffffffff；</li>
+<li>读0x80000810指向的寄存器(bdf=0:1.0,offset=0x10,BAR-0寄存器)；kvmtool返回0xffffff01；由此guest知道BAR-0-region是256字节，见<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2024/07/22/virtualization-4-kvmtool-pci/">kvmtool pci virtualization</a>第1.6节。在virtio_pci__init中BAR-0分配的region大小是<code>PCI_IO_SIZE</code>，其值为0x100(256)，所以是吻合的。</li>
+<li>写0x80000810指向的寄存器(bdf=0:1.0,offset=0x10,BAR-0寄存器)，值0x00006301；</li>
+<li>写0x80000804指向的寄存器(bdf=0:1.0,offset=0x04,Command寄存器)，值0x0003；</li>
+</ul>
+<p>BAR-1 (Command寄存器的save, set, restore不赘述)：</p>
+<ul>
+<li>读0x80000814指向的寄存器(bdf=0:1.0,offset=0x14,BAR-1寄存器)；kvmtool返回0xd2000800，即起始地址是0xd2000800(最后的0x0表示BAR region为memory-mapped)；看<code>pci_get_mmio_block</code>可知，memory-mapped region是从KVM_PCI_MMIO_AREA(0xd2000000)开始分配；其它设备分配了一些空间，blk分配到0xd2000800；</li>
+<li>写0x80000814指向的寄存器(bdf=0:1.0,offset=0x14,BAR-1寄存器)，值0xffffffff；</li>
+<li>读0x80000814指向的寄存器(bdf=0:1.0,offset=0x14,BAR-1寄存器)；kvmtool返回0xffffff00；由此guest知道BAR-1-region也是256字节。在virtio_pci__init中BAR-1分配的region大小也是<code>PCI_IO_SIZE</code>，值为0x100(256)，所以是吻合的。</li>
+<li>写0x80000814指向的寄存器(bdf=0:1.0,offset=0x14,BAR-1寄存器)，值0xd2000800；</li>
+</ul>
+<p>BAR-2 (Command寄存器的save, set, restore不赘述)：</p>
+<ul>
+<li>读0x80000818指向的寄存器(bdf=0:1.0,offset=0x18,BAR-2寄存器)；kvmtool返回0xd2000c00，即起始地址是0xd2000c00(最后的0x0表示BAR region为memory-mapped)；为什么不紧挨着BAR-1-region呢(0xd2000800+0x100=0xd2000900)？因为region的起始地址必须要是size的整数倍。下面可知BAR-2-region的大小是1KiB，而0xd2000900不是1KiB的整数倍。</li>
+<li>写0x80000818指向的寄存器(bdf=0:1.0,offset=0x18,BAR-2寄存器)，值0xffffffff；</li>
+<li>读0x80000818指向的寄存器(bdf=0:1.0,offset=0x18,BAR-2寄存器)；kvmtool返回0xfffffc00；由此guest知道BAR-2-region是1024字节。在virtio_pci__init中BAR-2分配的region大小是<code>VIRTIO_MSIX_BAR_SIZE</code>，值为1024，所以是吻合的。</li>
+<li>写0x80000818指向的寄存器(bdf=0:1.0,offset=0x18,BAR-2寄存器)，值0xd2000c00；</li>
+</ul>
+<h1 id="PCI配置-协商feature-set-8"><a href="#PCI配置-协商feature-set-8" class="headerlink" title="PCI配置: 协商feature set (8)"></a>PCI配置: 协商feature set (8)</h1><p>这是通过virtio common capability完成的，这个capability又是通过BAR-1实现的，所以行为上就是读写BAR-1-region内的地址，不同的偏移对应不同的操作。</p>
+<ul>
+<li>Guest写0xd2000800(长度为4)，对应VIRTIO_PCI_COMMON_DFSELECT操作；</li>
+<li>Guest读0xd2000804(长度为4)，对应VIRTIO_PCI_COMMON_DF操作；</li>
+<li>Guest写0xd2000808(长度为4)，对应VIRTIO_PCI_COMMON_GFSELECT操作；</li>
+<li>Guest读0xd200080c(长度为4)，对应VIRTIO_PCI_COMMON_GF操作；</li>
+</ul>
+<p>通过”写————读”操作，完成各自支持的feature set的交换？</p>
+<h1 id="MSI-X-table填写-9"><a href="#MSI-X-table填写-9" class="headerlink" title="MSI-X table填写 (9)"></a>MSI-X table填写 (9)</h1><p>如<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2024/08/11/virtualization-5-kvmtool-interrupt/">kvmtool interrupt virtualization</a>第4.2节所述，MSI-X table应该由系统OS或者BIOS来填写。这是通过BAR-2实现的，具体就是：guest写BAR-2-region内的某个地址(目标地址)，目标地址相对于region起始地址的offset，就是在MSI-X table中的位置————某个表项的某个字段。</p>
+<ul>
+<li>Guest写目标地址0xd2000c00，相对于region起始地址的offset是0，就是msix_table[0].msg.address_lo，写的内容是0xfee00000；</li>
+<li>Guest写目标地址0xd2000c04，相对于region起始地址的offset是4，就是msix_table[0].msg.address_hi，写的内容是0x00000000；</li>
+<li>Guest写目标地址0xd2000c08，相对于region起始地址的offset是8，就是msix_table[0].msg.data，写的内容是0x4041；</li>
+</ul>
+<p>这就把<code>msix_table[0]</code>填写好了，将来要发这个中断，就往guest的地址0x00000000:0xfee00000处写0x4022。</p>
+<p>同样的步骤，<code>msix_table[1]</code>被填写：</p>
+<ul>
+<li>msix_table[1].msg.address_lo = 0xfee1f000;</li>
+<li>msix_table[1].msg.address_hi = 0x00000000;</li>
+<li>msix_table[1].msg.data = 0x4021;</li>
+</ul>
+<p>Virtio-blk只使用这2个中断。后面将会看到，第一个关联的是configure-queue，第二个关联的是common-queue(virtio-blk只使用一个common-queue)。</p>
+<h1 id="Queue初始化-10"><a href="#Queue初始化-10" class="headerlink" title="Queue初始化 (10)"></a>Queue初始化 (10)</h1><p>上一节配置了2个中断，它们在msix_table中的index分别是0和1，就是vector-number，现在给它关联queue，并填到中断路由表中。这也是通过virtio common capability完成的，这个capability又是通过BAR-1实现的，所以行为上就是读写BAR-1-region内的地址，不同的偏移对应不同的操作。</p>
+<p>目的是构造这样一张表：</p>
+<table>
+<thead>
+<tr>
+<th>gsi</th>
+<th>type</th>
+<th>u.irqchip.irqchip</th>
+<th>u.irqchip.pin</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0</td>
+<td>KVM_IRQ_ROUTING_IRQCHIP</td>
+<td>IRQCHIP_MASTER(Master-8259A)</td>
+<td>0</td>
+</tr>
+<tr>
+<td>1</td>
+<td>KVM_IRQ_ROUTING_IRQCHIP</td>
+<td>IRQCHIP_MASTER(Master-8259A)</td>
+<td>1</td>
+</tr>
+<tr>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+</tr>
+</tbody></table>
+<table>
+<thead>
+<tr>
+<th>gsi</th>
+<th>type</th>
+<th>u.msi.address_hi</th>
+<th>u.msi.address_lo</th>
+<th>u.msi.data</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>24</td>
+<td>KVM_IRQ_ROUTING_MSI</td>
+<td>0x0</td>
+<td>0xfee00000</td>
+<td>0x4022</td>
+</tr>
+<tr>
+<td>25</td>
+<td>KVM_IRQ_ROUTING_MSI</td>
+<td>0x0</td>
+<td>0xfee1f000</td>
+<td>0x4021</td>
+</tr>
+</tbody></table>
+<p>首先是configure-queue：guest写BAR-1-region内的0xd2000810，对应VIRTIO_PCI_COMMON_MSIX操作，就是配置configure-queue的中断路由。写的数据长度是2字节，内容是vector-number(这里是0)。Kvmtool为configure-queue分配一个gsi号(24)，并在中断路由表中添加一项。然后把新的中断路由表同步给kvm内核模块，<code>ioctl(vm_fd, KVM_SET_GSI_ROUTING, 中断路由表地址)</code>。因为中断虚拟化主要是在kvm内核模块中完成的。</p>
+<p>然后是common-queue：common-queue通过vring传递数据，vring是guest分配的，所以要把地址告诉kvmtool里的device。</p>
+<ul>
+<li>Guest写BAR-1-region内的0xd2000816，对应VIRTIO_PCI_COMMON_Q_SELECT操作；写的数据是2字节，即选择的common-queue number；kvmtool把它记下来，这里就是0，即选择common-queue-0。</li>
+<li>Guest写BAR-1-region内的0xd2000820，对应VIRTIO_PCI_COMMON_Q_DESCLO操作，即设置vring Descriptor-Area的低地址；</li>
+<li>Guest写BAR-1-region内的0xd2000824，对应VIRTIO_PCI_COMMON_Q_DESCHI操作，即设置vring Descriptor-Area的高地址；</li>
+<li>Guest写BAR-1-region内的0xd2000828，对应VIRTIO_PCI_COMMON_Q_AVAILLO操作，即设置vring Avail-Area的低地址；</li>
+<li>Guest写BAR-1-region内的0xd200082c，对应VIRTIO_PCI_COMMON_Q_AVAILHI操作，即设置vring Avail-Area的高地址；</li>
+<li>Guest写BAR-1-region内的0xd2000830，对应VIRTIO_PCI_COMMON_Q_USEDLO操作，即设置vring Used-Area的低地址；</li>
+<li>Guest写BAR-1-region内的0xd2000834，对应VIRTIO_PCI_COMMON_Q_USEDHI操作，即设置vring Used-Area的高地址；</li>
+<li>Guest写BAR-1-region内的0xd200081a，对应VIRTIO_PCI_COMMON_Q_MSIX操作，就是配置被选择的common-queue的中断路由。写的数据的长度是2字节，内容是vector-number(这里是1)。Kvmtool为common-queue-0分配一个gsi号(25)，并在中断路由表中添加一项。同样，把新的中断路由表同步给kvm内核模块，<code>ioctl(vm_fd, KVM_SET_GSI_ROUTING, 中断路由表地址)</code>。</li>
+<li>Guest写0xd200081c，对应VIRTIO_PCI_COMMON_Q_ENABLE操作，见下一节。</li>
+</ul>
+<h1 id="Enable-queue-11"><a href="#Enable-queue-11" class="headerlink" title="Enable queue (11)"></a>Enable queue (11)</h1><p>Enable queue的逻辑在<code>virtio_pci_init_vq</code>函数中。</p>
+<p>首先就是启用异步通知。前面第3节说过<code>virtio_pci__init</code>调用<code>virtio_pci_modern_init</code>初始化了virtio.notify capability，它是一个同步通知机制：初始化之后，guest写BAR-1 region内的特定地址，就会触发kvmtool的<code>virtio_pci_modern__io_mmio_callback</code> -&gt; <code>virtio_pci_access</code> -&gt; <code>virtio_pci__notify_write</code>去同步处理。和同步通知相比，异步通知更高效：guest把通知写到ioeventfd中，就继续处理其它任务；kvmtool从ioeventfd poll通知，见<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2024/08/31/virtualization-6-kvmtool-virtio/">kvmtool virtio设备</a>第4.1.2节。Poll到通知之后，如何处理呢？这其实和virtio无关了，是实现的事；kvmtool中，调用<code>virtio_pci__ioevent_callback</code>来处理，这个函数调用<code>ioeventfd-&gt;vdev-&gt;ops-&gt;notify_vq</code>钩子函数来处理。对于blk来说，这个钩子函数是virtio/blk.c:notify_vq()，即直接把通知写到另一个eventfd(<code>bdev-&gt;io_efd</code>)中。这完全是实现上的选择……</p>
+<p>这里<code>bdev-&gt;io_efd</code>也要事先创建好，并且也应该创建一个线程来poll它。这就是<code>virtio_pci_init_vq</code> -&gt; <code>vdev-&gt;ops-&gt;init_vq</code>做的事。对于blk来说，<code>init_vq</code>(virtio/blk.c中)就是创建<code>bdev-&gt;io_efd</code>，并创建一个线程来poll它。线程的body是<code>virtio_blk_thread</code>函数。</p>
+<p>可想而知，<code>virtio_blk_thread</code>函数会poll <code>bdev-&gt;io_efd</code>中的通知:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> *<span class="title">virtio_blk_thread</span><span class="params">(<span class="keyword">void</span> *dev)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">blk_dev</span> *<span class="title">bdev</span> = <span class="title">dev</span>;</span></span><br><span class="line">    u64 data;</span><br><span class="line">    <span class="keyword">int</span> r;</span><br><span class="line"></span><br><span class="line">    kvm__set_thread_name(<span class="string">&quot;virtio-blk-io&quot;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line">        r = read(bdev-&gt;io_efd, &amp;data, <span class="keyword">sizeof</span>(u64));</span><br><span class="line">        <span class="keyword">if</span> (r &lt; <span class="number">0</span>)</span><br><span class="line">            <span class="keyword">continue</span>;</span><br><span class="line">        virtio_blk_do_io(bdev-&gt;kvm, &amp;bdev-&gt;vqs[<span class="number">0</span>], bdev);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    pthread_exit(<span class="literal">NULL</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>显然<code>virtio_blk_do_io</code>就是blk的IO逻辑。</p>
+<h1 id="Blk的IO-12"><a href="#Blk的IO-12" class="headerlink" title="Blk的IO (12)"></a>Blk的IO (12)</h1><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">virtio_blk_do_io</span><span class="params">(struct kvm *kvm, struct virt_queue *vq, struct blk_dev *bdev)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">blk_dev_req</span> *<span class="title">req</span>;</span></span><br><span class="line">    u16 head;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//检查avaiable-buffer queue是否不空</span></span><br><span class="line">    <span class="keyword">while</span> (virt_queue__available(vq)) &#123;</span><br><span class="line">        <span class="comment">//获取avaiable-buffer queue的head；它是Descriptor Area表的index；</span></span><br><span class="line">        head        = virt_queue__pop(vq);</span><br><span class="line">        req     = &amp;bdev-&gt;reqs[head];</span><br><span class="line">        <span class="comment">//从Descriptor Area的表项中得到buffer的地址和长度，放到req-&gt;iov中，并不拷贝buffer本身；</span></span><br><span class="line">        req-&gt;head   = virt_queue__get_head_iov(vq, req-&gt;iov, &amp;req-&gt;out,</span><br><span class="line">                    &amp;req-&gt;in, head, kvm);</span><br><span class="line">        req-&gt;vq     = vq;</span><br><span class="line"></span><br><span class="line">        virtio_blk_do_io_request(kvm, vq, req);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">virtio_blk_do_io_request</span><span class="params">(struct kvm *kvm, struct virt_queue *vq, struct blk_dev_req *req)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">virtio_blk_outhdr</span> <span class="title">req_hdr</span>;</span></span><br><span class="line">    <span class="keyword">size_t</span> iovcount, last_iov;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">blk_dev</span> *<span class="title">bdev</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">iovec</span> *<span class="title">iov</span>;</span></span><br><span class="line">    <span class="keyword">ssize_t</span> len;</span><br><span class="line">    u32 type;</span><br><span class="line">    u64 sector;</span><br><span class="line"></span><br><span class="line">    bdev        = req-&gt;bdev;</span><br><span class="line">    iov     = req-&gt;iov;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//  req既可能是read请求又可能是write请求；</span></span><br><span class="line">    <span class="comment">//  无论是read还是write，req-&gt;iov中都有一个struct virtio_blk_outhdr结构体；</span></span><br><span class="line">    <span class="comment">//  正是这个结构体告诉我们，本请求是read还是write；</span></span><br><span class="line">    <span class="comment">//      - 若是read： req-&gt;iov前面req-&gt;out个buffer(iovec结构)是virtio_blk_outhdr结构体；后面req-&gt;in个buffer(iovec结构)是空的，用于输入；</span></span><br><span class="line">    <span class="comment">//        注意空的buffer(iovec结构)也是有效的，它的长度(iovec::iov_len)也是大于0的；</span></span><br><span class="line">    <span class="comment">//      - 若是write：req-&gt;iov全部buffer(iovec结构)都是输出(个数是req-&gt;out; req-&gt;in应该等于0)；输出中，最开始是virtio_blk_outhdr结构体，后面是真实负载；</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">//先读出struct virtio_blk_outhdr结构体；然后就知道是read还是write以及读写的起始sector；</span></span><br><span class="line">    iovcount = req-&gt;out;</span><br><span class="line">    len = memcpy_fromiovec_safe(&amp;req_hdr, &amp;iov, <span class="keyword">sizeof</span>(req_hdr), &amp;iovcount);</span><br><span class="line">    <span class="keyword">if</span> (len) &#123;</span><br><span class="line">        pr_warning(<span class="string">&quot;Failed to get header&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    type = virtio_guest_to_host_u32(vq-&gt;endian, req_hdr.type);</span><br><span class="line">    sector = virtio_guest_to_host_u64(vq-&gt;endian, req_hdr.sector);</span><br><span class="line"></span><br><span class="line">    iovcount += req-&gt;in;</span><br><span class="line">    <span class="keyword">if</span> (!iov_size(iov, iovcount)) &#123;</span><br><span class="line">        pr_warning(<span class="string">&quot;Invalid IOV&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Extract status byte from iovec */</span></span><br><span class="line">    last_iov = iovcount - <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">while</span> (!iov[last_iov].iov_len)</span><br><span class="line">        last_iov--;</span><br><span class="line">    iov[last_iov].iov_len--;</span><br><span class="line">    req-&gt;status = iov[last_iov].iov_base + iov[last_iov].iov_len;</span><br><span class="line">    <span class="keyword">if</span> (!iov[last_iov].iov_len)</span><br><span class="line">        iovcount--;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">switch</span> (type) &#123;</span><br><span class="line">    <span class="keyword">case</span> VIRTIO_BLK_T_IN:</span><br><span class="line">        disk_image__read(bdev-&gt;disk, sector, iov, iovcount, req);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> VIRTIO_BLK_T_OUT:</span><br><span class="line">        disk_image__write(bdev-&gt;disk, sector, iov, iovcount, req);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> VIRTIO_BLK_T_FLUSH:</span><br><span class="line">        len = disk_image__flush(bdev-&gt;disk);</span><br><span class="line">        virtio_blk_complete(req, len);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> VIRTIO_BLK_T_GET_ID:</span><br><span class="line">        len = disk_image__get_serial(bdev-&gt;disk, iov, iovcount,</span><br><span class="line">                         VIRTIO_BLK_ID_BYTES);</span><br><span class="line">        virtio_blk_complete(req, len);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">default</span>:</span><br><span class="line">        pr_warning(<span class="string">&quot;request type %d&quot;</span>, type);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>显然<code>disk_image__read</code>和<code>disk_image__write</code>处理读写，重点看<code>virtio_blk_complete</code>函数。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">virtio_blk_complete</span><span class="params">(<span class="keyword">void</span> *param, <span class="keyword">long</span> len)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">blk_dev_req</span> *<span class="title">req</span> = <span class="title">param</span>;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">blk_dev</span> *<span class="title">bdev</span> = <span class="title">req</span>-&gt;<span class="title">bdev</span>;</span></span><br><span class="line">    <span class="keyword">int</span> queueid = req-&gt;vq - bdev-&gt;vqs;</span><br><span class="line">    u8 *status;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* status */</span></span><br><span class="line">    status = req-&gt;status;</span><br><span class="line">    *status = (len &lt; <span class="number">0</span>) ? VIRTIO_BLK_S_IOERR : VIRTIO_BLK_S_OK;</span><br><span class="line"></span><br><span class="line">    mutex_lock(&amp;bdev-&gt;mutex);</span><br><span class="line">    <span class="comment">//used-buffer放进vring；</span></span><br><span class="line">    virt_queue__set_used_elem(req-&gt;vq, req-&gt;head, len);</span><br><span class="line">    mutex_unlock(&amp;bdev-&gt;mutex);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//触发中断；对于PCI transport，signal_vq指向virtio_pci__signal_vq()函数；</span></span><br><span class="line">    <span class="keyword">if</span> (virtio_queue__should_signal(&amp;bdev-&gt;vqs[queueid]))</span><br><span class="line">        bdev-&gt;vdev.ops-&gt;signal_vq(req-&gt;kvm, &amp;bdev-&gt;vdev, queueid);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>前面第4节也提到这个函数，那是用于同步通知的情况下。无论同步还是异步通知，complete逻辑是一样的。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/virtualization/" rel="tag"># virtualization</a>
+              <a href="/tags/kvm/" rel="tag"># kvm</a>
+              <a href="/tags/kvmtool/" rel="tag"># kvmtool</a>
+              <a href="/tags/virtio/" rel="tag"># virtio</a>
+              <a href="/tags/blk/" rel="tag"># blk</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2024/08/31/virtualization-6-kvmtool-virtio/" rel="prev" title="虚拟化入门笔记--kvmtool virtio设备">
+      <i class="fa fa-chevron-left"></i> 虚拟化入门笔记--kvmtool virtio设备
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/10/06/virtualization-8-kvmtool-vhost/" rel="next" title="虚拟化入门笔记--kvmtool vhost">
+      虚拟化入门笔记--kvmtool vhost <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E4%BD%93%E6%B5%81%E7%A8%8B-0"><span class="nav-number">1.</span> <span class="nav-text">总体流程 (0)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#PCI-CAM-ECAM%E5%88%9D%E5%A7%8B%E5%8C%96-1"><span class="nav-number">2.</span> <span class="nav-text">PCI CAM&#x2F;ECAM初始化 (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Virtio%E8%AE%BE%E5%A4%87%E5%88%9D%E5%A7%8B%E5%8C%96%EF%BC%9A%E5%88%9B%E5%BB%BA%E8%99%9A%E6%8B%9Fdevice%E5%AE%9E%E4%BE%8B-2"><span class="nav-number">3.</span> <span class="nav-text">Virtio设备初始化：创建虚拟device实例 (2)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Virtio%E8%AE%BE%E5%A4%87%E5%88%9D%E5%A7%8B%E5%8C%96%EF%BC%9APCI-configuration-space-3"><span class="nav-number">4.</span> <span class="nav-text">Virtio设备初始化：PCI configuration space (3)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AE%BE%E7%BD%AEblk%E8%AE%BE%E5%A4%87%E7%9A%84completion-callback-4"><span class="nav-number">5.</span> <span class="nav-text">设置blk设备的completion callback (4)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#PCI-enumeration-5"><span class="nav-number">6.</span> <span class="nav-text">PCI enumeration (5)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#PCI%E9%85%8D%E7%BD%AE-%E8%AF%BB%E5%8F%96Capability-List-6"><span class="nav-number">7.</span> <span class="nav-text">PCI配置: 读取Capability-List (6)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#PCI%E9%85%8D%E7%BD%AE-%E6%8E%A2%E6%B5%8BBAR-region-size-7"><span class="nav-number">8.</span> <span class="nav-text">PCI配置: 探测BAR region size (7)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#PCI%E9%85%8D%E7%BD%AE-%E5%8D%8F%E5%95%86feature-set-8"><span class="nav-number">9.</span> <span class="nav-text">PCI配置: 协商feature set (8)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#MSI-X-table%E5%A1%AB%E5%86%99-9"><span class="nav-number">10.</span> <span class="nav-text">MSI-X table填写 (9)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Queue%E5%88%9D%E5%A7%8B%E5%8C%96-10"><span class="nav-number">11.</span> <span class="nav-text">Queue初始化 (10)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Enable-queue-11"><span class="nav-number">12.</span> <span class="nav-text">Enable queue (11)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Blk%E7%9A%84IO-12"><span class="nav-number">13.</span> <span class="nav-text">Blk的IO (12)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

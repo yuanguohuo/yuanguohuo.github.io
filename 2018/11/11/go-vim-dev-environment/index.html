@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="本文记录基于vim搭建go开发环境的过程。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="搭建vim的go开发环境">
+<meta property="og:url" content="http://yoursite.com/2018/11/11/go-vim-dev-environment/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="本文记录基于vim搭建go开发环境的过程。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2018-11-11T10:43:16.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.501Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="vim">
+<meta property="article:tag" content="go">
+<meta property="article:tag" content="vim-go">
+<meta property="article:tag" content="YouCompleteMe">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2018/11/11/go-vim-dev-environment/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>搭建vim的go开发环境 | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/11/11/go-vim-dev-environment/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          搭建vim的go开发环境
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2018-11-11 10:43:16" itemprop="dateCreated datePublished" datetime="2018-11-11T10:43:16+00:00">2018-11-11</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/dev-tool/" itemprop="url" rel="index"><span itemprop="name">dev-tool</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2018/11/11/go-vim-dev-environment/" class="post-meta-item leancloud_visitors" data-flag-title="搭建vim的go开发环境" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2018/11/11/go-vim-dev-environment/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2018/11/11/go-vim-dev-environment/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>本文记录基于vim搭建go开发环境的过程。</p>
+<a id="more"></a>
+
+<h1 id="更新vim-1"><a href="#更新vim-1" class="headerlink" title="更新vim (1)"></a>更新vim (1)</h1><p>由于vim-go插件在vim7.4上有bug，所以先把vim更新到vim8.1。准备好源码包vim-8.1.tar.bz2。</p>
+<h2 id="卸载vim7-4-1-1"><a href="#卸载vim7-4-1-1" class="headerlink" title="卸载vim7.4 (1.1)"></a>卸载vim7.4 (1.1)</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"># rpm -qa | grep vim</span><br><span class="line">vim-minimal-7.4.160-4.el7.x86_64</span><br><span class="line">vim-common-7.4.160-4.el7.x86_64</span><br><span class="line">vim-enhanced-7.4.160-4.el7.x86_64</span><br><span class="line">vim-filesystem-7.4.160-4.el7.x86_64</span><br><span class="line"></span><br><span class="line"># yum remove vim-minimal-7.4.160-4.el7.x86_64  \</span><br><span class="line">             vim-common-7.4.160-4.el7.x86_64   \</span><br><span class="line">             vim-enhanced-7.4.160-4.el7.x86_64 \</span><br><span class="line">             vim-filesystem-7.4.160-4.el7.x86_64</span><br></pre></td></tr></table></figure>
+
+<h2 id="安装vim8-1-1-2"><a href="#安装vim8-1-1-2" class="headerlink" title="安装vim8.1 (1.2)"></a>安装vim8.1 (1.2)</h2><p>vim依赖ncurses需要事先安装。另外由于后面的YouCompleteMe依赖python，所以这里编译vim8.1的时候要加上python和python3支持。先安装python-devel和python3-devel。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"># yum install -y ncurses.x86_64  ncurses-devel.x86_64</span><br><span class="line"># yum install -y python-devel.x86_64 python3-devel.x86_64</span><br><span class="line"></span><br><span class="line"># tar xjvf vim-8.1.tar.bz2</span><br><span class="line"># cd vim81&#x2F;  </span><br><span class="line"></span><br><span class="line"># .&#x2F;configure                                                                            \</span><br><span class="line">            --enable-fail-if-missing                                                     \</span><br><span class="line">            --with-features&#x3D;huge                                                         \</span><br><span class="line">            --enable-multibyte                                                           \</span><br><span class="line">            --enable-pythoninterp&#x3D;yes                                                    \</span><br><span class="line">            --with-python-config-dir&#x3D;&#x2F;usr&#x2F;lib64&#x2F;python2.7&#x2F;config                         \</span><br><span class="line">            --enable-python3interp&#x3D;yes                                                   \</span><br><span class="line">            --with-python3-config-dir&#x3D;&#x2F;usr&#x2F;lib64&#x2F;python3.6&#x2F;config-3.6m-x86_64-linux-gnu  \</span><br><span class="line">            --enable-cscope                                                              \</span><br><span class="line">            --prefix&#x3D;&#x2F;usr&#x2F;local&#x2F;vim8.1</span><br><span class="line"></span><br><span class="line"># make</span><br><span class="line"># make install</span><br></pre></td></tr></table></figure>
+
+<p>需要说明的是:</p>
+<ul>
+<li><code>--enable-multibyte</code>是为了打开多字节支持，否则在Vim中不能输入中文。</li>
+<li><code>--enable-fail-if-missing</code>使得configure发现缺失依赖，就立即失败，而不是继续运行。</li>
+<li>如此安装之后，vim8.1的runtime dir就是/usr/local/vim8.1/share/vim/vim81。</li>
+</ul>
+<p>把vim的路径加入PATH，然后确认一下python被支持：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"># vim --version | grep python</span><br><span class="line">+cmdline_info      +libcall           +python&#x2F;dyn        +visual</span><br><span class="line">+comments          +linebreak         +python3&#x2F;dyn       +visualextra</span><br></pre></td></tr></table></figure>
+
+<h1 id="安装go-2"><a href="#安装go-2" class="headerlink" title="安装go (2)"></a>安装go (2)</h1><p>下载go语言包go1.11.2.linux-amd64.tar.gz，并解压到/usr/local/go1.11.2.linux-amd64。然后配置GOROOT，GOPATH和PATH。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"># mkdir -p &#x2F;home&#x2F;workspace&#x2F;go</span><br><span class="line"></span><br><span class="line"># tail ~&#x2F;.bashrc </span><br><span class="line">......</span><br><span class="line">GOVERSION&#x3D;1.11.2.linux-amd64</span><br><span class="line">export GOROOT&#x3D;&#x2F;usr&#x2F;local&#x2F;go$GOVERSION</span><br><span class="line">export GOPATH&#x3D;&#x2F;home&#x2F;workspace&#x2F;go</span><br><span class="line">export PATH&#x3D;$GOROOT&#x2F;bin:$GOPATH&#x2F;bin:&#x2F;usr&#x2F;local&#x2F;vim8.1&#x2F;bin:$PATH</span><br></pre></td></tr></table></figure>
+
+<h1 id="安装vim插件管理工具Vundle-3"><a href="#安装vim插件管理工具Vundle-3" class="headerlink" title="安装vim插件管理工具Vundle (3)"></a>安装vim插件管理工具Vundle (3)</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">mkdir -p ~&#x2F;.vim&#x2F;bundle</span><br><span class="line">git clone https:&#x2F;&#x2F;github.com&#x2F;VundleVim&#x2F;Vundle.vim.git ~&#x2F;.vim&#x2F;bundle&#x2F;Vundle.vim</span><br></pre></td></tr></table></figure>
+
+<p>创建一个空的~/.vimrc文件，并添加如下内容：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">&quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; begin: Vundle settings &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">&quot; Use Vim settings, rather than Vi settings (much better!).</span><br><span class="line">&quot; This must be first, because it changes other options as a side effect.</span><br><span class="line">set nocompatible  &quot;required</span><br><span class="line"></span><br><span class="line">filetype off      &quot;required</span><br><span class="line"></span><br><span class="line">&quot; set the runtime path to include Vundle and initialize</span><br><span class="line">set rtp+&#x3D;~&#x2F;.vim&#x2F;bundle&#x2F;Vundle.vim</span><br><span class="line">call vundle#begin()</span><br><span class="line">&quot; alternatively, pass a path where Vundle should install plugins</span><br><span class="line">&quot;call vundle#begin(&#39;~&#x2F;some&#x2F;path&#x2F;here&#39;)</span><br><span class="line"></span><br><span class="line">&quot; let Vundle manage Vundle, required</span><br><span class="line">Plugin &#39;VundleVim&#x2F;Vundle.vim&#39;</span><br><span class="line"></span><br><span class="line">&quot; All of your Plugins must be added before the following line</span><br><span class="line">call vundle#end()      &quot;required</span><br><span class="line"></span><br><span class="line">&quot; Enable file type detection.</span><br><span class="line">&quot; Use the default filetype settings, so that mail gets &#39;tw&#39; set to 72,</span><br><span class="line">&quot; &#39;cindent&#39; is on in C files, etc.</span><br><span class="line">&quot; Also load indent files, to automatically do language-dependent indenting.</span><br><span class="line">filetype plugin indent on    &quot;required</span><br><span class="line"></span><br><span class="line">&quot; To ignore plugin indent changes, instead use:</span><br><span class="line">&quot;filetype plugin on</span><br><span class="line">&quot;</span><br><span class="line">&quot; Brief help</span><br><span class="line">&quot; :PluginList       - lists configured plugins</span><br><span class="line">&quot; :PluginInstall    - installs plugins; append &#96;!&#96; to update or just :PluginUpdate</span><br><span class="line">&quot; :PluginSearch foo - searches for foo; append &#96;!&#96; to refresh local cache</span><br><span class="line">&quot; :PluginClean      - confirms removal of unused plugins; append &#96;!&#96; to auto-approve removal</span><br><span class="line">&quot;</span><br><span class="line">&quot; see :h vundle for more details or wiki for FAQ</span><br><span class="line">&quot; Put your non-Plugin stuff after this line</span><br><span class="line">&quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; end: Vundle settings &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br></pre></td></tr></table></figure>
+
+<p>然后，执行</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"># vim +PluginInstall</span><br></pre></td></tr></table></figure>
+
+<h1 id="vim个性化配置-4"><a href="#vim个性化配置-4" class="headerlink" title="vim个性化配置 (4)"></a>vim个性化配置 (4)</h1><p>根据自己的习惯，为vim做一些个性化配置。例如，我在~/.vimrc末尾append如下内容：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br></pre></td><td class="code"><pre><span class="line">&quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;begin: general vim settings&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">&quot; When started as &quot;evim&quot;, evim.vim will already have done these settings.</span><br><span class="line">if v:progname &#x3D;~? &quot;evim&quot;</span><br><span class="line">  finish</span><br><span class="line">endif</span><br><span class="line"></span><br><span class="line">&quot; allow backspacing over everything in insert mode</span><br><span class="line">set backspace&#x3D;indent,eol,start</span><br><span class="line"></span><br><span class="line">if has(&quot;vms&quot;)</span><br><span class="line">  set nobackup</span><br><span class="line">else</span><br><span class="line">  set nobackup</span><br><span class="line">endif</span><br><span class="line">set history&#x3D;50        &quot; keep 50 lines of command line history</span><br><span class="line">set ruler        &quot; show the cursor position all the time</span><br><span class="line">set showcmd        &quot; display incomplete commands</span><br><span class="line">set incsearch        &quot; do incremental searching</span><br><span class="line"></span><br><span class="line">&quot; For Win32 GUI: remove &#39;t&#39; flag from &#39;guioptions&#39;: no tearoff menu entries</span><br><span class="line">&quot; let &amp;guioptions &#x3D; substitute(&amp;guioptions, &quot;t&quot;, &quot;&quot;, &quot;g&quot;)</span><br><span class="line"></span><br><span class="line">&quot; Don&#39;t use Ex mode, use Q for formatting</span><br><span class="line">map Q gq</span><br><span class="line"></span><br><span class="line">&quot; In an xterm the mouse should work quite well, thus enable it.</span><br><span class="line">&quot; set mouse&#x3D;a</span><br><span class="line"></span><br><span class="line">&quot; This is an alternative that also works in block mode, but the deleted</span><br><span class="line">&quot; text is lost and it only works for putting the current register.</span><br><span class="line">&quot;vnoremap p &quot;_dp</span><br><span class="line"></span><br><span class="line">set t_Co&#x3D;256</span><br><span class="line"></span><br><span class="line">&quot; Switch syntax highlighting on, when the terminal has colors</span><br><span class="line">&quot; Also switch on highlighting the last used search pattern.</span><br><span class="line">if &amp;t_Co &gt; 2 || has(&quot;gui_running&quot;)</span><br><span class="line">  syntax on</span><br><span class="line">  set hlsearch</span><br><span class="line">endif</span><br><span class="line"></span><br><span class="line">&quot; Only do this part when compiled with support for autocommands.</span><br><span class="line">if has(&quot;autocmd&quot;)</span><br><span class="line">  &quot; Put these in an autocmd group, so that we can delete them easily.</span><br><span class="line">  augroup vimrcEx</span><br><span class="line">  au!</span><br><span class="line"></span><br><span class="line">  &quot; For all text files set &#39;textwidth&#39; to 78 characters.</span><br><span class="line">  autocmd FileType text setlocal textwidth&#x3D;78</span><br><span class="line"></span><br><span class="line">  &quot; When editing a file, always jump to the last known cursor position.</span><br><span class="line">  &quot; Don&#39;t do it when the position is invalid or when inside an event handler</span><br><span class="line">  &quot; (happens when dropping a file on gvim).</span><br><span class="line">  autocmd BufReadPost *</span><br><span class="line">    \ if line(&quot;&#39;\&quot;&quot;) &gt; 0 &amp;&amp; line(&quot;&#39;\&quot;&quot;) &lt;&#x3D; line(&quot;$&quot;) |</span><br><span class="line">    \   exe &quot;normal g&#96;\&quot;&quot; |</span><br><span class="line">    \ endif</span><br><span class="line"></span><br><span class="line">  augroup END</span><br><span class="line">else</span><br><span class="line">  set autoindent        &quot;always set autoindenting on</span><br><span class="line">endif &quot; has(&quot;autocmd&quot;)</span><br><span class="line"></span><br><span class="line">set textwidth&#x3D;120</span><br><span class="line"></span><br><span class="line">&quot;whether not tabs are expanded to spaces, we set it on here.</span><br><span class="line">&quot;Yuanguo: it seems not to work for go source files; this is good.</span><br><span class="line">set expandtab</span><br><span class="line"></span><br><span class="line">&quot; Number of spaces that a &lt;Tab&gt; in the file counts for.</span><br><span class="line">set tabstop&#x3D;4</span><br><span class="line"></span><br><span class="line">&quot;Number of spaces to use for each step of (auto)indent.</span><br><span class="line">set shiftwidth&#x3D;4</span><br><span class="line"></span><br><span class="line">&quot;disable the annoying beep sound</span><br><span class="line">set vb</span><br><span class="line"></span><br><span class="line">&quot;on linux, if you press &#39;n&#39; (next line) when vim has already reached the end of</span><br><span class="line">&quot;the file, the screen splashes, that is quite annoying; disable it:</span><br><span class="line">set t_vb&#x3D;&quot;&quot; </span><br><span class="line"></span><br><span class="line">&quot;yuanguo: This variable controls whether a window has a status line. </span><br><span class="line">&quot;  0: A window never has a status line;</span><br><span class="line">&quot;  1: If there are more than one windows, each has a status line; </span><br><span class="line">&quot;  2: A window always has a status line; </span><br><span class="line">set laststatus&#x3D;2</span><br><span class="line"></span><br><span class="line">&quot;automatically read the changes made from the outside.</span><br><span class="line">set autoread</span><br><span class="line"></span><br><span class="line">&quot;set mapleader</span><br><span class="line">let mapleader &#x3D; &quot;,&quot;</span><br><span class="line"></span><br><span class="line">&quot;when move cursor virtically, screen will scroll if there are 7 lines at the</span><br><span class="line">&quot;bottom&#x2F;up of the screen.</span><br><span class="line">set so&#x3D;7</span><br><span class="line"></span><br><span class="line">&quot;show line number; to hide the line number, use command </span><br><span class="line">&quot;  :set nonu</span><br><span class="line">set nu</span><br><span class="line"></span><br><span class="line">&quot;let the directory where session file resides become current directory of vim, </span><br><span class="line">&quot;when loading the seesion file.</span><br><span class="line">set sessionoptions-&#x3D;curdir</span><br><span class="line">set sessionoptions+&#x3D;sesdir</span><br><span class="line">&quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;end: general vim settings&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"> </span><br><span class="line">&quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;begin: make modification to .vimrc easy&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">&quot;open a file named fname in a new tab if it is not opened. If it is already</span><br><span class="line">&quot;opened but not the current tab (not disaplayed), then change it to the</span><br><span class="line">&quot;current tab.</span><br><span class="line">function! SwitchToBuf(fname)</span><br><span class="line">    let bwnr&#x3D;bufwinnr(a:fname)</span><br><span class="line">    if bwnr!&#x3D;-1</span><br><span class="line">        exe bwnr.&quot;wincmd w&quot;</span><br><span class="line">        return </span><br><span class="line">    else</span><br><span class="line">        tabfirst</span><br><span class="line">        let tab&#x3D;1</span><br><span class="line">        while tab&lt;&#x3D;tabpagenr(&quot;$&quot;)</span><br><span class="line">            let bwnr&#x3D;bufwinnr(a:fname)</span><br><span class="line">            if bwnr!&#x3D;-1</span><br><span class="line">                exe &quot;normal&quot;.tab.&quot;gt&quot;</span><br><span class="line">                exe bwnr.&quot;wincmd w&quot;</span><br><span class="line">                return</span><br><span class="line">            endif</span><br><span class="line">            tabnext</span><br><span class="line">            let tab&#x3D;tab+1</span><br><span class="line">        endwhile</span><br><span class="line">        exe &quot;tabnew&quot;.a:fname</span><br><span class="line">    endif</span><br><span class="line">endfunction</span><br><span class="line"></span><br><span class="line">map &lt;silent&gt; &lt;leader&gt;ss :source ~&#x2F;.vimrc&lt;cr&gt;</span><br><span class="line">map &lt;silent&gt; &lt;leader&gt;ee :call SwitchToBuf(&quot;~&#x2F;.vimrc&quot;)&lt;cr&gt;</span><br><span class="line">&quot;execute source ~&#x2F;.vimrc whenever it is re-written.</span><br><span class="line">autocmd! bufwritepost .vimrc source ~&#x2F;.vimrc</span><br><span class="line">&quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;end: make modification to .vimrc easy&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"> </span><br><span class="line">&quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;begin: session and viminfo&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">&quot;save and load session</span><br><span class="line">map &lt;silent&gt; &lt;leader&gt;mks :mksession! .working.session&lt;cr&gt;</span><br><span class="line">map &lt;silent&gt; &lt;leader&gt;ls :source .working.session&lt;cr&gt;</span><br><span class="line"></span><br><span class="line">&quot;save and load viminfo</span><br><span class="line">map &lt;silent&gt; &lt;leader&gt;mki :wviminfo! .working.viminfo&lt;cr&gt;</span><br><span class="line">map &lt;silent&gt; &lt;leader&gt;li :rviminfo .working.viminfo&lt;cr&gt;</span><br><span class="line">&quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;end: session and viminfo&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line"></span><br><span class="line">&quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;begin: buffer settings&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">&quot;A buffer in buffer-list can be in one of the following three stats:</span><br><span class="line">&quot; 1. active: the file is loaded into memory and displayed in a window; the</span><br><span class="line">&quot;            buffer may have been modified and thus be different from the file;</span><br><span class="line">&quot; 2. hidden: the file is loaded into memory but not displayed in a window; like</span><br><span class="line">&quot;            in activethe state, buffer may have been modified and thus be </span><br><span class="line">&quot;            different from the file;</span><br><span class="line">&quot; 3. inactive: the buffer is not loaded into memory, nor displayed. The buffer</span><br><span class="line">&quot;            in buffer-list but doesn&#39;t contain anything.</span><br><span class="line"></span><br><span class="line">&quot;unload a buffer: free the memory allocated for the buffer. If the buffer is</span><br><span class="line">&quot;modified, unload will fail unless &quot;!&quot; is added to discard the modifications;</span><br><span class="line">&quot;unloaded buffer is still in the buffer-list but in &quot;inactive&quot; state;</span><br><span class="line"></span><br><span class="line">&quot;abandon a buffer: not display it anymore. for example, 1. quit from vim; 2.</span><br><span class="line">&quot;display another buffer by vim command &quot;&#123;buffer-number&#125;b&quot; or &quot;e &#123;file-name&#125;&quot;.</span><br><span class="line"></span><br><span class="line">&quot;hidden is a global option for buffers. bufhidden is an option specific to a</span><br><span class="line">&quot;buffer. These 2 options affects the abandon operation:</span><br><span class="line"></span><br><span class="line">&quot;when abandon a buffer:</span><br><span class="line">&quot; 1. if bufhidden is empty:</span><br><span class="line">&quot;      a. if hidden is on: the buffer becomes hidden no matter if it is</span><br><span class="line">&quot;         modified;</span><br><span class="line">&quot;      b. if hidden is off: the buffer is unloaded (fail if modified);</span><br><span class="line">&quot; 2. if bufhidden is &quot;hide&quot;: the buffer becomes hidden no matter if it is </span><br><span class="line">&quot;    modified;</span><br><span class="line">&quot; 3. if bufhidden is &quot;unload&quot;: the buffer is unloaded (fail if modified);</span><br><span class="line">&quot; 4. if bufhidden is &quot;delete&quot;: the buffer is unloaded (fail if modified) and</span><br><span class="line">&quot;    then deleted from buffer-list; when deleted from buffer-list, it goes into</span><br><span class="line">&quot;    unlisted-buffer-list.</span><br><span class="line">&quot; 5. if bufhidden is &quot;wipe&quot;: the buffer is unloaded (fail if modified), deleted</span><br><span class="line">&quot;    from buffer-list, and then deleted from unlisted-buffer-list;</span><br><span class="line"></span><br><span class="line">&quot; vim command &quot;ls&quot; displays only buffer-list, while &quot;ls!&quot; displays both</span><br><span class="line">&quot; buffer-list and unlisted-buffer-list;</span><br><span class="line"></span><br><span class="line">&quot;set hidden</span><br><span class="line">&quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;end: buffer settings&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br></pre></td></tr></table></figure>
+
+<h1 id="vim-go插件-5"><a href="#vim-go插件-5" class="headerlink" title="vim-go插件 (5)"></a>vim-go插件 (5)</h1><h2 id="安装vim-go-5-1"><a href="#安装vim-go-5-1" class="headerlink" title="安装vim-go (5.1)"></a>安装vim-go (5.1)</h2><p>有了第3节安装的vim插件管理工具Vundle，很容易安装vim-go。</p>
+<ul>
+<li><p>在~/.vimrc中的Vundle配置里加入：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Plugin &#39;fatih&#x2F;vim-go&#39;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>在~/.vim/bundle/目录下安装vim-go：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vim +PluginInstall</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>在$GOPATH/bin下安装二进制工具，并在$GOPATH/src/golang.org和$GOPATH/src/github.com下安装它们的源代码。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vim +GoInstallBinaries</span><br></pre></td></tr></table></figure>
+<p>这一步比较慢，并且若没有科学上网，golang.org/x/下的东西都会失败。可以手动安装它们：</p>
+</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">mkdir -p $GOPATH&#x2F;src&#x2F;golang.org&#x2F;x&#x2F;  </span><br><span class="line">cd $GOPATH&#x2F;src&#x2F;golang.org&#x2F;x&#x2F;  </span><br><span class="line">git clone https:&#x2F;&#x2F;github.com&#x2F;golang&#x2F;tools.git   </span><br><span class="line">git clone  https:&#x2F;&#x2F;github.com&#x2F;golang&#x2F;net.git</span><br><span class="line">git clone  https:&#x2F;&#x2F;github.com&#x2F;golang&#x2F;text.git  </span><br><span class="line">git clone  https:&#x2F;&#x2F;github.com&#x2F;golang&#x2F;crypto.git  </span><br><span class="line">git clone  https:&#x2F;&#x2F;github.com&#x2F;golang&#x2F;sys.git</span><br><span class="line">git clone  https:&#x2F;&#x2F;github.com&#x2F;golang&#x2F;sync.git</span><br><span class="line">git clone  https:&#x2F;&#x2F;github.com&#x2F;golang&#x2F;lint.git</span><br><span class="line">go install .&#x2F;...</span><br></pre></td></tr></table></figure>
+
+<p>然后再通过<code>vim +GoInstallBinaries</code>安装其他工具。</p>
+<h2 id="配置vim-go-5-2"><a href="#配置vim-go-5-2" class="headerlink" title="配置vim-go (5.2)"></a>配置vim-go (5.2)</h2><p>vim-go提供的功能：</p>
+<ul>
+<li>输入fmt.然后按ctrl+x, ctrl+o，vim会弹出补齐提示下拉框。这个补齐是由gocode提供的。不过这个补齐比较麻烦，后面YouCompleteMe会提供更加方便的补齐。</li>
+<li>输入代码：<code>time.Sleep(time.Second)</code>并执行:GoImports，vim会自动导入time package。</li>
+<li>执行:GoDef，vim会打开光标下的标识符的定义。</li>
+<li>执行:GoDoc，vim会打开光标下的标识符的文档。</li>
+<li>执行:GoLint，vim会在当前go源文件上运行golint。</li>
+<li>执行:GoVet，vim会在在当前目录下运行go vet。</li>
+<li>执行:GoRun，vim会编译当前package并运行它的main。</li>
+<li>执行:GoBuild，vim会编译当前package。GoBuild不产生结果文件。</li>
+<li>执行:GoInstall，vim会安装当前package。</li>
+<li>执行:GoTest，vim会运行当前路径下的test.go文件。</li>
+<li>执行:GoCoverage，vim会创建一个测试覆盖结果文件，并打开浏览器展示当前package的情况。</li>
+<li>执行:GoErrCheck，vim会检查当前package里可能的未捕获的errors。</li>
+<li>执行:GoFiles，vim会显示当前package对应的源文件列表。</li>
+<li>执行:GoDeps，vim会显示当前package的依赖列表。</li>
+<li>执行:GoImplements，vim会显示当前类型实现的interface列表。</li>
+<li>执行:GoRename [to]，将当前光标下的标识符remame为[to]。</li>
+</ul>
+<p>我们在~/.vimrc中为一些常用的工具设置快捷map：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">&quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; begin: vim-go settings &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">map &lt;silent&gt; &lt;leader&gt;imp :GoImports&lt;cr&gt;</span><br><span class="line">map &lt;silent&gt; &lt;leader&gt;doc :GoDoc&lt;cr&gt;</span><br><span class="line">map &lt;silent&gt; &lt;leader&gt;run :GoRun&lt;cr&gt;</span><br><span class="line">map &lt;silent&gt; &lt;leader&gt;bld :GoBuild&lt;cr&gt;</span><br><span class="line">map &lt;silent&gt; &lt;leader&gt;test :GoTest&lt;cr&gt;</span><br><span class="line">map &lt;silent&gt; &lt;leader&gt;ec :GoErrCheck&lt;cr&gt;</span><br><span class="line">&quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; end: vim-go settings &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br></pre></td></tr></table></figure>
+
+<h1 id="YouCompleteMe-6"><a href="#YouCompleteMe-6" class="headerlink" title="YouCompleteMe (6)"></a>YouCompleteMe (6)</h1><p>首先确认vim已经支持了python，否则，安装了YouCompleteMe之后每次运行vim都会报错：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">YouCompleteMe unavailable: requires Vim compiled with Python (2.7.1+ or 3.4+) support</span><br></pre></td></tr></table></figure>
+
+<h2 id="安装YouCompleteMe-6-1"><a href="#安装YouCompleteMe-6-1" class="headerlink" title="安装YouCompleteMe (6.1)"></a>安装YouCompleteMe (6.1)</h2><p>和安装vim-go插件一样，先在<del>/.vimrc中的Vundle配置里加入：<code>Plugin &#39;Valloric/YouCompleteMe&#39;</code>，然后执行：<code>vim +PluginInstall</code>。这就把YouCompleteMe安装到</del>/.vim/bundle里了。但是，和vim-go不同的是，YouCompleteMe还需要进一步的安装。在 ~/.vim/bundle/YouCompleteMe/有一个install.py脚本，我们需要运行这个脚本来完成安装。为支持不同的语言，可以给这个脚本提供不同的选项，例如：<code>--go-completer</code>，<code>--java-completer</code>，<code>--clang-completer</code>等。这里我使用<code>--all</code>选项，支持所有常见语言。这样依赖也是最多的。下面先安装依赖，然后运行脚本。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"># yum install -y cmake</span><br><span class="line"># yum install -y mono-addins-devel.x86_64</span><br><span class="line"># yum install -y npm.x86_64</span><br><span class="line"># yum install -y cargo.x86_64</span><br><span class="line"></span><br><span class="line"># cd ~&#x2F;.vim&#x2F;bundle&#x2F;YouCompleteMe</span><br><span class="line"># install.py --all</span><br></pre></td></tr></table></figure>
+
+<h2 id="配置YouCompleteMe-6-2"><a href="#配置YouCompleteMe-6-2" class="headerlink" title="配置YouCompleteMe (6.2)"></a>配置YouCompleteMe (6.2)</h2><p>在~/.vimrc中加入:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br></pre></td><td class="code"><pre><span class="line">&quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; begin: YCM settings &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">&quot;the number of characters the user needs to type before identifier-based completion </span><br><span class="line">&quot;suggestions are triggered.</span><br><span class="line">&quot;Setting this option to a high number like 99 effectively turns off identifier-based</span><br><span class="line">&quot;completion and just leaves the semantic engine.</span><br><span class="line">let g:ycm_min_num_of_chars_for_completion &#x3D; 2</span><br><span class="line"></span><br><span class="line">&quot;the minimum number of characters that a completion candidate of the identifier</span><br><span class="line">&quot;completion must have.</span><br><span class="line">&quot;Yuanguo: if an identifier is shorter than this, it will never be a candidate of the </span><br><span class="line">&quot;identifier-based completion.</span><br><span class="line">let g:ycm_min_num_identifier_candidate_chars &#x3D; 0</span><br><span class="line"></span><br><span class="line">&quot;the maximum number of completion suggestions from the identifier-based engine.</span><br><span class="line">&quot;0 means there is no limit.</span><br><span class="line">&quot;Setting this option to 0 or to a value greater than 100 is not recommended as it will slow</span><br><span class="line">&quot;down completion when there are a very large number of suggestions.</span><br><span class="line">let g:ycm_max_num_identifier_candidates &#x3D; 10</span><br><span class="line"></span><br><span class="line">&quot;the maximum number of completion suggestions from semantic completion engines.</span><br><span class="line">&quot;0 means there is no limit.</span><br><span class="line">&quot;Setting this option to 0 or to a value greater than 100 is not recommended as it will slow </span><br><span class="line">&quot;down completion when there are a very large number of suggestions.</span><br><span class="line">let g:ycm_max_num_candidates &#x3D; 50</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">&quot;when set to 0, this option turns off YCM&#39;s identifier-based completion (the as-you-type popup)</span><br><span class="line">&quot;and the semantic triggers (the popup you&#39;d get after typing . or -&gt; in say C++). You can still </span><br><span class="line">&quot;force semantic completion with key mappings set by g:ycm_key_invoke_completion.</span><br><span class="line">&quot;if you want to just turn off the identifier-based completion but keep the semantic triggers, you </span><br><span class="line">&quot;should set g:ycm_min_num_of_chars_for_completion to a high number like 99.</span><br><span class="line">let g:ycm_auto_trigger &#x3D; 1 </span><br><span class="line"></span><br><span class="line">&quot;this option controls for which Vim filetypes (see :h filetype) should YCM be turned on. the option </span><br><span class="line">&quot;value should be a Vim dictionary with keys being filetype strings (like python, cpp, etc.) and values </span><br><span class="line">&quot;being unimportant (the dictionary is used like a hash set, meaning that only the keys matter).</span><br><span class="line">&quot;the * key is special and matches all filetypes. By default, the whitelist contains only this * key.</span><br><span class="line">&quot;YCM also has a g:ycm_filetype_blacklist option that lists filetypes for which YCM shouldn&#39;t be turned </span><br><span class="line">&quot;on. YCM will work only in filetypes that both the whitelist and the blacklist allow (the blacklist &quot;allows&quot; </span><br><span class="line">&quot;a filetype by not having it as a key).</span><br><span class="line">let g:ycm_filetype_whitelist &#x3D; &#123;&#39;*&#39;: 1&#125;</span><br><span class="line"></span><br><span class="line">&quot;which Vim filetypes (see :h filetype) should YCM be turned off. see g:ycm_filetype_whitelist above.</span><br><span class="line">let g:ycm_filetype_blacklist &#x3D; &#123;</span><br><span class="line">      \ &#39;tagbar&#39;: 1,</span><br><span class="line">      \ &#39;qf&#39;: 1,</span><br><span class="line">      \ &#39;notes&#39;: 1,</span><br><span class="line">      \ &#39;markdown&#39;: 1,</span><br><span class="line">      \ &#39;unite&#39;: 1,</span><br><span class="line">      \ &#39;text&#39;: 1,</span><br><span class="line">      \ &#39;vimwiki&#39;: 1,</span><br><span class="line">      \ &#39;pandoc&#39;: 1,</span><br><span class="line">      \ &#39;infolog&#39;: 1,</span><br><span class="line">      \ &#39;mail&#39;: 1</span><br><span class="line">      \&#125;</span><br><span class="line"></span><br><span class="line">&quot;Yuanguo: Vim&#39;s has an option named &#39;completeopt&#39; (see :h completeopt). we can </span><br><span class="line">&quot;check its value by</span><br><span class="line">&quot;       :set completeopt?&#39;    --yes, the question mark is important</span><br><span class="line">&quot;for example, on my Vim:</span><br><span class="line">&quot;       completeopt&#x3D;preview,menuone</span><br><span class="line">&quot;if &#39;preview&#39; is contained in the value, like above, Vim will open a preview-window</span><br><span class="line">&quot;automatically when completing. </span><br><span class="line"></span><br><span class="line">&quot;if this option is set to 1</span><br><span class="line">&quot;   a. if there is no &#39;preview&#39; in value of completeopt, YCM will add it; </span><br><span class="line">&quot;   b. if there &#39;preview&#39; already, there will be no effect;</span><br><span class="line">&quot;so if you want to disable the preview-window, you should:</span><br><span class="line">&quot;   a. remove &#39;preview&#39; by &#39;set completeopt&#x3D;menuone&#39;</span><br><span class="line">&quot;   b. set this option to 0</span><br><span class="line">let g:ycm_add_preview_to_completeopt &#x3D; 0</span><br><span class="line"></span><br><span class="line">&quot;now, if the preview-window is not disabled, you may want it to be colsed</span><br><span class="line">&quot;automatically at some time. you have the following 2 options, and</span><br><span class="line">&quot;if the former is set, the latter is useless:</span><br><span class="line"></span><br><span class="line">&quot;When this option is set to 1, YCM will auto-close the preview window after </span><br><span class="line">&quot;the user accepts the offered completion string.</span><br><span class="line">let g:ycm_autoclose_preview_window_after_completion &#x3D; 1</span><br><span class="line"></span><br><span class="line">&quot;When this option is set to 1, YCM will auto-close the preview window after </span><br><span class="line">&quot;the user leaves insert mode; </span><br><span class="line">&quot;this option takes effect only when g:ycm_autoclose_preview_window_after_completion</span><br><span class="line">&quot;is not set;</span><br><span class="line">let g:ycm_autoclose_preview_window_after_insertion &#x3D; 0</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">&quot;key mappings used to select the first completion string. Invoking any of them repeatedly </span><br><span class="line">&quot;cycles forward through the completion list.</span><br><span class="line">let g:ycm_key_list_select_completion &#x3D; [&#39;&lt;Tab&gt;&#39;, &#39;&lt;Down&gt;&#39;]</span><br><span class="line"></span><br><span class="line">&quot;key mappings used to select the previous completion string. Invoking any of them repeatedly </span><br><span class="line">&quot;cycles backwards through the completion list.</span><br><span class="line">let g:ycm_key_list_previous_completion &#x3D; [&#39;&lt;S-Tab&gt;&#39;, &#39;&lt;Up&gt;&#39;]</span><br><span class="line"></span><br><span class="line">&quot;key mappings used to close the completion menu. This is useful:</span><br><span class="line">&quot;   1. when the menu is blocking the view; </span><br><span class="line">&quot;   2. when you need to insert the &lt;TAB&gt; character;</span><br><span class="line">&quot;   3. when you want to expand a snippet from UltiSnips and navigate through it.</span><br><span class="line">let g:ycm_key_list_stop_completion &#x3D; [&#39;&lt;C-y&gt;&#39;]</span><br><span class="line"></span><br><span class="line">&quot;key mapping used to invoke the completion menu for semantic completion. By default, semantic </span><br><span class="line">&quot;completion is triggered automatically after typing ., -&gt; and :: in insert mode (if semantic </span><br><span class="line">&quot;completion support has been compiled in). </span><br><span class="line">&quot;This key mapping can be used to trigger semantic completion anywhere. Useful for searching for </span><br><span class="line">&quot;top-level functions and classes.</span><br><span class="line">&quot;Yuanguo: the default &#39;ctrl-Space&#39; didn&#39;t work for me, so I set it as ctrl-u</span><br><span class="line">let g:ycm_key_invoke_completion &#x3D; &#39;&lt;C-u&gt;&#39;</span><br><span class="line"></span><br><span class="line">&quot;When this option is set to 1, YCM will query the UltiSnips plugin for possible completions of </span><br><span class="line">&quot;snippet triggers.</span><br><span class="line">let g:ycm_use_ultisnips_completer &#x3D; 0</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">&quot;If the ycmd completion server suddenly stops for some reason, you can restart it with this command.</span><br><span class="line">&quot;     :YcmRestartServer </span><br><span class="line"></span><br><span class="line">&quot;Calling this command will force YCM to immediately recompile your file and display any new diagnostics </span><br><span class="line">&quot;it encounters. Do note that recompilation with this command may take a while and during this time the </span><br><span class="line">&quot;Vim GUI will be blocked.</span><br><span class="line">&quot;     :YcmForceCompileAndDiagnostics </span><br><span class="line">&quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; end: YCM settings &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br></pre></td></tr></table></figure>
+
+<h1 id="UltiSnips-7"><a href="#UltiSnips-7" class="headerlink" title="UltiSnips (7)"></a>UltiSnips (7)</h1><p>首先在~/.vimrc中的Vundle配置里加入：<code>Plugin &#39;SirVer/ultisnips&#39;</code>，然后执行：<code>vim +PluginInstall</code>。需要注意的是，UltiSnips默认使用tab键进行补全，但是YouCompleteMe也使用tab键。所以，我们必须重新设置一个键。如下所示，我设置的是Ctrl-h。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">&quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; begin: UltiSnips setting &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">&quot;Trigger configuration; defaut is &lt;tab&gt;; because we have already used &lt;tab&gt; in YCM, we cannot use it </span><br><span class="line">&quot;again here.</span><br><span class="line">let g:UltiSnipsExpandTrigger&#x3D;&quot;&lt;c-h&gt;&quot;</span><br><span class="line">let g:UltiSnipsJumpForwardTrigger&#x3D;&quot;&lt;c-b&gt;&quot;</span><br><span class="line">let g:UltiSnipsJumpBackwardTrigger&#x3D;&quot;&lt;c-z&gt;&quot;</span><br><span class="line"></span><br><span class="line">&quot;If you want :UltiSnipsEdit to split your window.</span><br><span class="line">let g:UltiSnipsEditSplit&#x3D;&quot;vertical&quot;</span><br><span class="line">&quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; end: UltiSnips setting &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br></pre></td></tr></table></figure>
+
+<h1 id="tagbar-8"><a href="#tagbar-8" class="headerlink" title="tagbar (8)"></a>tagbar (8)</h1><p>tarbar依赖前面vim-go提供的gotags和ctags。所以，要先安装ctags，然后在~/.vimrc中的Vundle配置里加入：<code>Plugin &#39;majutsushi/tagbar&#39;</code>，最后再次执行：<code>vim +PluginInstall</code>。配置如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">&quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; begin: go-tagbar setting &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br><span class="line">let g:tagbar_type_go &#x3D; &#123;</span><br><span class="line">    \ &#39;ctagstype&#39; : &#39;go&#39;,</span><br><span class="line">    \ &#39;kinds&#39;     : [</span><br><span class="line">        \ &#39;p:package&#39;,</span><br><span class="line">        \ &#39;i:imports:1&#39;,</span><br><span class="line">        \ &#39;c:constants&#39;,</span><br><span class="line">        \ &#39;v:variables&#39;,</span><br><span class="line">        \ &#39;t:types&#39;,</span><br><span class="line">        \ &#39;n:interfaces&#39;,</span><br><span class="line">        \ &#39;w:fields&#39;,</span><br><span class="line">        \ &#39;e:embedded&#39;,</span><br><span class="line">        \ &#39;m:methods&#39;,</span><br><span class="line">        \ &#39;r:constructor&#39;,</span><br><span class="line">        \ &#39;f:functions&#39;</span><br><span class="line">    \ ],</span><br><span class="line">    \ &#39;sro&#39; : &#39;.&#39;,</span><br><span class="line">    \ &#39;kind2scope&#39; : &#123;</span><br><span class="line">        \ &#39;t&#39; : &#39;ctype&#39;,</span><br><span class="line">        \ &#39;n&#39; : &#39;ntype&#39;</span><br><span class="line">    \ &#125;,</span><br><span class="line">    \ &#39;scope2kind&#39; : &#123;</span><br><span class="line">        \ &#39;ctype&#39; : &#39;t&#39;,</span><br><span class="line">        \ &#39;ntype&#39; : &#39;n&#39;</span><br><span class="line">    \ &#125;,</span><br><span class="line">    \ &#39;ctagsbin&#39;  : &#39;gotags&#39;,</span><br><span class="line">    \ &#39;ctagsargs&#39; : &#39;-sort -silent&#39;</span><br><span class="line">\ &#125;</span><br><span class="line"></span><br><span class="line">map &lt;silent&gt; &lt;leader&gt;t :TagbarToggle&lt;cr&gt;</span><br><span class="line">&quot;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D; end: go-tagbar setting &#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;&#x3D;</span><br></pre></td></tr></table></figure>
+
+<h1 id="总结-9"><a href="#总结-9" class="headerlink" title="总结 (9)"></a>总结 (9)</h1><p>记录一下配置go开发环境的过程，方便日后查询。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/vim/" rel="tag"># vim</a>
+              <a href="/tags/go/" rel="tag"># go</a>
+              <a href="/tags/vim-go/" rel="tag"># vim-go</a>
+              <a href="/tags/YouCompleteMe/" rel="tag"># YouCompleteMe</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2018/09/12/tcpdump/" rel="prev" title="tcpdump的使用">
+      <i class="fa fa-chevron-left"></i> tcpdump的使用
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2018/12/23/rocksdb-cache/" rel="next" title="RocksDB中的LRUCache">
+      RocksDB中的LRUCache <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%9B%B4%E6%96%B0vim-1"><span class="nav-number">1.</span> <span class="nav-text">更新vim (1)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8D%B8%E8%BD%BDvim7-4-1-1"><span class="nav-number">1.1.</span> <span class="nav-text">卸载vim7.4 (1.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%89%E8%A3%85vim8-1-1-2"><span class="nav-number">1.2.</span> <span class="nav-text">安装vim8.1 (1.2)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E8%A3%85go-2"><span class="nav-number">2.</span> <span class="nav-text">安装go (2)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E8%A3%85vim%E6%8F%92%E4%BB%B6%E7%AE%A1%E7%90%86%E5%B7%A5%E5%85%B7Vundle-3"><span class="nav-number">3.</span> <span class="nav-text">安装vim插件管理工具Vundle (3)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#vim%E4%B8%AA%E6%80%A7%E5%8C%96%E9%85%8D%E7%BD%AE-4"><span class="nav-number">4.</span> <span class="nav-text">vim个性化配置 (4)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#vim-go%E6%8F%92%E4%BB%B6-5"><span class="nav-number">5.</span> <span class="nav-text">vim-go插件 (5)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%89%E8%A3%85vim-go-5-1"><span class="nav-number">5.1.</span> <span class="nav-text">安装vim-go (5.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%85%8D%E7%BD%AEvim-go-5-2"><span class="nav-number">5.2.</span> <span class="nav-text">配置vim-go (5.2)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#YouCompleteMe-6"><span class="nav-number">6.</span> <span class="nav-text">YouCompleteMe (6)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%89%E8%A3%85YouCompleteMe-6-1"><span class="nav-number">6.1.</span> <span class="nav-text">安装YouCompleteMe (6.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%85%8D%E7%BD%AEYouCompleteMe-6-2"><span class="nav-number">6.2.</span> <span class="nav-text">配置YouCompleteMe (6.2)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#UltiSnips-7"><span class="nav-number">7.</span> <span class="nav-text">UltiSnips (7)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#tagbar-8"><span class="nav-number">8.</span> <span class="nav-text">tagbar (8)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93-9"><span class="nav-number">9.</span> <span class="nav-text">总结 (9)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="完美转发能够优化函数调用过程中参数传递的效率。本文一部分翻译这篇文章和这篇文章，略加重组并加上个人理解；另一部分介绍了emplace如何实现容器内对象的原地构造。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="C++11中的完美转发">
+<meta property="og:url" content="http://yoursite.com/2018/05/25/cpp11-perfect-forward/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="完美转发能够优化函数调用过程中参数传递的效率。本文一部分翻译这篇文章和这篇文章，略加重组并加上个人理解；另一部分介绍了emplace如何实现容器内对象的原地构造。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2018-05-25T12:04:03.000Z">
+<meta property="article:modified_time" content="2025-07-10T09:32:33.487Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="完美转发">
+<meta property="article:tag" content="perfect forwarding">
+<meta property="article:tag" content="通用引用">
+<meta property="article:tag" content="universal reference">
+<meta property="article:tag" content="emplace">
+<meta property="article:tag" content="emplace_back">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2018/05/25/cpp11-perfect-forward/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>C++11中的完美转发 | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/05/25/cpp11-perfect-forward/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          C++11中的完美转发
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2018-05-25 12:04:03" itemprop="dateCreated datePublished" datetime="2018-05-25T12:04:03+00:00">2018-05-25</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2025-07-10 09:32:33" itemprop="dateModified" datetime="2025-07-10T09:32:33+00:00">2025-07-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/c/" itemprop="url" rel="index"><span itemprop="name">c++</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2018/05/25/cpp11-perfect-forward/" class="post-meta-item leancloud_visitors" data-flag-title="C++11中的完美转发" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2018/05/25/cpp11-perfect-forward/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2018/05/25/cpp11-perfect-forward/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>完美转发能够优化函数调用过程中参数传递的效率。本文一部分翻译<a target="_blank" rel="noopener" href="http://thbecker.net/articles/rvalue_references/section_07.html">这篇文章</a>和<a target="_blank" rel="noopener" href="http://thbecker.net/articles/rvalue_references/section_08.html">这篇文章</a>，略加重组并加上个人理解；另一部分介绍了emplace如何实现容器内对象的原地构造。</p>
+<a id="more"></a>
+
+<h1 id="问题-1"><a href="#问题-1" class="headerlink" title="问题 (1)"></a>问题 (1)</h1><p>我们想写这样一个工厂模板函数<code>factory</code>，使用参数<code>Arg</code>类型的参数<code>arg</code>，构造一个<code>T</code>的对象，并返回它的<code>shared_ptr</code>。我们的理想是**<code>factory</code>就像不存在一样**：</p>
+<ul>
+<li>把<code>arg</code>传给<code>factory</code>函数时，没有引入额外的拷贝；就像调用者直接使用<code>arg</code>构造<code>T</code>的对象一样；</li>
+<li>把<code>arg</code>传给<code>T</code>的构造函数时，要保留<code>arg</code>的左值右值特征；也就是说，假如<code>arg</code>是右值并且<code>T</code>定义了移动构造函数，则构造<code>T</code>对象时要匹配移动构造。当然，如果<code>arg</code>是左值，或者<code>T</code>没有定义移动构造，可能还是需要拷贝。但这和直接构造<code>T</code>对象的行为是一样的，我们已经做到了<code>factory</code>就像不存在一样。</li>
+</ul>
+<p>这也是<em>完美</em>的含义。</p>
+<h2 id="尝试1-1-1"><a href="#尝试1-1-1" class="headerlink" title="尝试1 (1.1)"></a>尝试1 (1.1)</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> Arg&gt; </span><br><span class="line"><span class="function"><span class="built_in">shared_ptr</span>&lt;T&gt; <span class="title">factory</span><span class="params">(Arg arg)</span></span></span><br><span class="line"><span class="function"></span>&#123; </span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">shared_ptr</span>&lt;T&gt;(<span class="keyword">new</span> T(arg));</span><br><span class="line">&#125; </span><br></pre></td></tr></table></figure>
+
+<p>显然，这是一个失败的尝试：</p>
+<ul>
+<li>把<code>arg</code>传给<code>factory</code>函数时引入了额外的拷贝：调用<code>factory</code>的时候，<code>arg</code>是值传递的，需要实参到形参的拷贝；</li>
+<li>若<code>T</code>的构造函数的参数是左值引用类型，就更糟糕：它引用了一个实参(factory函数结束后，实参就消亡了)；</li>
+</ul>
+<h2 id="尝试2-1-2"><a href="#尝试2-1-2" class="headerlink" title="尝试2 (1.2)"></a>尝试2 (1.2)</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> Arg&gt; </span><br><span class="line"><span class="function"><span class="built_in">shared_ptr</span>&lt;T&gt; <span class="title">factory</span><span class="params">(Arg&amp; arg)</span></span></span><br><span class="line"><span class="function"></span>&#123; </span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">shared_ptr</span>&lt;T&gt;(<span class="keyword">new</span> T(arg));</span><br><span class="line">&#125; </span><br></pre></td></tr></table></figure>
+
+<p><code>factory</code>的参数是个引用，因此额外的拷贝是没有了。但是<code>arg</code>是一个左值引用，它不能匹配右值，这样的调用无法通过编译：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">factory&lt;X&gt;(hoo()); <span class="comment">// 若hoo返回的不是引用而是值，则找不到匹配的函数，出错</span></span><br><span class="line">factory&lt;X&gt;(<span class="number">41</span>);    <span class="comment">// 找不到匹配的函数，出错</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="尝试3-1-3"><a href="#尝试3-1-3" class="headerlink" title="尝试3 (1.3)"></a>尝试3 (1.3)</h2><p>同时提供<code>factory(Arg&amp;)</code>和<code>factory(Arg const &amp;)</code>：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> Arg&gt; </span><br><span class="line"><span class="function"><span class="built_in">shared_ptr</span>&lt;T&gt; <span class="title">factory</span><span class="params">(Arg&amp; arg)</span></span></span><br><span class="line"><span class="function"></span>&#123; </span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">shared_ptr</span>&lt;T&gt;(<span class="keyword">new</span> T(arg));</span><br><span class="line">&#125; </span><br><span class="line"></span><br><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> Arg&gt; </span><br><span class="line"><span class="function"><span class="built_in">shared_ptr</span>&lt;T&gt; <span class="title">factory</span><span class="params">(Arg <span class="keyword">const</span> &amp; arg)</span></span></span><br><span class="line"><span class="function"></span>&#123; </span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">shared_ptr</span>&lt;T&gt;(<span class="keyword">new</span> T(arg));</span><br><span class="line">&#125; </span><br></pre></td></tr></table></figure>
+
+<p>这样，实参若是非const的左值则匹配前者；若是const的左值或者右值则匹配后者；额外拷贝的完全避免了。但是，还有两个问题：</p>
+<ol>
+<li>即使实参是右值，匹配后者，<code>arg</code>引用的是右值，<code>new T(arg)</code>也无法匹配<code>T</code>的移动构造函数；</li>
+<li>若factory有n个参数，每个参数都有const引用和非const引用两种类型，组合起来就需要2^n个重载；</li>
+</ol>
+<h1 id="解决方案-2"><a href="#解决方案-2" class="headerlink" title="解决方案 (2)"></a>解决方案 (2)</h1><p>回顾一下我们的理想：<strong>这层工厂函数就像不存在一样</strong>：</p>
+<ul>
+<li>没有额外的拷贝；就像调用者直接使用<code>arg</code>构造<code>T</code>的对象一样；</li>
+<li>若<code>arg</code>是右值，则需要保留其右值的特征(匹配<code>T</code>的移动构造函数————若有)；</li>
+</ul>
+<p>这要求我们：</p>
+<ol>
+<li>必须按引用传递；且左值和右值必须都能引用；</li>
+<li>若引用右值，必须保留右值的特征；</li>
+</ol>
+<p>第1.3节中使用的<em>const的左值引用</em>(<code>Arg const&amp;</code>或与之等价的<code>const Arg&amp;</code>)可以满足第1点。但如前所述，无法满足第2点。容易想出，通用引用(见<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2018/05/25/cpp11-universal-ref/">C++11中的通用引用</a>)能够同时满足这两点。</p>
+<p>首先这个模板函数声明应该是这样的：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> Arg&gt; </span><br><span class="line"><span class="function"><span class="built_in">shared_ptr</span>&lt;T&gt; <span class="title">factory</span><span class="params">(Arg&amp;&amp; arg)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<p>因为<code>arg</code>是一个通用引用，匹配左值时它是左值引用，匹配右值时它是右值引用。乍一看，认为这样可以了：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> Arg&gt; </span><br><span class="line"><span class="function"><span class="built_in">shared_ptr</span>&lt;T&gt; <span class="title">factory</span><span class="params">(Arg&amp;&amp; arg)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">shared_ptr</span>&lt;T&gt;(<span class="keyword">new</span> T(arg));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>其实，这不行。看过<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2018/05/25/cpp11-rvalue-ref/">C++11中的右值引用</a>和<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2018/05/25/cpp11-universal-ref/">C++11中的通用引用</a>就会知道，<strong>无论右值引用类型的变量还是通用引用类型的变量，都是左值，因为它们有名字</strong>。这里名字为<code>arg</code>的变量(函数参数)，当然是左值。那么<code>new T(arg)</code>无论如何也不能匹配移动构造函数。我们想要的是：</p>
+<ul>
+<li>当左值<code>arg</code>引用的是左值时，把被引用的左值传给<code>new T()</code>；</li>
+<li>当左值<code>arg</code>引用的是右值时，把被引用的右值传给<code>new T()</code>；由于<code>arg</code>本身是左值，我们需要使用static_cast把它强制为右值；</li>
+</ul>
+<p>C++11提供的<code>std::forward()</code>，使用一行代码，就给我们实现了。它的玄妙之处在于类型推导和引用折叠(见<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2018/05/25/cpp11-universal-ref/">C++11中的通用引用</a>)。</p>
+<h2 id="std-forward-2-1"><a href="#std-forward-2-1" class="headerlink" title="std::forward (2.1)"></a>std::forward (2.1)</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="class"><span class="keyword">class</span> <span class="title">S</span>&gt;</span></span><br><span class="line"><span class="class"><span class="title">S</span>&amp;&amp; <span class="title">forward</span>(<span class="title">typename</span> <span class="title">remove_reference</span>&lt;S&gt;:</span>:type&amp; a) <span class="keyword">noexcept</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">static_cast</span>&lt;S&amp;&amp;&gt;(a);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>还是通过<code>factory</code>例子来看它是如何处理左值和右值的吧。有了它，我们的<code>factory</code>函数可以这样写：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> Arg&gt; </span><br><span class="line"><span class="function"><span class="built_in">shared_ptr</span>&lt;T&gt; <span class="title">factory</span><span class="params">(Arg&amp;&amp; arg)</span></span></span><br><span class="line"><span class="function"></span>&#123; </span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">shared_ptr</span>&lt;T&gt;(<span class="keyword">new</span> T(<span class="built_in">std</span>::forward&lt;Arg&gt;(arg)));</span><br><span class="line">&#125; </span><br></pre></td></tr></table></figure>
+
+<p>** forwad左值：**</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">X x;</span><br><span class="line">factory&lt;A&gt;(x);</span><br></pre></td></tr></table></figure>
+
+<p>根据类型推导规则(见<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2018/05/25/cpp11-universal-ref/">C++11中的通用引用</a>)，函数模板<code>factory</code>的类型参数<code>Arg</code>的推导结果是<code>X&amp;</code>，那么<code>factory</code>展开为：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="built_in">shared_ptr</span>&lt;A&gt; <span class="title">factory</span><span class="params">(X&amp; &amp;&amp; arg)</span></span></span><br><span class="line"><span class="function"></span>&#123; </span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">shared_ptr</span>&lt;A&gt;(<span class="keyword">new</span> A(<span class="built_in">std</span>::forward&lt;X&amp;&gt;(arg)));</span><br><span class="line">&#125; </span><br></pre></td></tr></table></figure>
+
+<p>用<code>Arg</code>(<code>X&amp;</code>)替换<code>std::forward</code>类型参数<code>S</code>：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">X&amp; &amp;&amp; <span class="title">forward</span><span class="params">(remove_reference&lt;X&amp;&gt;::type&amp; a)</span> <span class="keyword">noexcept</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">static_cast</span>&lt;X&amp; &amp;&amp;&gt;(a);</span><br><span class="line">&#125; </span><br></pre></td></tr></table></figure>
+
+<p>经过remove_reference和引用折叠(见<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2018/05/25/cpp11-universal-ref/">C++11中的通用引用</a>)，最终结果是：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="built_in">shared_ptr</span>&lt;A&gt; <span class="title">factory</span><span class="params">(X&amp; arg)</span></span></span><br><span class="line"><span class="function"></span>&#123; </span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">shared_ptr</span>&lt;A&gt;(<span class="keyword">new</span> A(<span class="built_in">std</span>::forward&lt;X&amp;&gt;(arg)));</span><br><span class="line">&#125; </span><br><span class="line"></span><br><span class="line"><span class="function">X&amp; <span class="title">std::forward</span><span class="params">(X&amp; a)</span> <span class="keyword">noexcept</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">static_cast</span>&lt;X&amp;&gt;(a);</span><br><span class="line">&#125; </span><br></pre></td></tr></table></figure>
+
+<p>可以看出：当左值<code>arg</code>引用的是左值时，传递给<code>new T()</code>的是被引用的左值(被引用的左值再经过<code>static_cast&lt;X&amp;&gt;</code>得到的还是左值引用)。</p>
+<p>** forwad右值：**</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">X <span class="title">foo</span><span class="params">()</span></span>;</span><br><span class="line">factory&lt;A&gt;(foo());</span><br></pre></td></tr></table></figure>
+
+<p>根据类型推导规则(见<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2018/05/25/cpp11-universal-ref/">C++11中的通用引用</a>)，函数模板<code>factory</code>的类型参数<code>Arg</code>的推导结果是<code>X</code>，那么<code>factory</code>展开为：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="built_in">shared_ptr</span>&lt;A&gt; <span class="title">factory</span><span class="params">(X&amp;&amp; arg)</span></span></span><br><span class="line"><span class="function"></span>&#123; </span><br><span class="line">  <span class="keyword">return</span> <span class="built_in">shared_ptr</span>&lt;A&gt;(<span class="keyword">new</span> A(<span class="built_in">std</span>::forward&lt;X&gt;(arg)));</span><br><span class="line">&#125; </span><br></pre></td></tr></table></figure>
+
+<p>这种情况下，factory不需要引用折叠。然后，用<code>Arg</code>(<code>X</code>)替换<code>std::forward</code>类型参数<code>S</code>：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">X&amp;&amp; <span class="title">forward</span><span class="params">(<span class="keyword">typename</span> remove_reference&lt;X&gt;::type&amp; a)</span> <span class="keyword">noexcept</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">static_cast</span>&lt;X&amp;&amp;&gt;(a);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>经过remove_reference，<code>forward</code>简化成这样：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">X&amp;&amp; <span class="title">forward</span><span class="params">(X&amp; a)</span> <span class="keyword">noexcept</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">static_cast</span>&lt;X&amp;&amp;&gt;(a);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看出：当左值<code>arg</code>引用的是右值时，传递给<code>new T()</code>的是被引用的右值(static_cast&lt;X&amp;&amp;&gt;把<code>arg</code>强制为右值，因为没有名字)。</p>
+<p><strong>完美转发的两步：</strong></p>
+<p>可见，完美转发中，有两个关键步骤：</p>
+<ol>
+<li>使用通用引用来接收参数；这样，左值右值都能接收；</li>
+<li>使用std::forward()转发给被调函数；这样，左值作为左值传递，右值作为右值传递；</li>
+</ol>
+<h2 id="std-forward和std-move比较-2-2"><a href="#std-forward和std-move比较-2-2" class="headerlink" title="std::forward和std::move比较 (2.2)"></a>std::forward和std::move比较 (2.2)</h2><p>对比<a target="_blank" rel="noopener" href="http://www.yuanguohuo.com/2018/05/25/cpp11-universal-ref/">C++11中的通用引用</a>中<em>std::move的工作原理</em>一节，我们发现，std::forward和std::move还是有一些相似之处的：</p>
+<ol>
+<li>它们都使用static_cast()来完成任务；</li>
+<li>它们都使用通用引用(及背后的类型推导和引用折叠机制)；</li>
+</ol>
+<p>所不同的是：</p>
+<ol>
+<li><code>std::forward</code>参数是左值引用，返回的是通用引用；<code>std::move</code>参数是通用引用，返回的是右值引用；</li>
+</ol>
+<p>这很好理解：</p>
+<ul>
+<li><code>std::forward</code>拿到的是一个左值(所以参数是左值引用)；然后看这个左值是左值引用类型还是右值引用类型，若为前者则返回左值，若为后者则返回右值(所以返回值是通用引用)；</li>
+<li><code>std::move</code>拿到的可能是左值也可能是右值(所以参数是通用引用)，但一定返回右值(所以返回值是右值引用)；</li>
+</ul>
+<h1 id="emplace-3"><a href="#emplace-3" class="headerlink" title="emplace (3)"></a>emplace (3)</h1><h2 id="push-back的右值引用版本-3-1"><a href="#push-back的右值引用版本-3-1" class="headerlink" title="push_back的右值引用版本 (3.1)"></a>push_back的右值引用版本 (3.1)</h2><p>把一个对象加入容器(以<code>vector</code>为例)，我们常用<code>push_back</code>。在C++11以前，只有这样一个版本：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">push_back</span> <span class="params">(<span class="keyword">const</span> value_type&amp; val)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<p>从C++11开始，有了右值引用，又增加了一个版本：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">push_back</span> <span class="params">(value_type&amp;&amp; val)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<p>代码：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">std</span>::vecotr&lt;Foo&gt; v;</span><br><span class="line">v.push_back(Foo(<span class="string">&quot;123&quot;</span>));</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>C++11之前，需要一次完整拷贝：把<code>push_back</code>的参数拷贝到<code>vector</code>内部。注意，临时对象<code>Foo(&quot;123&quot;)</code>到<code>push_back</code>的参数<code>val</code>是引用传递的(<code>const value_type&amp;</code>可以引用右值)，不需拷贝。</li>
+<li>C++11开始，需要一次移动拷贝：把<code>push_back</code>的参数移动拷贝到<code>vector</code>内部。</li>
+</ul>
+<p>看来问题有了改善，因为移动构拷贝比完整拷贝代价要小。但，<code>emplace</code>效果更好。</p>
+<h2 id="emplace实现原地构造-3-2"><a href="#emplace实现原地构造-3-2" class="headerlink" title="emplace实现原地构造 (3.2)"></a>emplace实现原地构造 (3.2)</h2><p>从功能上看，<code>emplace</code>和我们前文<code>factory</code>工厂函数十分相似：给它参数，它给你构造对象，利用完美转发，中间不增加额外的参数的拷贝，就像你直接构造对象一样。但更重要的一点是，<strong>它在容器内部原地构造</strong>。总结来说：</p>
+<ol>
+<li>利用完美转发，没有任何参数的拷贝；</li>
+<li>在容器内部原地构造，也不会有对象的拷贝；</li>
+</ol>
+<p>以<code>std::vector</code>的<code>emplace_back</code>为例，它的声明如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span>&lt; class... Args &gt;</span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">emplace_back</span><span class="params">(Args&amp;&amp;... args)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<p>和前文<code>factory</code>不同的是，<code>emplace_back</code>的参数个数是变化的，不过没关系，把它理解成<em>N</em>个通用引用就行了。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Bar</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">  <span class="keyword">public</span>:</span><br><span class="line">    Bar(X&amp;&amp; x, Y&amp;&amp; y);</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="built_in">vector</span>&lt;Bar&gt; v;</span><br><span class="line">v.emplace_back(X(),Y());</span><br></pre></td></tr></table></figure>
+
+<p>这段代码只有3个构造：<code>X()</code>，<code>Y()</code>和<code>Bar(X&amp;&amp;, Y&amp;&amp;)</code>。临时对象<code>X()</code>和<code>Y()</code>被完美转发到<code>Bar</code>的构造函数，而<code>Bar</code>的构造函数在<code>vector</code>内原地构造。</p>
+<p>问：emplace_back的<em>N</em>个参数是什么？</p>
+<p>答：是<code>vector::value_type</code>的构造函数的参数列表，在上例中，就是<code>Bar::Bar()</code>的参数列表。注意，你不要去调<code>vector::value_type</code>的构造函数，而只需要传入参数列表即可，<code>emplace_back</code>会帮我们调用。见下文emplace的错误用法。</p>
+<h2 id="emplace的错误用法-3-3"><a href="#emplace的错误用法-3-3" class="headerlink" title="emplace的错误用法 (3.3)"></a>emplace的错误用法 (3.3)</h2><p>如前所述，我们应该把<code>vector::value_type</code>的构造函数的参数列表传给<code>emplace_back</code>，让它帮我们调用<code>vector::value_type</code>的构造函数。一个常见的错误是，传入一个<code>vector::value_type</code>类的对象。更糟糕的是，你若这么干了，并不会引起编译错误。因为，你传入<code>vector::value_type</code>类的对象，<code>emplace_back</code>就拿着这个对象去调用构造函数————当然，是拷贝构造函数。你看，这就引入了一次额外的拷贝，没有达到原地构造的效果。例如：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">vector</span>&lt;Bar&gt; v;</span><br><span class="line">v.emplace_back(Bar(X(),Y()));</span><br></pre></td></tr></table></figure>
+
+<p>这段代码中，除了原有的3个构造(<code>X()</code>，<code>Y()</code>和<code>Bar(X&amp;&amp;, Y&amp;&amp;)</code>)，还多了一个拷贝：<code>Bar(Bar&amp;&amp;)</code>。当然，我们传入<code>emplace_back</code>的是<code>vector::value_type</code>(本例中是Bar)的临时对象(右值)，多出的这个拷贝是移动拷贝构造。若传入的是Bar类型的左值，多出拷贝将是完整拷贝。</p>
+<h1 id="小结-4"><a href="#小结-4" class="headerlink" title="小结 (4)"></a>小结 (4)</h1><p>完美转发一方面通过通用引用接收参数，另一方面使用<code>std::forward</code>转发给后续函数，并保留左值/右值特征，就像没有本层传递一样。利用完美转发，emplace可以实现容器内对象的原地构造。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E5%AE%8C%E7%BE%8E%E8%BD%AC%E5%8F%91/" rel="tag"># 完美转发</a>
+              <a href="/tags/perfect-forwarding/" rel="tag"># perfect forwarding</a>
+              <a href="/tags/%E9%80%9A%E7%94%A8%E5%BC%95%E7%94%A8/" rel="tag"># 通用引用</a>
+              <a href="/tags/universal-reference/" rel="tag"># universal reference</a>
+              <a href="/tags/emplace/" rel="tag"># emplace</a>
+              <a href="/tags/emplace-back/" rel="tag"># emplace_back</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2018/05/25/cpp11-universal-ref/" rel="prev" title="C++11中的通用引用">
+      <i class="fa fa-chevron-left"></i> C++11中的通用引用
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2018/05/25/cpp11-auto/" rel="next" title="C++11中的auto关键字">
+      C++11中的auto关键字 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%97%AE%E9%A2%98-1"><span class="nav-number">1.</span> <span class="nav-text">问题 (1)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B0%9D%E8%AF%951-1-1"><span class="nav-number">1.1.</span> <span class="nav-text">尝试1 (1.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B0%9D%E8%AF%952-1-2"><span class="nav-number">1.2.</span> <span class="nav-text">尝试2 (1.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B0%9D%E8%AF%953-1-3"><span class="nav-number">1.3.</span> <span class="nav-text">尝试3 (1.3)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88-2"><span class="nav-number">2.</span> <span class="nav-text">解决方案 (2)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#std-forward-2-1"><span class="nav-number">2.1.</span> <span class="nav-text">std::forward (2.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#std-forward%E5%92%8Cstd-move%E6%AF%94%E8%BE%83-2-2"><span class="nav-number">2.2.</span> <span class="nav-text">std::forward和std::move比较 (2.2)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#emplace-3"><span class="nav-number">3.</span> <span class="nav-text">emplace (3)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#push-back%E7%9A%84%E5%8F%B3%E5%80%BC%E5%BC%95%E7%94%A8%E7%89%88%E6%9C%AC-3-1"><span class="nav-number">3.1.</span> <span class="nav-text">push_back的右值引用版本 (3.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#emplace%E5%AE%9E%E7%8E%B0%E5%8E%9F%E5%9C%B0%E6%9E%84%E9%80%A0-3-2"><span class="nav-number">3.2.</span> <span class="nav-text">emplace实现原地构造 (3.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#emplace%E7%9A%84%E9%94%99%E8%AF%AF%E7%94%A8%E6%B3%95-3-3"><span class="nav-number">3.3.</span> <span class="nav-text">emplace的错误用法 (3.3)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93-4"><span class="nav-number">4.</span> <span class="nav-text">小结 (4)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>
