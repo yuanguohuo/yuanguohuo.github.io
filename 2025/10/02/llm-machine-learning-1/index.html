@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="机器学习原理入门。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="机器学习-1">
+<meta property="og:url" content="http://yoursite.com/2025/10/02/llm-machine-learning-1/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="机器学习原理入门。">
+<meta property="og:locale">
+<meta property="og:image" content="http://yoursite.com/2025/10/02/llm-machine-learning-1/model-function-1.png">
+<meta property="og:image" content="http://yoursite.com/2025/10/02/llm-machine-learning-1/loss-1.png">
+<meta property="og:image" content="http://yoursite.com/2025/10/02/llm-machine-learning-1/loss-function-1.png">
+<meta property="og:image" content="http://yoursite.com/2025/10/02/llm-machine-learning-1/gradient-descent-1.png">
+<meta property="og:image" content="http://yoursite.com/2025/10/02/llm-machine-learning-1/loss-function-2.png">
+<meta property="og:image" content="http://yoursite.com/2025/10/02/llm-machine-learning-1/piecewise-linear-curve.png">
+<meta property="og:image" content="http://yoursite.com/2025/10/02/llm-machine-learning-1/smooth-curve.png">
+<meta property="og:image" content="http://yoursite.com/2025/10/02/llm-machine-learning-1/hard-sigmoid.png">
+<meta property="og:image" content="http://yoursite.com/2025/10/02/llm-machine-learning-1/sigmoid_b_wx.png">
+<meta property="article:published_time" content="2025-10-02T21:12:24.000Z">
+<meta property="article:modified_time" content="2026-03-14T13:19:18.803Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="llm">
+<meta property="article:tag" content="machine-learning">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2025/10/02/llm-machine-learning-1/model-function-1.png">
+
+<link rel="canonical" href="http://yoursite.com/2025/10/02/llm-machine-learning-1/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>机器学习-1 | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2025/10/02/llm-machine-learning-1/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          机器学习-1
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2025-10-02 21:12:24" itemprop="dateCreated datePublished" datetime="2025-10-02T21:12:24+00:00">2025-10-02</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2026-03-14 13:19:18" itemprop="dateModified" datetime="2026-03-14T13:19:18+00:00">2026-03-14</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/llm/" itemprop="url" rel="index"><span itemprop="name">llm</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2025/10/02/llm-machine-learning-1/" class="post-meta-item leancloud_visitors" data-flag-title="机器学习-1" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/10/02/llm-machine-learning-1/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/10/02/llm-machine-learning-1/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>机器学习原理入门。</p>
+<a id="more"></a>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+
+<script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+
+<h1 id="问题描述-1"><a href="#问题描述-1" class="headerlink" title="问题描述 (1)"></a>问题描述 (1)</h1><p>现有一些HDD磁盘的性能数据(通过<code>iostat</code>采集)，如下所示：</p>
+<table>
+<thead>
+<tr>
+<th>idx</th>
+<th>rrqms</th>
+<th>wrqms</th>
+<th>rs</th>
+<th>ws</th>
+<th>ios</th>
+<th>rsecs</th>
+<th>wsecs</th>
+<th>iosecs</th>
+<th>await</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>2.08</td>
+<td>5.63</td>
+<td>35.72</td>
+<td>106.82</td>
+<td>142.54</td>
+<td>3200.0</td>
+<td>14500.0</td>
+<td>17700.0</td>
+<td>5.34</td>
+</tr>
+<tr>
+<td>2</td>
+<td>2.23</td>
+<td>7.42</td>
+<td>19.10</td>
+<td>109.62</td>
+<td>128.72</td>
+<td>2600.0</td>
+<td>15100.0</td>
+<td>17700.0</td>
+<td>4.44</td>
+</tr>
+<tr>
+<td>3</td>
+<td>2.47</td>
+<td>9.78</td>
+<td>18.17</td>
+<td>74.43</td>
+<td>92.60</td>
+<td>2700.0</td>
+<td>8700.0</td>
+<td>11400.0</td>
+<td>5.55</td>
+</tr>
+<tr>
+<td>4</td>
+<td>2.57</td>
+<td>9.52</td>
+<td>17.85</td>
+<td>69.00</td>
+<td>86.85</td>
+<td>2900.0</td>
+<td>8000.0</td>
+<td>10900.0</td>
+<td>6.05</td>
+</tr>
+<tr>
+<td>5</td>
+<td>2.35</td>
+<td>7.52</td>
+<td>16.17</td>
+<td>60.10</td>
+<td>76.27</td>
+<td>2400.0</td>
+<td>7100.0</td>
+<td>9500.0</td>
+<td>5.66</td>
+</tr>
+<tr>
+<td>6</td>
+<td>2.30</td>
+<td>6.67</td>
+<td>16.13</td>
+<td>54.10</td>
+<td>70.23</td>
+<td>2400.0</td>
+<td>6600.0</td>
+<td>9000.0</td>
+<td>5.94</td>
+</tr>
+<tr>
+<td>7</td>
+<td>1.83</td>
+<td>4.15</td>
+<td>16.13</td>
+<td>41.03</td>
+<td>57.16</td>
+<td>2300.0</td>
+<td>4400.0</td>
+<td>6700.0</td>
+<td>6.18</td>
+</tr>
+<tr>
+<td>8</td>
+<td>1.28</td>
+<td>3.28</td>
+<td>12.27</td>
+<td>32.50</td>
+<td>44.77</td>
+<td>1600.0</td>
+<td>3600.0</td>
+<td>5200.0</td>
+<td>6.34</td>
+</tr>
+<tr>
+<td>9</td>
+<td>1.05</td>
+<td>1.75</td>
+<td>52.85</td>
+<td>34.50</td>
+<td>87.35</td>
+<td>2300.0</td>
+<td>3200.0</td>
+<td>5500.0</td>
+<td>7.67</td>
+</tr>
+<tr>
+<td>10</td>
+<td>0.87</td>
+<td>1900.00</td>
+<td>118.17</td>
+<td>46.87</td>
+<td>165.04</td>
+<td>18400.0</td>
+<td>18400.0</td>
+<td>36800.0</td>
+<td>26.19</td>
+</tr>
+<tr>
+<td>11</td>
+<td>0.57</td>
+<td>1.62</td>
+<td>54.40</td>
+<td>30.15</td>
+<td>84.55</td>
+<td>2700.0</td>
+<td>2800.0</td>
+<td>5500.0</td>
+<td>7.82</td>
+</tr>
+<tr>
+<td>12</td>
+<td>0.45</td>
+<td>1700.00</td>
+<td>113.00</td>
+<td>42.75</td>
+<td>155.75</td>
+<td>16000.0</td>
+<td>17200.0</td>
+<td>33200.0</td>
+<td>26.00</td>
+</tr>
+<tr>
+<td>13</td>
+<td>0.57</td>
+<td>4600.00</td>
+<td>218.90</td>
+<td>72.85</td>
+<td>291.75</td>
+<td>39000.0</td>
+<td>40700.0</td>
+<td>79700.0</td>
+<td>34.55</td>
+</tr>
+<tr>
+<td>14</td>
+<td>0.80</td>
+<td>3300.00</td>
+<td>178.38</td>
+<td>65.62</td>
+<td>244.00</td>
+<td>29000.0</td>
+<td>30500.0</td>
+<td>59500.0</td>
+<td>30.65</td>
+</tr>
+<tr>
+<td>15</td>
+<td>0.72</td>
+<td>2900.00</td>
+<td>158.85</td>
+<td>62.03</td>
+<td>220.88</td>
+<td>25200.0</td>
+<td>27300.0</td>
+<td>52500.0</td>
+<td>29.51</td>
+</tr>
+<tr>
+<td>16</td>
+<td>1.37</td>
+<td>6.77</td>
+<td>56.90</td>
+<td>79.83</td>
+<td>136.73</td>
+<td>2500.0</td>
+<td>8400.0</td>
+<td>10900.0</td>
+<td>7.22</td>
+</tr>
+<tr>
+<td>17</td>
+<td>1.60</td>
+<td>6.48</td>
+<td>63.85</td>
+<td>68.55</td>
+<td>132.40</td>
+<td>2900.0</td>
+<td>7900.0</td>
+<td>10800.0</td>
+<td>7.52</td>
+</tr>
+<tr>
+<td>18</td>
+<td>1.23</td>
+<td>6.03</td>
+<td>55.65</td>
+<td>62.70</td>
+<td>118.35</td>
+<td>2700.0</td>
+<td>7200.0</td>
+<td>9900.0</td>
+<td>7.54</td>
+</tr>
+<tr>
+<td>19</td>
+<td>1.53</td>
+<td>6.03</td>
+<td>35.93</td>
+<td>89.67</td>
+<td>125.60</td>
+<td>2300.0</td>
+<td>13700.0</td>
+<td>16000.0</td>
+<td>5.92</td>
+</tr>
+<tr>
+<td>20</td>
+<td>1.53</td>
+<td>6.82</td>
+<td>48.83</td>
+<td>101.32</td>
+<td>150.15</td>
+<td>2700.0</td>
+<td>16100.0</td>
+<td>18800.0</td>
+<td>7.42</td>
+</tr>
+<tr>
+<td>21</td>
+<td>1.73</td>
+<td>7.48</td>
+<td>57.03</td>
+<td>100.82</td>
+<td>157.85</td>
+<td>2900.0</td>
+<td>16400.0</td>
+<td>19300.0</td>
+<td>7.13</td>
+</tr>
+<tr>
+<td>22</td>
+<td>1.95</td>
+<td>6.03</td>
+<td>24.35</td>
+<td>73.90</td>
+<td>98.25</td>
+<td>2300.0</td>
+<td>15000.0</td>
+<td>17300.0</td>
+<td>5.95</td>
+</tr>
+<tr>
+<td>23</td>
+<td>1.90</td>
+<td>7.02</td>
+<td>26.77</td>
+<td>88.12</td>
+<td>114.89</td>
+<td>2500.0</td>
+<td>15400.0</td>
+<td>17900.0</td>
+<td>5.04</td>
+</tr>
+<tr>
+<td>24</td>
+<td>2.20</td>
+<td>6.72</td>
+<td>37.12</td>
+<td>85.57</td>
+<td>122.69</td>
+<td>3500.0</td>
+<td>14600.0</td>
+<td>18100.0</td>
+<td>5.67</td>
+</tr>
+</tbody></table>
+<p>其中：</p>
+<ul>
+<li>rrqms: 每秒合并的read io</li>
+<li>wrqms: 每秒合并的write io</li>
+<li>rs: read io per second</li>
+<li>ws: write io per second</li>
+<li>ios: rs + ws</li>
+<li>rsecs: read sectors (512B) per second, i.e. read bandwidth</li>
+<li>wsecs: write sectors (512B) per second, i.e. write bandwidth</li>
+<li>iosecs: rsecs + wsecs, i.e. total bandwidth</li>
+<li>await: latency in milliseconds</li>
+</ul>
+<p>要通过机器学习的方法，找出await与其它指标(ios, rs, ws, iosecs, rsecs, wsecs, …)的关系，即：</p>
+<p>$$<br>await = f(x_1, x_2, …)<br>$$</p>
+<p>其中$x1$, $x2$, … 代表磁盘的其它指标(ios, rs, ws, iosecs, rsecs, wsecs, …)；</p>
+<p>有了这个模型之后，就可以判断一个磁盘是否故障：若实际await高出模型计算出的期望await太多（例如实际await大于2倍的期望await），就判定为故障。</p>
+<p>学习的效果，通过测试数据来检验：</p>
+<h1 id="机器学习最简过程-2"><a href="#机器学习最简过程-2" class="headerlink" title="机器学习最简过程 (2)"></a>机器学习最简过程 (2)</h1><p>所谓机器学习（训练），就是要生成一个上一节提到的函数$f$；分为3步：</p>
+<ul>
+<li>step1: 定义模型，即一个带有未知参数的函数</li>
+<li>step2: 定义损失函数；</li>
+<li>step3: 梯度下降，以确定step1中的未知参数；</li>
+</ul>
+<p>这里“参数”的意义不同意编程中的参数；以C语言为例</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">float</span> <span class="title">f</span><span class="params">(<span class="keyword">float</span> x1, <span class="keyword">float</span> x2)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> w1 * x1 + w2 * x2 + b;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>其中的<code>x1</code>和<code>x2</code>是参数；但在机器学习中，<code>w1</code>、<code>w2</code>和<code>b</code>是参数。因为机器学习的过程<strong>不是函数$f$执行的过程，而是寻找函数$f$的过程；在模型确定的情况下，就是寻找或者确定参数的值（有点类似于待定系数法？）</strong>。函数$f$的input <code>x1</code>和<code>x2</code>叫<strong>特征</strong>。例如:</p>
+<ul>
+<li>有一个函数$f$，input是重量、颜色，output是“花或者叶子”；重量和颜色是待判断目标的特征。</li>
+<li>本例机器学习完成之后得到一个函数$f$，input是<code>ios</code>和<code>iosecs</code>，output是预期<code>await</code>；<code>ios</code>和<code>iosecs</code>是样本的特征。</li>
+</ul>
+<h2 id="定义模型-2-1"><a href="#定义模型-2-1" class="headerlink" title="定义模型 (2.1)"></a>定义模型 (2.1)</h2><p>先假定只有<code>ios</code>这一个input，即只通过<code>ios</code>这一个指标来预测磁盘的<code>await</code>；</p>
+<p>拍脑袋猜测它们是线性关系，即</p>
+<p>$$<br>await = f(x) = w \cdot x<br>$$</p>
+<p>其中$x$代表input <code>ios</code>，$w$即未知参数。</p>
+<p><img src="model-function-1.png" alt="figure1"></p>
+<div style="text-align: center;"><em>图1: 模型函数</em></div>
+
+<ul>
+<li>注意1：实际工程中，选择模型需要专业知识（domain knowledge）；</li>
+<li>注意2：这里假定模型只有一个未知参数$w$；很多课程此时会假定有2个参数，除$w$外还有一个$b$（叫做bias）；我们从最简单的情形开始：只有一个参数时，损失函数的图像是一条曲线，计算其微分也不涉及偏微分。搞明白道理之后，再扩展为2个及更多参数。</li>
+</ul>
+<p>在选定一次函数且无bias的情况下，模型的好坏完全取决于唯一参数$w$。机器学习（训练）的过程，就是找到一个最优的$w$，使得通过模型计算出来的结果和真实结果最接近；</p>
+<p><img src="loss-1.png" alt="figure2"></p>
+<div style="text-align: center;"><em>图2: 损失</em></div>
+
+<p>显然，$w=0.1$比$w=0.6$的损失要小！如何衡量模型计算出来的结果和真实结果是否接近呢？</p>
+<h2 id="定义损失函数-2-2"><a href="#定义损失函数-2-2" class="headerlink" title="定义损失函数 (2.2)"></a>定义损失函数 (2.2)</h2><p>损失函数用来衡量$w$有多好。对于我们的例子，可以这样：</p>
+<ul>
+<li>使用模型计算await；</li>
+<li>和真实的await做差，然后再平方；24条训练数据，会得到24个平方；</li>
+<li>把这些平方累加起来；</li>
+</ul>
+<p>注意：一般情况，还会对累加结果再开根号；为了简单这里也不再开根号了，反正它们的趋势是一样的；</p>
+<p>$$<br>L(w) = \sum_{n=1}^{24} (w x_n - a_n)^2<br>$$</p>
+<p>其中：$x_n$代表$ios_n$，$a_n$代表$await_n$；$n \in {1, …, 24}$；这些就是训练数据，是已知的；所以，这个函数的表达式可以精确地写出来：</p>
+<p>$$<br>L(w) =  480116.3739 w^2 - 90710.8016 w + 5146.6270<br>$$</p>
+<p><img src="loss-function-1.png" alt="figure3"></p>
+<div style="text-align: center;"><em>图3: 损失函数L(w)</em></div>
+
+<p>显然，当<br>$$<br>w = - \frac{-90710.8016}{2 \cdot 480116.3739} = 0.0944<br>$$</p>
+<p>时，损失最小:</p>
+<p>$$<br>L = 862.0172<br>$$</p>
+<p><strong>现实中的损失函数很复杂，不可能求出解析解。即使有的损失函数有解析解，参数动辄几百亿，以算法复杂度$O(n^3)$为例，算到地球毁灭也算不出来。所以，只能通过梯度下降的办法去寻求局部最优解，或者在有限次迭代之后停止！</strong>。</p>
+<p>这里已知最优解，为了展示梯度下降方法是如何找到它的。</p>
+<h2 id="梯度下降-2-3"><a href="#梯度下降-2-3" class="headerlink" title="梯度下降 (2.3)"></a>梯度下降 (2.3)</h2><p>首先，随机选择一个点$w^0$，计算损失函数$L(w)$在$w=w^0$处的导数$\frac{dL}{dw}\big|_{w=w^0}$；假如导数等于0，说明点$w^0$刚好就是最优解。学习终止。否则：</p>
+<ul>
+<li>假如导数小于0，说明点$w^0$在最优解$w = 0.0944$的左侧；向右寻找：$w^1 = w^0 - \eta \frac{dL}{dw}\big|_{w=w^0}$</li>
+<li>假如导数大于0，说明点$w^0$在最优解$w = 0.0944$的右侧；向左寻找：$w^1 = w^0 - \eta \frac{dL}{dw}\big|_{w=w^0}$</li>
+</ul>
+<p>所以，无论是哪种情况，下一个更优解$w^1$都是:</p>
+<p>$$<br>w^1 = w^0 - \eta \frac{dL}{dw}\big|_{w=w^0}<br>$$</p>
+<p>其中$\eta$是一个提前选定的大于0的常数，叫做<strong>learning rate</strong>，表示每一步前进的幅度或者步幅。<br><strong>在机器学习中，提前选定的常数（不是通过学习得到）叫做hyper-parameter</strong>。</p>
+<p><img src="gradient-descent-1.png" alt="figure4"></p>
+<div style="text-align: center;"><em>图4: 梯度下降</em></div>
+
+<p>按照这个思路迭代，每次更新$w$：</p>
+<p>$$<br>w^{n+1} = w^n - \eta \frac{dL}{dw}\big|_{w=w^n}<br>$$</p>
+<p>直到导数为0，或者迭代次数到达上限，比如100万次。<strong>最大迭代次数，也是一个hyper-parameter</strong>。</p>
+<p>假设：</p>
+<p>$$<br>\begin{aligned}<br>&amp; \eta = 0.000001 \\<br>&amp; w^0  = 5000.0<br>\end{aligned}<br>$$</p>
+<p>下面是9轮迭代的参数更新记录：</p>
+<p>$$<br>\begin{aligned}<br>&amp; d = 4801073028.1984, w = 198.9270, L = 18981096715.4305 \\<br>&amp; d = 190925481.9430, w = 8.0015, L = 30018218.9515 \\<br>&amp; d = 7592581.7918, w = 0.4089, L = 48332.4943 \\<br>&amp; d = 301936.1150, w = 0.1070, L = 937.0864 \\<br>&amp; d = 12007.1696, w = 0.0950, L = 862.1337 \\<br>&amp; d = 477.4921, w = 0.0945, L = 862.0152 \\<br>&amp; d = 18.9886, w = 0.0945, L = 862.0150 \\<br>&amp; d = 0.7551, w = 0.0945, L = 862.0150 \\<br>&amp; d = 0.0300, w = 0.0945, L = 862.0150<br>\end{aligned}<br>$$</p>
+<p>注意：<strong>若$\eta$选择的不好（例如大一点），学习不但不会收敛，反而会迅速发散</strong>。想象一下：若$w^n$在对称轴右侧，距离100；下次更新，$w^{n+1}$肯定在$w^n$的左边，但如果$\eta$太大，$w^{n+1}$被更新到对称轴左边，并且距离超过100；距离最优解更远了。以此类推，$w^{n+2}$被更新到对称轴右侧，且距离进一步加大…… 这时最常用的手段是降低$\eta$。</p>
+<h2 id="小结-1-4"><a href="#小结-1-4" class="headerlink" title="小结 (1.4)"></a>小结 (1.4)</h2><ul>
+<li>机器学习的目的就是找到、或者生成一个函数$f$。这个函数看上去具有智能，例如输入磁盘ios输出await、输入声音输出文字、输入围棋局面输出下一个落子位置，等等。</li>
+<li>机器学习分三步：<ul>
+<li>依靠domain knowledge选择一个带未知参数的模型函数；</li>
+<li>定义损失函数；</li>
+<li>随机选择未知参数，然后通过梯度下降的方法优化未知参数；</li>
+</ul>
+</li>
+<li>涉及3个函数图形：<ul>
+<li>图1：模型函数，就是机器学习找到、或者生成的函数。它的图形约接近理想中的“智能体”越好。例如：真实磁盘<code>await</code>和<code>ios</code>的关系可能是分段的，<code>ios</code>较小时成线性；超过某个阈值后指数增长。前面假设的线性关系，就不会太好（题外话：不过训练数据没有体现出来，应该没有达到阈值）。</li>
+<li>图2：待定参数取某组（某个）特定值时，预测数据与真实数据（训练数据）之间的差距，即两条折线离多远。</li>
+<li>图3：损失函数；自变量是待定参数，因变量是损失多少。</li>
+</ul>
+</li>
+</ul>
+<p>其实图1和图2是等价的。</p>
+<h1 id="增加参数-3"><a href="#增加参数-3" class="headerlink" title="增加参数(3)"></a>增加参数(3)</h1><p>假如还是假设<code>await</code>与<code>ios</code>是线性关系，但增加一个参数$b$ （bias）。一方面，猜测<code>ios</code>接近0时，也有个基础的<code>await</code>（不一定准），bias可以捕捉到它；另外一方面，增加一个参数，更重要的目的是为了展示：</p>
+<ul>
+<li>一个input特征（<code>ios</code>）也可以有多个待定参数；</li>
+<li>多个待定参数，梯度下降如何进行（2个待定参数时，损失函数是一个曲面）；</li>
+</ul>
+<h2 id="定义模型-3-1"><a href="#定义模型-3-1" class="headerlink" title="定义模型 (3.1)"></a>定义模型 (3.1)</h2><p>$$<br>await = f(x) = w \cdot x + b<br>$$</p>
+<h2 id="定义损失函数-3-2"><a href="#定义损失函数-3-2" class="headerlink" title="定义损失函数 (3.2)"></a>定义损失函数 (3.2)</h2><p>和之前一样，但预测值变成$w x_n + b$，且损失函数有两个参数。所以损失函数变成：</p>
+<p>$$<br>L(w,b) = \sum_{n=1}^{24} (w x_n + b - a_n)^2<br>$$</p>
+<p>其中：$x_n$代表$ios_n$，$a_n$代表$await_n$；$n \in {1, …, 24}$；代入24条训练数据，得到：</p>
+<p>$$<br>L(w,b) = 480116.3739 w^2 + 6210.7400 w b + 24.0000 b^2 - 90710.8016 w - 534.6000 b + 5146.6270 \\<br>$$</p>
+<p><img src="loss-function-2.png" alt="figure5"></p>
+<div style="text-align: center;"><em>图5: 损失函数L(w,b)</em></div>
+
+<p>同样可以求出解析最优值：</p>
+<p>$$<br>\begin{aligned}<br>&amp; w = 0.1375 \\<br>&amp; b = -6.6562 \\<br>&amp; L = 688.5764<br>\end{aligned}<br>$$</p>
+<p>下面演示如何通过梯度下降的方法逼近它。</p>
+<h2 id="梯度下降-3-3"><a href="#梯度下降-3-3" class="headerlink" title="梯度下降 (3.3)"></a>梯度下降 (3.3)</h2><h3 id="流程-3-3-1"><a href="#流程-3-3-1" class="headerlink" title="流程 (3.3.1)"></a>流程 (3.3.1)</h3><ul>
+<li>随意选择一个点，只不过，这个点是二维的:</li>
+</ul>
+<p>$$<br>\begin{aligned}<br>(w^0, b^0)<br>\end{aligned}<br>$$</p>
+<ul>
+<li>在这个点，对两个参数分别求偏导数，并按第2.3节的方式更新参数：</li>
+</ul>
+<p>$$<br>\begin{aligned}<br>\\<br>&amp; w^1 = w^0 - \eta \frac{\partial L}{\partial w}\big|_{w=w^0,b=b^0} \\<br>\\<br>&amp; b^1 = b^0 - \eta \frac{\partial L}{\partial b}\big|_{w=w^0,b=b^0} \\<br>\\<br>\end{aligned}<br>$$</p>
+<p>这就完成了一次参数更新。</p>
+<p>继续迭代，直到两个方向上的偏导数都为0，或者达到提前设置的<strong>最大迭代次数</strong>（hyper-parameter）。</p>
+<h3 id="执行-3-3-2"><a href="#执行-3-3-2" class="headerlink" title="执行 (3.3.2)"></a>执行 (3.3.2)</h3><p>损失函数对于$w$和$b$的偏导数分别是：</p>
+<p>$$<br>\begin{aligned}<br>\\<br>&amp; \frac{\partial L}{\partial w} = 2 \cdot 480116.3739 w + 6210.7400 b - 90710.8016 \\<br>\\<br>&amp; \frac{\partial L}{\partial b} = 2 \cdot 24.0000 b + 6210.7400 w - 534.6000 \\<br>\\<br>\end{aligned}<br>$$</p>
+<p>使用python实现:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#!.venv/bin/python3</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">loss_f</span>(<span class="params">w, b</span>):</span></span><br><span class="line">    <span class="keyword">return</span> (<span class="number">480116.3739</span> * w ** <span class="number">2</span> +</span><br><span class="line">            <span class="number">6210.7400</span> * w * b +</span><br><span class="line">            <span class="number">24.0000</span> * b ** <span class="number">2</span> -</span><br><span class="line">            <span class="number">90710.8016</span> * w -</span><br><span class="line">            <span class="number">534.6000</span> * b +</span><br><span class="line">            <span class="number">5146.6270</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">partial_w</span>(<span class="params">w, b</span>):</span></span><br><span class="line">    <span class="keyword">return</span> <span class="number">2</span> * <span class="number">480116.3739</span> * w + <span class="number">6210.7400</span> * b - <span class="number">90710.8016</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">partial_b</span>(<span class="params">w, b</span>):</span></span><br><span class="line">    <span class="keyword">return</span> <span class="number">2</span> * <span class="number">24.0000</span> * b + <span class="number">6210.7400</span> * w - <span class="number">534.6000</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">gradient_descent</span>(<span class="params">w_init, b_init, learning_rate, max_iters</span>):</span></span><br><span class="line">    w, b = w_init, b_init</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(max_iters):</span><br><span class="line">        dw = partial_w(w, b)</span><br><span class="line">        db = partial_b(w, b)</span><br><span class="line"></span><br><span class="line">        w = w - learning_rate * dw</span><br><span class="line">        b = b - learning_rate * db</span><br><span class="line">        loss = loss_f(w, b)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (i % <span class="number">10000</span> == <span class="number">0</span> <span class="keyword">or</span> i == max_iters - <span class="number">1</span>):</span><br><span class="line">            print(<span class="string">f&#x27;Iter <span class="subst">&#123;i:<span class="number">8</span>d&#125;</span>: dw = <span class="subst">&#123;dw:<span class="number">.4</span>f&#125;</span>, db = <span class="subst">&#123;db:<span class="number">.4</span>f&#125;</span>, w = <span class="subst">&#123;w:<span class="number">.4</span>f&#125;</span>, b = <span class="subst">&#123;b:<span class="number">.4</span>f&#125;</span>, L = <span class="subst">&#123;loss:<span class="number">.4</span>f&#125;</span>&#x27;</span>)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> abs(dw) &lt; <span class="number">1e-10</span> <span class="keyword">and</span> abs(db) &lt; <span class="number">1e-4</span>:</span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&#x27;__main__&#x27;</span>:</span><br><span class="line">    w = <span class="number">5000.0</span></span><br><span class="line">    b = <span class="number">100.0</span></span><br><span class="line">    learning_rate = <span class="number">1e-6</span></span><br><span class="line">    iterations = <span class="number">10000000</span></span><br><span class="line">    gradient_descent(w, b, learning_rate, iterations)</span><br></pre></td></tr></table></figure>
+
+<p>运行结果：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">Iter:      0: dw &#x3D; 4801694102.1984, db &#x3D; 31057965.4000, w &#x3D; 198.3059, b &#x3D; 68.9420, L &#x3D; 18947691102.9664</span><br><span class="line">Iter:  10000: dw &#x3D; -3.4797, db &#x3D; 537.9857, w &#x3D; -0.3069, b &#x3D; 62.0611, L &#x3D; 19173.6855</span><br><span class="line">Iter:  20000: dw &#x3D; -3.2177, db &#x3D; 497.4736, w &#x3D; -0.2735, b &#x3D; 56.8865, L &#x3D; 16494.5332</span><br><span class="line">Iter:  30000: dw &#x3D; -2.9754, db &#x3D; 460.0123, w &#x3D; -0.2425, b &#x3D; 52.1015, L &#x3D; 14203.6857</span><br><span class="line">Iter:  40000: dw &#x3D; -2.7513, db &#x3D; 425.3720, w &#x3D; -0.2139, b &#x3D; 47.6769, L &#x3D; 12244.8638</span><br><span class="line">Iter:  50000: dw &#x3D; -2.5441, db &#x3D; 393.3401, w &#x3D; -0.1874, b &#x3D; 43.5854, L &#x3D; 10569.9452</span><br><span class="line">Iter:  60000: dw &#x3D; -2.3525, db &#x3D; 363.7204, w &#x3D; -0.1630, b &#x3D; 39.8021, L &#x3D; 9137.7820</span><br><span class="line">Iter:  70000: dw &#x3D; -2.1754, db &#x3D; 336.3311, w &#x3D; -0.1403, b &#x3D; 36.3036, L &#x3D; 7913.1905</span><br><span class="line">Iter:  80000: dw &#x3D; -2.0116, db &#x3D; 311.0043, w &#x3D; -0.1194, b &#x3D; 33.0686, L &#x3D; 6866.0859</span><br><span class="line">Iter:  90000: dw &#x3D; -1.8601, db &#x3D; 287.5847, w &#x3D; -0.1001, b &#x3D; 30.0772, L &#x3D; 5970.7442</span><br><span class="line">Iter: 100000: dw &#x3D; -1.7200, db &#x3D; 265.9287, w &#x3D; -0.0822, b &#x3D; 27.3111, L &#x3D; 5205.1695</span><br><span class="line">Iter: 110000: dw &#x3D; -1.5905, db &#x3D; 245.9034, w &#x3D; -0.0656, b &#x3D; 24.7532, L &#x3D; 4550.5539</span><br><span class="line">Iter: 120000: dw &#x3D; -1.4707, db &#x3D; 227.3861, w &#x3D; -0.0503, b &#x3D; 22.3880, L &#x3D; 3990.8154</span><br><span class="line"></span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">Iter: 340000: dw &#x3D; -0.2627, db &#x3D; 40.6210, w &#x3D; 0.1040, b &#x3D; -1.4677, L &#x3D; 793.9619</span><br><span class="line">Iter: 350000: dw &#x3D; -0.2430, db &#x3D; 37.5621, w &#x3D; 0.1065, b &#x3D; -1.8584, L &#x3D; 778.6878</span><br><span class="line">Iter: 360000: dw &#x3D; -0.2247, db &#x3D; 34.7336, w &#x3D; 0.1088, b &#x3D; -2.2197, L &#x3D; 765.6274</span><br><span class="line">Iter: 370000: dw &#x3D; -0.2077, db &#x3D; 32.1180, w &#x3D; 0.1110, b &#x3D; -2.5538, L &#x3D; 754.4599</span><br><span class="line">Iter: 380000: dw &#x3D; -0.1921, db &#x3D; 29.6994, w &#x3D; 0.1130, b &#x3D; -2.8627, L &#x3D; 744.9110</span><br><span class="line"></span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">Iter:1630000: dw &#x3D; -0.0000, db &#x3D; 0.0017, w &#x3D; 0.1375, b &#x3D; -6.6560, L &#x3D; 688.5762</span><br><span class="line">Iter:1640000: dw &#x3D; -0.0000, db &#x3D; 0.0015, w &#x3D; 0.1375, b &#x3D; -6.6560, L &#x3D; 688.5762</span><br><span class="line">Iter:1650000: dw &#x3D; -0.0000, db &#x3D; 0.0014, w &#x3D; 0.1375, b &#x3D; -6.6561, L &#x3D; 688.5762</span><br><span class="line">Iter:1660000: dw &#x3D; -0.0000, db &#x3D; 0.0013, w &#x3D; 0.1375, b &#x3D; -6.6561, L &#x3D; 688.5762</span><br><span class="line">Iter:1670000: dw &#x3D; -0.0000, db &#x3D; 0.0012, w &#x3D; 0.1375, b &#x3D; -6.6561, L &#x3D; 688.5762</span><br><span class="line"></span><br><span class="line">......</span><br><span class="line"></span><br><span class="line">Iter:2070000: dw &#x3D; -0.0000, db &#x3D; 0.0001, w &#x3D; 0.1375, b &#x3D; -6.6562, L &#x3D; 688.5762</span><br><span class="line">Iter:2080000: dw &#x3D; -0.0000, db &#x3D; 0.0000, w &#x3D; 0.1375, b &#x3D; -6.6562, L &#x3D; 688.5762</span><br></pre></td></tr></table></figure>
+
+<h3 id="向量写法-3-3-3"><a href="#向量写法-3-3-3" class="headerlink" title="向量写法 (3.3.3)"></a>向量写法 (3.3.3)</h3><ul>
+<li>两个参数写成一个向量$\boldsymbol{\theta}$形式：</li>
+</ul>
+<p>$$<br>\boldsymbol{\theta} = \begin{bmatrix}<br>w \\<br>b<br>\end{bmatrix}<br>$$</p>
+<ul>
+<li>随机选择的初始点写作：</li>
+</ul>
+<p>$$<br>\boldsymbol{\theta}^0 = \begin{bmatrix}<br>w^0 \\<br>b^0<br>\end{bmatrix}<br>$$</p>
+<ul>
+<li>在$\boldsymbol{\theta}^0$点处，对于各个方向的偏导数，写作：</li>
+</ul>
+<p>$$<br>\boldsymbol{g}^0 = \begin{bmatrix}<br>\frac{\partial L}{\partial w}\big|_{\boldsymbol{\theta}=\boldsymbol{\theta}^0} \\<br>\frac{\partial L}{\partial b}\big|_{\boldsymbol{\theta}=\boldsymbol{\theta}^0}<br>\end{bmatrix}<br>$$</p>
+<p>其中$\boldsymbol{g}$就是梯度（gradient）。数学上就是，二维空间中（即曲面上）某点处的各个维度上的偏导数。</p>
+<p><strong>本质上，梯度$\boldsymbol{g}^0$是从$\boldsymbol{\theta}^0$到更优点的一个矢量（方向是反的，即从更优点指向$\boldsymbol{\theta}^0$）</strong>。要往更优点行进，首先要把方向颠倒过来，即乘以一个负数（$-\eta$），行进的距离多少取决于$\eta$。所以，更优点$\boldsymbol{\theta}^1 = \boldsymbol{\theta}^0 + (-\eta \boldsymbol{g}^0)$。</p>
+<p><strong>负梯度指向下降最快的方向，这是梯度下降法的核心</strong>。为什么说<strong>下降最快</strong>呢？因为<strong>各个维度都是下降的</strong>。一个维度上如何确保下降，见第2.3节的函数图像演示。这里只是推广到多维。</p>
+<p>梯度（gradient）用梯度算子$\boldsymbol{\nabla}$（读作nabla）表示:</p>
+<p>$$<br>\boldsymbol{g}^0 = \boldsymbol{\nabla}L(\boldsymbol{\theta}^0)<br>$$</p>
+<ul>
+<li>参数向量的更新过程：</li>
+</ul>
+<p>$$<br>\begin{bmatrix}<br>w^1 \\<br>b^1<br>\end{bmatrix} = \begin{bmatrix}<br>w^0 \\<br>b^0<br>\end{bmatrix} - \begin{bmatrix}<br>\eta \frac{\partial L}{\partial w} \big|_{\boldsymbol{\theta}=\boldsymbol{\theta}^0} \\<br>\eta \frac{\partial L}{\partial b} \big|_{\boldsymbol{\theta}=\boldsymbol{\theta}^0}<br>\end{bmatrix}<br>$$</p>
+<p>表示成：</p>
+<p>$$<br>\boldsymbol{\theta}^1 = \boldsymbol{\theta}^0 - \eta \boldsymbol{\nabla}L(\boldsymbol{\theta}^0) = \boldsymbol{\theta}^0 - \eta \boldsymbol{g}^0<br>$$</p>
+<ul>
+<li>迭代过程：</li>
+</ul>
+<p>$$<br>\begin{aligned}<br>&amp; \boldsymbol{\theta}^1 = \boldsymbol{\theta}^0 - \eta \boldsymbol{g}^0 \\<br>&amp; \boldsymbol{\theta}^2 = \boldsymbol{\theta}^1 - \eta \boldsymbol{g}^1 \\<br>&amp; \boldsymbol{\theta}^3 = \boldsymbol{\theta}^2 - \eta \boldsymbol{g}^2 \\<br>&amp; …<br>\end{aligned}<br>$$</p>
+<h3 id="推广到多维-3-3-4"><a href="#推广到多维-3-3-4" class="headerlink" title="推广到多维 (3.3.4)"></a>推广到多维 (3.3.4)</h3><ul>
+<li>多个参数写成一个向量$\boldsymbol{\theta}$的形式：</li>
+</ul>
+<p>$$<br>\boldsymbol{\theta} = \begin{bmatrix}<br>\theta_1 \\<br>\theta_2 \\<br>\theta_3 \\<br>…<br>\end{bmatrix}<br>$$</p>
+<ul>
+<li>随机选择的初始点写作：</li>
+</ul>
+<p>$$<br>\boldsymbol{\theta}^0 = \begin{bmatrix}<br>\theta_1^0 \\<br>\theta_2^0 \\<br>\theta_3^0 \\<br>…<br>\end{bmatrix}<br>$$</p>
+<ul>
+<li>在$\boldsymbol{\theta}^0$点处，对于各个方向的偏导数，写作：</li>
+</ul>
+<p>$$<br>\boldsymbol{g}^0 = \begin{bmatrix}<br>\frac{\partial L}{\partial \theta_1}\big|_{\boldsymbol{\theta}=\boldsymbol{\theta}^0} \\<br>\frac{\partial L}{\partial \theta_2}\big|_{\boldsymbol{\theta}=\boldsymbol{\theta}^0} \\<br>\frac{\partial L}{\partial \theta_3}\big|_{\boldsymbol{\theta}=\boldsymbol{\theta}^0} \\<br>…<br>\end{bmatrix}<br>$$</p>
+<p>其中$\boldsymbol{g}$就是梯度（gradient）。数学上就是，多维空间中某点处的各个维度上的偏导数。</p>
+<p><strong>本质上，梯度$\boldsymbol{g}^0$是从$\boldsymbol{\theta}^0$到更优点的一个矢量（方向是反的，即从更优点指向$\boldsymbol{\theta}^0$）</strong>。要往更优点行进，首先要把方向颠倒过来，即乘以一个负数（$-\eta$），行进的距离多少取决于$\eta$。所以，更优点$\boldsymbol{\theta}^1 = \boldsymbol{\theta}^0 + (-\eta \boldsymbol{g}^0)$。</p>
+<p><strong>负梯度指向下降最快的方向，这是梯度下降法的核心</strong>。说<strong>下降最快</strong>，是因为<strong>各个维度都是下降的</strong>。<br>梯度（gradient）用梯度算子$\boldsymbol{\nabla}$（读作nabla）表示:</p>
+<p>$$<br>\boldsymbol{g}^0 = \boldsymbol{\nabla}L(\boldsymbol{\theta}^0)<br>$$</p>
+<ul>
+<li>参数向量（多个参数构成一个向量）的更新过程：</li>
+</ul>
+<p>$$<br>\begin{bmatrix}<br>\theta_1^1 \\<br>\theta_2^1 \\<br>\theta_3^1 \\<br>…<br>\end{bmatrix} = \begin{bmatrix}<br>\theta_1^0 \\<br>\theta_2^0 \\<br>\theta_3^0 \\<br>…<br>\end{bmatrix} - \begin{bmatrix}<br>\eta \frac{\partial L}{\partial \theta_1} \big|_{\boldsymbol{\theta}=\boldsymbol{\theta}^0} \\<br>\eta \frac{\partial L}{\partial \theta_2} \big|_{\boldsymbol{\theta}=\boldsymbol{\theta}^0} \\<br>\eta \frac{\partial L}{\partial \theta_3} \big|_{\boldsymbol{\theta}=\boldsymbol{\theta}^0} \\<br>…<br>\end{bmatrix}<br>$$</p>
+<p>表示成：</p>
+<p>$$<br>\boldsymbol{\theta}^1 = \boldsymbol{\theta}^0 - \eta \boldsymbol{\nabla}L(\boldsymbol{\theta}^0) = \boldsymbol{\theta}^0 - \eta \boldsymbol{g}^0<br>$$</p>
+<ul>
+<li>迭代过程：</li>
+</ul>
+<p>$$<br>\begin{aligned}<br>&amp; \boldsymbol{\theta}^1 = \boldsymbol{\theta}^0 - \eta \boldsymbol{g}^0 \\<br>&amp; \boldsymbol{\theta}^2 = \boldsymbol{\theta}^1 - \eta \boldsymbol{g}^1 \\<br>&amp; \boldsymbol{\theta}^3 = \boldsymbol{\theta}^2 - \eta \boldsymbol{g}^2 \\<br>&amp; …<br>\end{aligned}<br>$$</p>
+<h1 id="逼近任意曲线-4"><a href="#逼近任意曲线-4" class="headerlink" title="逼近任意曲线 (4)"></a>逼近任意曲线 (4)</h1><p>前面选择的模型函数是</p>
+<p>$$<br>await = f(x) = w \cdot x<br>$$</p>
+<p>或者</p>
+<p>$$<br>await = f(x) = w \cdot x + b<br>$$</p>
+<p>它是一条直线。假如学习的目标函数是一条折线（如下图），无论$w$和$b$选择的有多好，逼近效果都不会太好。</p>
+<p><img src="piecewise-linear-curve.png" alt="figure6"></p>
+<div style="text-align: center;"><em>图6: piecewise-linear-curve</em></div>
+
+<p>说明：现实中磁盘$await$和$ios$的关系肯定不是这样。实际上，前面选择的线性关系表现的还不错（在正常压力范围内，磁盘的$await$的确和$ios$正相关）。这里只是假设output和input（特征）成这种奇怪的关系，目的是介绍如何逼近任意曲线。</p>
+<p>假如目标函数是任意曲线，也可以看作一条折线，因为可以通过折线逼近它。</p>
+<p><img src="smooth-curve.png" alt="figure7"></p>
+<div style="text-align: center;"><em>图7: 任意曲线</em></div>
+
+<p>所以，下文<strong>统一把目标函数看作一条折线</strong>。</p>
+<h2 id="激活函数-4-1"><a href="#激活函数-4-1" class="headerlink" title="激活函数 (4.1)"></a>激活函数 (4.1)</h2><h3 id="Sigmoid-4-1-1"><a href="#Sigmoid-4-1-1" class="headerlink" title="Sigmoid (4.1.1)"></a>Sigmoid (4.1.1)</h3><p>Hard sigmoid函数</p>
+<p>$$<br>\begin{aligned}<br>f(x) =<br>\begin{cases}<br>0                  &amp; \text{if } x &lt;= a, \\<br>\frac{1}{b-a}(x-a) &amp; \text{if } a &lt; x &lt;= b, \\<br>1                  &amp; \text{if } x &gt; b.<br>\end{cases}<br>\end{aligned}<br>$$</p>
+<p>它的图像是：</p>
+<p><img src="hard-sigmoid.png" alt="figure8"></p>
+<div style="text-align: center;"><em>图8: Hard-Sigmoid</em></div>
+
+<p>可见，只需2个参数就能唯一确定一个hard-sigmoid函数。所以，可以把它记为$h_{a,b}(x)$</p>
+<p>图6中的折线就可以表示为：</p>
+<p>$$<br>f(x) = 8 + 32 \cdot h_{1,100}(x) + (-24) \cdot h_{100,200}(x) + 14 \cdot h_{200,300}(x) + 60 \cdot h_{300,400}(x)<br>$$</p>
+<p>也就是，<strong>可以通过常数$d$加上多个$c \cdot h_{a,b}(x)$组合出任意折线，进而逼近任意曲线</strong>。</p>
+<p>但是，</p>
+<p>$$<br>h_{a,b}(x) = f(x) =<br>\begin{cases}<br>0                  &amp; \text{if } x &lt;= a, \\<br>\frac{1}{b-a}(x-a) &amp; \text{if } a &lt; x &lt;= b, \\<br>1                  &amp; \text{if } x &gt; b.<br>\end{cases}<br>$$</p>
+<p>不方便写。故通过下面这个函数来模拟它：</p>
+<p>$$<br>s_{w,b}(x) = \frac{1}{1+e^{-(b+wx)}}<br>$$</p>
+<p>注意到，</p>
+<p>$$<br>\sigma(x) = sigmoid(x) = \frac{1}{1+e^{-x}}<br>$$</p>
+<p>所以，$s_{w,b}(x)$ 就是$sigmoid(b+wx)$，记做$\sigma(b+wx)$（把自变量替换成$b+wx$）。</p>
+<p><img src="sigmoid_b_wx.png" alt="figure9"></p>
+<div style="text-align: center;"><em>图9: sigmoid(b+wx)</em></div>
+
+<p>为什么$\sigma(b+wx)$可以模拟$h_{a,b}(x)$呢？$w$为正数，</p>
+<ul>
+<li>当x为负无穷：$\sigma(b+wx) = 0$ </li>
+<li>当x为负正穷：$\sigma(b+wx) = 1$ </li>
+</ul>
+<p>并且：</p>
+<ul>
+<li>调整$w$可以改变曲线的陡峭程度，即$h_{a,b}(x)$中$a$和$b$的距离；</li>
+<li>调整$b$可以平易曲线，即$h_{a,b}(x)$中$a$和$b$的位置；</li>
+</ul>
+<p>所以，这两者近似等价：</p>
+<ul>
+<li>使用$c \cdot h_{a,b}(x)$构造模型函数，然后去学习参数$c$、$a$和$b$；</li>
+<li>使用$c \cdot \sigma(b+wx)$构造模型函数，然后去学习参数$c$、$w$和$b$；</li>
+</ul>
+<p>回顾一下：</p>
+<ul>
+<li><p>任意目标曲线可以看作折线；</p>
+</li>
+<li><p>任意折线可以通过如下函数精确组合而出；</p>
+</li>
+</ul>
+<p>$$<br>f(x) = b + \sum\limits_{i=1}^m c_i \cdot h_{a_i,b_i}(x)<br>$$</p>
+<ul>
+<li>任意如上函数可以通过如下函数模拟；</li>
+</ul>
+<p>$$<br>f(x) = b + \sum\limits_{i=1}^m c_i \cdot \sigma(b_{i}+w_{i}x)<br>$$</p>
+<p>所以，这是一个弹性极强的函数模型。弹性强是指：无论真实的目标函数曲线是什么样子，都可以无限逼近（可能需要$m$很大）。其中$m$又是一个hyper-parameter！</p>
+<h3 id="ReLU-4-1-2"><a href="#ReLU-4-1-2" class="headerlink" title="ReLU (4.1.2)"></a>ReLU (4.1.2)</h3>
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/llm/" rel="tag"># llm</a>
+              <a href="/tags/machine-learning/" rel="tag"># machine-learning</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/08/23/llm-agent/" rel="prev" title="Agent极简理解">
+      <i class="fa fa-chevron-left"></i> Agent极简理解
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2026/01/12/llm-concepts/" rel="next" title="LLM中的名词概念">
+      LLM中的名词概念 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%97%AE%E9%A2%98%E6%8F%8F%E8%BF%B0-1"><span class="nav-number">1.</span> <span class="nav-text">问题描述 (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E6%9C%80%E7%AE%80%E8%BF%87%E7%A8%8B-2"><span class="nav-number">2.</span> <span class="nav-text">机器学习最简过程 (2)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9A%E4%B9%89%E6%A8%A1%E5%9E%8B-2-1"><span class="nav-number">2.1.</span> <span class="nav-text">定义模型 (2.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9A%E4%B9%89%E6%8D%9F%E5%A4%B1%E5%87%BD%E6%95%B0-2-2"><span class="nav-number">2.2.</span> <span class="nav-text">定义损失函数 (2.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D-2-3"><span class="nav-number">2.3.</span> <span class="nav-text">梯度下降 (2.3)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93-1-4"><span class="nav-number">2.4.</span> <span class="nav-text">小结 (1.4)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%A2%9E%E5%8A%A0%E5%8F%82%E6%95%B0-3"><span class="nav-number">3.</span> <span class="nav-text">增加参数(3)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9A%E4%B9%89%E6%A8%A1%E5%9E%8B-3-1"><span class="nav-number">3.1.</span> <span class="nav-text">定义模型 (3.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9A%E4%B9%89%E6%8D%9F%E5%A4%B1%E5%87%BD%E6%95%B0-3-2"><span class="nav-number">3.2.</span> <span class="nav-text">定义损失函数 (3.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%A2%AF%E5%BA%A6%E4%B8%8B%E9%99%8D-3-3"><span class="nav-number">3.3.</span> <span class="nav-text">梯度下降 (3.3)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%B5%81%E7%A8%8B-3-3-1"><span class="nav-number">3.3.1.</span> <span class="nav-text">流程 (3.3.1)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%89%A7%E8%A1%8C-3-3-2"><span class="nav-number">3.3.2.</span> <span class="nav-text">执行 (3.3.2)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%90%91%E9%87%8F%E5%86%99%E6%B3%95-3-3-3"><span class="nav-number">3.3.3.</span> <span class="nav-text">向量写法 (3.3.3)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%8E%A8%E5%B9%BF%E5%88%B0%E5%A4%9A%E7%BB%B4-3-3-4"><span class="nav-number">3.3.4.</span> <span class="nav-text">推广到多维 (3.3.4)</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%80%BC%E8%BF%91%E4%BB%BB%E6%84%8F%E6%9B%B2%E7%BA%BF-4"><span class="nav-number">4.</span> <span class="nav-text">逼近任意曲线 (4)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%BF%80%E6%B4%BB%E5%87%BD%E6%95%B0-4-1"><span class="nav-number">4.1.</span> <span class="nav-text">激活函数 (4.1)</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Sigmoid-4-1-1"><span class="nav-number">4.1.1.</span> <span class="nav-text">Sigmoid (4.1.1)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ReLU-4-1-2"><span class="nav-number">4.1.2.</span> <span class="nav-text">ReLU (4.1.2)</span></a></li></ol></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">64</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">106</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>
