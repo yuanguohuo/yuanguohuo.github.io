@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="机器学习主要分为监督学习（Supervised Learning）、无监督学习（Unsupervised Learning）、强化学习（Reinforcement Learning）以及半监督学习（Semi-supervised Learning）等范式。 监督学习主要包括两大类基础任务：回归（Regression）和分类（Classification）。回归用于预测连续值（输出为实数），分类则用">
+<meta property="og:type" content="article">
+<meta property="og:title" content="机器学习原理-分类">
+<meta property="og:url" content="http://yoursite.com/2025/11/20/llm-machine-learning-3/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="机器学习主要分为监督学习（Supervised Learning）、无监督学习（Unsupervised Learning）、强化学习（Reinforcement Learning）以及半监督学习（Semi-supervised Learning）等范式。 监督学习主要包括两大类基础任务：回归（Regression）和分类（Classification）。回归用于预测连续值（输出为实数），分类则用">
+<meta property="og:locale">
+<meta property="og:image" content="http://yoursite.com/2025/11/20/llm-machine-learning-3/lda-vs-gda.png">
+<meta property="article:published_time" content="2025-11-20T21:15:40.000Z">
+<meta property="article:modified_time" content="2026-04-04T11:37:50.653Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="llm">
+<meta property="article:tag" content="machine-learning">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2025/11/20/llm-machine-learning-3/lda-vs-gda.png">
+
+<link rel="canonical" href="http://yoursite.com/2025/11/20/llm-machine-learning-3/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>机器学习原理-分类 | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2025/11/20/llm-machine-learning-3/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          机器学习原理-分类
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2025-11-20 21:15:40" itemprop="dateCreated datePublished" datetime="2025-11-20T21:15:40+00:00">2025-11-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2026-04-04 11:37:50" itemprop="dateModified" datetime="2026-04-04T11:37:50+00:00">2026-04-04</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/llm/" itemprop="url" rel="index"><span itemprop="name">llm</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2025/11/20/llm-machine-learning-3/" class="post-meta-item leancloud_visitors" data-flag-title="机器学习原理-分类" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/11/20/llm-machine-learning-3/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/11/20/llm-machine-learning-3/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>机器学习主要分为监督学习（Supervised Learning）、无监督学习（Unsupervised Learning）、强化学习（Reinforcement Learning）以及半监督学习（Semi-supervised Learning）等范式。</p>
+<p>监督学习主要包括两大类基础任务：回归（Regression）和分类（Classification）。回归用于预测连续值（输出为实数），分类则用于预测离散类别标签（输出为有限集合中的某个类别）。此外，结构化学习（Structured Learning）是一类更复杂的监督学习任务，其输出是具有内部结构的对象（如序列、树等），可视为分类或回归的高维扩展。</p>
+<p>在分类任务中，模型可分为生成式模型（Generative Models）和判别式模型（Discriminative Models）。生成式模型通过对联合分布 P(x,y) 建模来实现分类，典型方法包括高斯判别分析（GDA）及其两种常见形式——假设协方差矩阵共享的线性判别分析（LDA）和允许协方差矩阵独立的二次判别分析（QDA），以及朴素贝叶斯等。判别式模型则直接建模条件分布 P(y∣x)，代表方法有逻辑回归（Logistic Regression）、支持向量机（SVM）等。</p>
+<p>本文将简要介绍高斯判别分析（GDA）的基本思想与形式。</p>
+<a id="more"></a>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+
+<script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+
+<h1 id="问题设定-1"><a href="#问题设定-1" class="headerlink" title="问题设定 (1)"></a>问题设定 (1)</h1><p>训练数据为一组带标签的样本。</p>
+<ul>
+<li><p><strong>对象</strong>：由 $d$ 个连续特征描述，表示为特征向量 $\boldsymbol{x} \in \mathbb{R}^d$；</p>
+</li>
+<li><p><strong>标签</strong>：样本所属的类别，记为 $y$，其中 $y \in {c_1, c_2, \dots, c_K}$（离散变量，共 $K$ 个类别）后文使用$k$表示一个具体的类别，$y$表示类别变量；</p>
+</li>
+<li><p><strong>样本</strong>：一个对象及其所属的类别构成一个样本，记为 $(\boldsymbol{x}_i, y_i)$；</p>
+</li>
+<li><p><strong>样本集</strong>：给定 $N$ 个独立同分布的训练样本</p>
+<p>$$<br>(\boldsymbol{x}_1, y_1),\ (\boldsymbol{x}_2, y_2),\ \dots,\ (\boldsymbol{x}_N, y_N)<br>$$<br>其中 $\boldsymbol{x}_i \in \mathbb{R}^d$ 是第 $i$ 个样本的特征向量，$y_i$ 是其对应的类别标签。</p>
+</li>
+</ul>
+<blockquote>
+<p><strong>注</strong>：下标 $i$ 表示<strong>样本索引</strong>，而非向量分量；向量 $\boldsymbol{x}_i$ 的第 $j$ 个分量记为 $x_{ij}$。</p>
+</blockquote>
+<p><strong>任务</strong>：学习一个分类模型，使其能够对新的输入 $\boldsymbol{x}_{\text{new}}$ 预测其所属类别 $y$。</p>
+<h1 id="核心思想-2"><a href="#核心思想-2" class="headerlink" title="核心思想 (2)"></a>核心思想 (2)</h1><p>假设训练样本按如下生成过程产生：</p>
+<ol>
+<li>首先，从<strong>类别先验分布</strong> $P(y)$ 中随机选择一个类别 $y = k$，其中 $P(y = k)$ 表示类别 $k$ 出现的概率；</li>
+<li>然后，在已知 $y = k$ 的条件下，从<strong>类条件分布</strong> $P(\boldsymbol{x} \mid y = k)$ 中生成特征向量 $\boldsymbol{x}$；</li>
+</ol>
+<p>因此，样本 $(\boldsymbol{x}, y = k)$ 被生成的联合概率为：<br>$$<br>P(\boldsymbol{x}, y = k) = P(y = k) \cdot P(\boldsymbol{x} \mid y = k).<br>$$</p>
+<blockquote>
+<p><strong>说明</strong>：$P(\boldsymbol{x} \mid y = k)$ 表示——在已经选定类别 $y=k$ 的前提下，从该类别中生成特征向量 $\boldsymbol{x}$ 的概率。换句话说，它刻画了类别 $k$ 内部样本的分布规律（下文将把这一分布建模为多元高斯分布）。</p>
+</blockquote>
+<p>实际上，训练样本来自于真实世界，并不是按上述方法生成的。但我们要构建真实世界的模型，手中只有这些训练数据。假如上述生成方式所产生的样本分布，与真实世界抽样得到的样本分布足够接近，我们就能据此反推真实世界的规律。把上述生成过程抽象成一个模型$P_{\text{model}}(\boldsymbol{x},y)$（类比回归问题中的模型——带未知参数的函数），只要这个模型联合分布足够接近真实世界的联合分布 $P_{\text{true}}(\boldsymbol{x},y)$，模型的预测也就可靠。正如 George E. P. Box 所言：</p>
+<blockquote>
+<p>“All models are wrong, but some are useful.”</p>
+</blockquote>
+<p>如何使得模型中的 $P(y)$ 和 $P(\boldsymbol{x} \mid y=k)$ 足够接近真实世界的分布？或者更严格地说，我们如何通过有限的训练数据，学习一个生成模型 $P_{\text{model}}(y)$ 和 $P_{\text{model}}(\boldsymbol{x} \mid y)$ 使其尽可能逼近真实世界的分布 $P_{\text{true}}(y)$ 和 $P_{\text{true}}(\boldsymbol{x} \mid y)$？</p>
+<p>高斯判别分析（Gaussian Discriminant Analysis, GDA）提供了一种具体解决方案。</p>
+<h1 id="高斯判别分析-3"><a href="#高斯判别分析-3" class="headerlink" title="高斯判别分析 (3)"></a>高斯判别分析 (3)</h1><p>在回归问题中，首先根据领域知识（domain knowledge）选择一个带未知参数的函数形式作为模型（如线性函数、多项式或神经网络）。</p>
+<p>分类问题同样如此：基于领域知识（domain knowledge）或对数据的先验理解，如果每个类别的特征在输入空间中近似服从高斯分布（即在给定类别条件下，样本呈“椭球状”聚集），那么选择高斯判别分析（Gaussian Discriminant Analysis, GDA）就是一种自然且合理的建模决策。</p>
+<p>换句话说，GDA 适用于那些类条件分布 $P(\boldsymbol{x} \mid y = k)$ 近似服从<strong>多元高斯分布</strong>的场景。<br>这本质上是<strong>根据 domain knowledge 主动选择 GDA 作为模型</strong>，而非将 GDA 视为万能分类器。</p>
+<p>GDA 模型定义如下：</p>
+<ul>
+<li><p><strong>类别先验</strong> $P_{\text{model}}(y)$ 服从多项分布：<br>$$<br>P(y = k) = \pi_k, \quad \text{其中 } \pi_k \geq 0,\ \sum_{k=1}^{K} \pi_k = 1.<br>$$</p>
+</li>
+<li><p><strong>类条件分布</strong> $P_{\text{model}}(\boldsymbol{x} \mid y = k)$ 服从<strong>多元高斯分布</strong>：</p>
+<p>$$<br>P_{\text{model}}(\boldsymbol{x} \mid y = k) = \mathcal{N}(\boldsymbol{x} \mid \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)<br>$$</p>
+<p>其中</p>
+<p>$$<br>\mathcal{N}(\boldsymbol{x} \mid \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k) =<br>\frac{1}{(2\pi)^{d/2} |\boldsymbol{\Sigma}_k|^{1/2}}<br>\exp\left( -\frac{1}{2} (\boldsymbol{x} - \boldsymbol{\mu}_k)^\top \boldsymbol{\Sigma}_k^{-1} (\boldsymbol{x} - \boldsymbol{\mu}_k) \right)<br>$$</p>
+<p>是多元高斯分布的<strong>概率密度函数（PDF）</strong>。</p>
+</li>
+</ul>
+<blockquote>
+<p><strong>说明</strong>：$\pi$ 是圆周率，和各类别的先验概率 $\pi_k$ 没有关系；$d$ 是特征的个数，也就是特征向量$\boldsymbol{x}$的维数。</p>
+</blockquote>
+<p>类比回归问题中的模型（带未知参数的函数），GDA 模型中也包含一组<strong>待学习的未知参数</strong>，具体包括：</p>
+<ul>
+<li><strong>类别先验参数</strong>：$\pi_1, \pi_2, \dots, \pi_K$，表示各类别的先验概率；满足 $\sum_{k=1}^{K} \pi_k = 1$；</li>
+<li><strong>高斯分布参数</strong>：对每个类别 $k$，<ul>
+<li>均值向量 $\boldsymbol{\mu}_k \in \mathbb{R}^d$，</li>
+<li>协方差矩阵 $\boldsymbol{\Sigma}_k \in \mathbb{R}^{d \times d}$（对称正定）。</li>
+</ul>
+</li>
+</ul>
+<p>因此，完整参数集可表示成：</p>
+<p>$$<br>\boldsymbol{\theta} = ( \pi_1, \dots, \pi_K; \boldsymbol{\mu}_1, \dots, \boldsymbol{\mu}_K; \boldsymbol{\Sigma}_1, \dots, \boldsymbol{\Sigma}_K )<br>$$</p>
+<p>引入参数集$\boldsymbol{\theta}$之后，我们把模型正式记做：$P_{\boldsymbol{\theta}}(\boldsymbol{x}, y)$；表示 $P_{\boldsymbol{\theta}}(y) \cdot P_{\boldsymbol{\theta}}(\boldsymbol{x} \mid y)$；</p>
+<p>接下来的任务就是从训练数据中学习 $\boldsymbol{\theta}$，使得模型 $P_{\boldsymbol{\theta}}(\boldsymbol{x}, y)$ 最大程度地“解释”观测样本 $(\boldsymbol{x}_i, y_i)$，逼近真实数据分布。</p>
+<p>在继续之前，需明确 $P_{\boldsymbol{\theta}}(\boldsymbol{x} \mid y = k)$ 的含义。</p>
+<p>这是一个<strong>条件概率密度函数</strong>（conditional probability density function），其一般形式为 $P(A \mid B)$，表示在事件 $B$ 已经发生的前提下，事件 $A$ 发生的条件概率。</p>
+<p>在当前上下文中：</p>
+<ul>
+<li>事件 $B$：类别被选定为 $y = k$；</li>
+<li>事件 $A$：生成的样本落入 $\boldsymbol{x}$ 的无穷小邻域内。注意：并非“生成确切的 $\boldsymbol{x}$”</li>
+</ul>
+<p>需要特别注意：由于 $\boldsymbol{x} \in \mathbb{R}^d$ 是连续型随机向量，其取任意特定值的概率严格为零，即</p>
+<p>$$<br>P(\boldsymbol{X} = \boldsymbol{x} \mid y = k) = 0<br>$$</p>
+<p>因此，$P_{\boldsymbol{\theta}}(\boldsymbol{x} \mid y = k)$ 是<strong>概率密度</strong>，而非概率本身。它的数值大小反映了在类别 $k$ 下，样本出现在 $\boldsymbol{x}$ 附近的相对可能性：密度越高，该区域出现样本的可能性越大。若$\boldsymbol{x}$不是连续的而是离散的，就可以理解为概率了（前文为了便于理解，把它当成概率）。</p>
+<p>又假设符合多元高斯分布，所以这个概率密度函数记为$\mathcal{N}(\boldsymbol{x} \mid \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)$. </p>
+<blockquote>
+<p><strong>注</strong>：这里 $\mid$ 不是条件概率，而是表示以 $\boldsymbol{\mu}_k$ 和 $\boldsymbol{\Sigma}_k$ 为未知参数的函数。</p>
+</blockquote>
+<p>故模型 $P_{\boldsymbol{\theta}}(\boldsymbol{x}, y)$ 生成一个样本，它在$(\boldsymbol{x}_i, y_i)$的无穷小邻域内的概率（粗略理解为生成$(\boldsymbol{x}_i, y_i)$的概率）是：</p>
+<p>$$<br>P_{\boldsymbol{\theta}}(\boldsymbol{x}_i, y_i) =<br>P_{\boldsymbol{\theta}}(y = y_i) \cdot \mathcal{N}(\boldsymbol{x}_i \mid \boldsymbol{\mu}_{y_i}, \boldsymbol{\Sigma}_{y_i}) =<br>\pi_{y_i} \cdot \mathcal{N}(\boldsymbol{x}_i \mid \boldsymbol{\mu}_{y_i}, \boldsymbol{\Sigma}_{y_i})<br>$$</p>
+<p>回到正题，从训练数据中学习 $\boldsymbol{\theta}$.</p>
+<h1 id="最大似然估计-4"><a href="#最大似然估计-4" class="headerlink" title="最大似然估计 (4)"></a>最大似然估计 (4)</h1><p>回归问题通常通过梯度下降等数值优化方法求解参数；而 GDA 因其良好的概率结构，可通过<strong>最大似然估计</strong>（Maximum Likelihood Estimation, MLE）获得<strong>解析解</strong>。</p>
+<p><strong>真实世界是一台黑箱机器，即不能确切知道</strong> $P_{\text{true}}(\boldsymbol{x},y)$. <strong>我们造了一台机器模拟它，若希望模拟得足够像，自然是希望它的产品与真实产品足够相似（分布相似）。这正是生成建模（generative modeling）的核心思想。</strong></p>
+<p>具体而言：</p>
+<ul>
+<li>我们观测到一组来自真实世界的独立同分布样本：$(\boldsymbol{x}_1, y_1),\ (\boldsymbol{x}_2, y_2),\ \dots,\ (\boldsymbol{x}_N, y_N)$；这些是真实世界这台<strong>黑箱机器</strong>的产品；</li>
+<li>我们已选定生成模型 $P_{\boldsymbol{\theta}}(\boldsymbol{x},y)$，但参数 $\boldsymbol{\theta}$ 未知；这是我们构建的<strong>模拟机器</strong>，其内部参数尚待校准；</li>
+<li>目标是：找到参数 $\boldsymbol{\theta}$，使得该模型“最有可能”生成我们所观测到的这些样本。校准参数，让模拟机器的产品分布尽可能接近真实产品的分布；</li>
+</ul>
+<p>在概率框架下，“最有可能”意味着最大化联合似然函数（likelihood）：</p>
+<p>$$<br>\mathcal{L}(\boldsymbol{\theta}) =<br>\prod_{i=1}^{N} P_{\boldsymbol{\theta}}(\boldsymbol{x}_i, y_i) =<br>P_{\boldsymbol{\theta}}(\boldsymbol{x}_1, y_1) P_{\boldsymbol{\theta}}(\boldsymbol{x}_2,y_2) \dots P_{\boldsymbol{\theta}}(\boldsymbol{x}_N,y_N)<br>$$</p>
+<p>即<strong>所有观测样本在模型下的联合概率（密度）之积</strong>。</p>
+<p>由于连乘形式不便优化，且对数函数单调递增，最大化似然函数的对数（叫做<strong>对数似然函数</strong>）是等价的：</p>
+<p>$$<br>\ell(\boldsymbol{\theta}) = \log \mathcal{L}(\boldsymbol{\theta}) = \sum_{i=1}^{N} \log P_{\boldsymbol{\theta}}(\boldsymbol{x}_i, y_i)<br>$$</p>
+<p>将GDA 模型代入，得：</p>
+<p>$$<br>\ell(\boldsymbol{\theta}) =<br>\sum_{i=1}^{N} \log ( \pi_{y_i} \cdot \mathcal{N}(\boldsymbol{x}_i \mid \boldsymbol{\mu}_{y_i}, \boldsymbol{\Sigma}_{y_i}) ) =<br>\sum_{i=1}^{N} ( \log \pi_{y_i} + \log \mathcal{N}(\boldsymbol{x}_i \mid \boldsymbol{\mu}_{y_i}, \boldsymbol{\Sigma}_{y_i}) )<br>$$</p>
+<p>展开为如下两部分(1)和(2)之和。第(1)部分只含$\pi_k$；第(2)部分不含$\pi_k$；所以可以<strong>分别独立最大化</strong>。</p>
+<p>$$<br>\log \pi_{y_1} + \log \pi_{y_2} + \dots + \log \pi_{y_N}<br>\tag{1}<br>$$</p>
+<p>$$<br>\log \mathcal{N}(\boldsymbol{x}_1 \mid \boldsymbol{\mu}_{y_1}, \boldsymbol{\Sigma}_{y_1}) + \log \mathcal{N}(\boldsymbol{x}_1 \mid \boldsymbol{\mu}_{y_2}, \boldsymbol{\Sigma}_{y_2}) + \dots + \log \mathcal{N}(\boldsymbol{x}_N \mid \boldsymbol{\mu}_{y_N}, \boldsymbol{\Sigma}_{y_N})<br>\tag{2}<br>$$</p>
+<p><strong>第(1)部分：</strong></p>
+<p>把类别相同（$y$相同）的项移到一起。例如100个样本（$N=100$），3个类别（$K=3$）；其中70个属于类别$1$（$N_{1}=70$）；20个属于类别$2$（$N_{2}=20$）；10个属于类别$3$（$N_{3}=10$）；把它们分别放在一起，再重组得到：</p>
+<p>$$<br>\underbrace{ \log \pi_1 + \dots +  \log \pi_1 }_{N_1个} +<br>\underbrace{ \log \pi_2 + \dots +  \log \pi_2 }_{N_2个} +<br>\dots +<br>\underbrace{ \log \pi_K + \dots +  \log \pi_K }_{N_K个} +<br>$$</p>
+<p>也就是</p>
+<p>$$<br>\text{ 最大化 }<br>\sum_{k=1}^K N_{k} \log \pi_{k}<br>\text{ 满足 }<br>\sum_{k=1}^K \pi_k = 1, \pi_k \geq 0<br>$$</p>
+<p>使用拉格朗日乘子法（待学习）解得：</p>
+<p>$$<br>\hat{\pi}_k = \frac{N_k}{N}<br>$$</p>
+<p>结果就等于各个类别的样本数除以样本总数（和直觉符合）。对于上面的例子，$\pi_1 = 0.7$，$\pi_2 = 0.2$，$\pi_3 = 0.1$。</p>
+<p><strong>第(2)部分：</strong></p>
+<p>也把类别相同的移到一起：</p>
+<p>$$<br>\sum_{y_i=1\text{的所有i}} \log \mathcal{N}(\boldsymbol{x}_i \mid \boldsymbol{\mu}_1, \boldsymbol{\Sigma}_1) +<br>\sum_{y_i=2\text{的所有i}} \log \mathcal{N}(\boldsymbol{x}_i \mid \boldsymbol{\mu}_2, \boldsymbol{\Sigma}_2) +<br>\dots +<br>\sum_{y_i=K\text{的所有i}} \log \mathcal{N}(\boldsymbol{x}_i \mid \boldsymbol{\mu}_K, \boldsymbol{\Sigma}_K)<br>$$</p>
+<p>即：</p>
+<p>$$<br>\sum_{k=1}^K \sum_{y_i=k\text{的所有i}} \log \mathcal{N}(\boldsymbol{x}_i \mid \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)<br>$$</p>
+<p>其实不需要这个形式，因为不同类别$k$之间也解偶，可以独立考虑每一个$k$。</p>
+<p>代入高斯 PDF 的对数形式：</p>
+<p>$$<br>\mathcal{N}(\boldsymbol{x} \mid \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k) =<br>\frac{1}{(2\pi)^{d/2} |\boldsymbol{\Sigma}_k|^{1/2}}<br>\exp\left( -\frac{1}{2} (\boldsymbol{x} - \boldsymbol{\mu}_k)^\top \boldsymbol{\Sigma}_k^{-1} (\boldsymbol{x} - \boldsymbol{\mu}_k) \right)<br>$$</p>
+<p>忽略常数项（与参数无关），等价于最小化：</p>
+<p>$$<br>\sum_{y_i=k\text{的所有i}} ( \log |\boldsymbol{\Sigma}_k| + (\boldsymbol{x}_i - \boldsymbol{\mu}_k)^\top \boldsymbol{\Sigma}_k^{-1} (\boldsymbol{x}_i - \boldsymbol{\mu}_k) )<br>$$</p>
+<p>对$\boldsymbol{\mu}_k$求导，令为零（待学习），可得:</p>
+<p>$$<br>\hat{\boldsymbol{\mu}}_k = \frac{1}{N_k} \sum_{y_i=k\text{的所有i}} \boldsymbol{x}_i<br>$$</p>
+<p>对$\boldsymbol{\Sigma}_k$求导并令为零（待学习），利用矩阵微分公式，可得：</p>
+<p>$$<br>\hat{\boldsymbol{\Sigma}}_k = \frac{1}{N_k} \sum_{y_i=k\text{的所有i}} (\boldsymbol{x}_i - \hat{\boldsymbol{\mu}}_k) (\boldsymbol{x}_i - \hat{\boldsymbol{\mu}}_k)^\top<br>$$</p>
+<p>这就求解了$\boldsymbol{\theta}$：</p>
+<p>$$<br>\hat{\boldsymbol{\theta}} = ( \hat{\pi}_1, \dots, \hat{\pi}_K; \hat{\boldsymbol{\mu}}_1, \dots, \hat{\boldsymbol{\mu}}_K; \hat{\boldsymbol{\Sigma}}_1, \dots, \hat{\boldsymbol{\Sigma}}_K )<br>$$</p>
+<h1 id="对比回归问题-5"><a href="#对比回归问题-5" class="headerlink" title="对比回归问题 (5)"></a>对比回归问题 (5)</h1><p>分类与回归的建模流程本质一致：</p>
+<ul>
+<li><strong>回归</strong>：定义模型 $f_{\boldsymbol{\theta}}(\boldsymbol{x})$，然后使用梯度下降的方法求解$\boldsymbol{\theta}$.</li>
+<li><strong>分类（GDA）</strong>：定义模型 $P_{\boldsymbol{\theta}}(\boldsymbol{x}, y)$，然后使用最大似然估计的方法求解$\boldsymbol{\theta}$.</li>
+</ul>
+<p>两者均遵循：<strong>限定假设空间 → 用数据拟合参数</strong>。</p>
+<h1 id="预测阶段-6"><a href="#预测阶段-6" class="headerlink" title="预测阶段 (6)"></a>预测阶段 (6)</h1><p>现在模型已经训练完成，看如何预测 $\boldsymbol{x}_{\text{new}}$ 的类别。</p>
+<h2 id="贝叶斯公式-6-1"><a href="#贝叶斯公式-6-1" class="headerlink" title="贝叶斯公式 (6.1)"></a>贝叶斯公式 (6.1)</h2><p>$$<br>P(A \cap B) = P(A) P(B \mid A) = P(B) P(A \mid B)<br>$$</p>
+<p>对于两个事件 $A$ 和 $B$（假设 $P(A)&gt;0$ 且 $P(B)&gt;0$），<strong>它们同时发生的概率</strong>：</p>
+<ul>
+<li><strong>等于A发生的概率</strong> 乘以 <strong>A已经发生的情况下B发生的条件概率</strong></li>
+<li><strong>等于B发生的概率</strong> 乘以 <strong>B已经发生的情况下A发生的条件概率</strong></li>
+</ul>
+<p>举例：</p>
+<ul>
+<li>已知某疾病发生的先验概率（来自真实统计）是 1%，即 $P(\text{病}) = 0.01$，$P(\text{健}) = 0.99$.</li>
+<li>检测准确率：<ul>
+<li>健康的人，有5%的假阳性；即 $P(\text{阳} \mid \text{健}) = 0.05$</li>
+<li>生病的人，有2%的假阴性；即 $P(\text{阳} \mid \text{病}) = 0.98$</li>
+</ul>
+</li>
+<li>问题：若某人检测为阳性，他真生病的概率是多少？</li>
+</ul>
+<p>$$<br>P(\text{阳} \cap \text{病}) = P(\text{病}) P(\text{阳} \mid \text{病}) = P(\text{阳}) P(\text{病} \mid \text{阳})<br>$$</p>
+<p>这个人已经检测阳性，他真生病的概率也就是 <strong>已检测阳性的情况下，生病的条件概率</strong>，即$P(\text{病} \mid \text{阳})$：</p>
+<p>$$<br>P(\text{病} \mid \text{阳}) = \frac{P(\text{病}) P(\text{阳} \mid \text{病})}{P(\text{阳})} = \frac{0.01 \times 0.98}{P(\text{阳})}<br>$$</p>
+<p>根据<strong>全概率公式（Law of Total Probability）</strong>：</p>
+<p>$$<br>P(\text{阳}) = P(\text{阳} \mid \text{健}) P(\text{健}) + P(\text{阳} \mid \text{病}) P(\text{病}) = 0.05 \times 0.99 + 0.98 \times 0.01 = 0.0593<br>$$</p>
+<p>故</p>
+<p>$$<br>P(\text{病} \mid \text{阳}) = \frac{P(\text{病}) P(\text{阳} \mid \text{病})}{P(\text{阳})} = \frac{0.01 \times 0.98}{0.0593} = 0.1653<br>$$</p>
+<p>这个人真生病的概率只有16.53%!</p>
+<h2 id="贝叶斯分类-6-2"><a href="#贝叶斯分类-6-2" class="headerlink" title="贝叶斯分类 (6.2)"></a>贝叶斯分类 (6.2)</h2><p>要预测 $\boldsymbol{x}_{\text{new}}$ 的类别，套用贝叶斯公式：</p>
+<ul>
+<li>事件$A$：选择某个类别$k$；</li>
+<li>事件$B$：生成的对象落在 $\boldsymbol{x}_{\text{new}}$ 的无限小领域内。可以先把 $\boldsymbol{x}$ 想象成离散的，那么事件 $B$ 就是生成 $\boldsymbol{x}_{\text{new}}$ 的概率。不严谨，但更容易理解。</li>
+</ul>
+<p>现在事件 $B$ 已经发生；求事件 $A$ 发生的概率。</p>
+<ul>
+<li>假如 $k=1$，事件 $A$ 发生的概率就是 $P(y=1 \mid \boldsymbol{x}_{\text{new}})$</li>
+<li>假如 $k=2$，事件 $A$ 发生的概率就是 $P(y=2 \mid \boldsymbol{x}_{\text{new}})$</li>
+<li>以此类推</li>
+</ul>
+<p>问 $k$ 取何值，能使 $P(y=k \mid \boldsymbol{x}_{\text{new}})$ 最大？</p>
+<p><strong>后验概率</strong>是贝叶斯统计中的一个概念，它是指在观察到数据 $\boldsymbol{x}_new$ 之后，某个类别 $y=k$ 成立的概率。</p>
+<p>所以，用数学语言来说，就是哪个$k$ 的后验概率最大？</p>
+<p>那个 $k$ 就是模型预测的 $\boldsymbol{x}_{\text{new}}$ 的类别，记为 $\hat{y}_{\text{new}}$。</p>
+<p>于是，预测类别可表示成一个最大化问题：</p>
+<p>$$<br>\hat{y}_{\text{new}} = \underset{k \in {1, \dots, K}}{\arg\max} P(y = k \mid \boldsymbol{x}_{\text{new}})<br>$$</p>
+<blockquote>
+<p><strong>说明</strong>：$\arg\max$ 是 “argument of the maximum” 的缩写，表示<strong>使函数取得最大值的自变量（或参数）的取值</strong>。尽管在某些情况下可能存在多个最大化点（此时 $\arg\max$ 是一个集合），该符号仍采用单数形式 “argument” 命名，这是数学中的标准惯例。$\arg\min$ 同理，是 “argument of the minimum” 的缩写。</p>
+</blockquote>
+<p>根据贝叶斯公式:</p>
+<p>$$<br>P(y = k \mid \boldsymbol{x}_{\text{new}}) =<br>\frac{P(y=k) P(\boldsymbol{x}_{\text{new}} \mid y=k)}{P(\boldsymbol{x}_{\text{new}})}<br>$$</p>
+<p>分母是<strong>生成对象落在</strong> $\boldsymbol{x}_{\text{new}}$ 的无限小领域内的概率。离散情况下，理解为生成 $\boldsymbol{x}_{\text{new}}$ 的概率。即所有类别生成 $\boldsymbol{x}_{\text{new}}$ 的概率的总和。这就是<strong>全概率公式（Law of Total Probability）</strong>：</p>
+<p>$$<br>P(\boldsymbol{x}_{\text{new}}) = \sum_{k=1}^K P(y=k) P(\boldsymbol{x}_{\text{new}} \mid y=k)<br>$$</p>
+<p><strong>关键</strong>：$P(\boldsymbol{x}_{\text{new}})$ 不依赖于 $k$ —— 对所有 $k$ 都是同一个归一化常数。</p>
+<p>于是，问题就变成选择 $k$ 来最大化分子部分：</p>
+<p>$$<br>P(y=k) P(\boldsymbol{x}_{\text{new}} \mid y=k)<br>$$</p>
+<p>代入模型，变成了选择 $k$ 来最大化：</p>
+<p>$$<br>\pi_k \cdot \mathcal{N}(\boldsymbol{x}_{\text{new}} \mid \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)<br>$$</p>
+<p>故问题变成：</p>
+<p>$$<br>\hat{y}_{\text{new}} = \underset{k \in {1, \dots, K}}{\arg\max} ( \pi_k \cdot \mathcal{N}(\boldsymbol{x}_{\text{new}} \mid \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k) )<br>$$</p>
+<p>因为单调性，可最大化其对数。所以，问题再变成：</p>
+<p>$$<br>\hat{y}_{\text{new}} = \underset{k \in {1, \dots, K}}{\arg\max} (\log \pi_k + \log \mathcal{N}(\boldsymbol{x}_{\text{new}} \mid \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k) )<br>$$</p>
+<p>代入：</p>
+<p>$$<br>\log \mathcal{N}(\boldsymbol{x}_{\text{new}} \mid \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k) =<br>-\frac{d}{2}\log(2\pi) - \frac{1}{2}\log|\boldsymbol{\Sigma}_k| - \frac{1}{2}(\boldsymbol{x}_{\text{new}}-\boldsymbol{\mu}_k)^\top \boldsymbol{\Sigma}_k^{-1}(\boldsymbol{x}_{\text{new}}-\boldsymbol{\mu}_k)<br>$$</p>
+<p>忽略所有与 $k$ 无关的常数项，如 $-\frac{d}{2}\log(2\pi)$，得到如下式子。把它定义为<strong>判别函数（discriminant function）</strong>，并使用符号 $\delta_k(\boldsymbol{x}_{\text{new}})$ 表示。</p>
+<p>$$<br>\delta_k(\boldsymbol{x}_{\text{new}}) =<br>\log \pi_k - \frac{1}{2}\log|\boldsymbol{\Sigma}_k| - \frac{1}{2}(\boldsymbol{x}_{\text{new}}-\boldsymbol{\mu}_k)^\top \boldsymbol{\Sigma}_k^{-1}(\boldsymbol{x}_{\text{new}}-\boldsymbol{\mu}_k)<br>$$</p>
+<p>最终，变成求解:</p>
+<p>$$<br>\hat{y}_{\text{new}} = \underset{k \in {1, \dots, K}}{\arg\max} \delta_k(\boldsymbol{x}_{\text{new}})<br>$$</p>
+<h1 id="线性判别分析-7"><a href="#线性判别分析-7" class="headerlink" title="线性判别分析 (7)"></a>线性判别分析 (7)</h1><p>GDA（高斯判别分析）具有较高的模型弹性，但由于需要为每个类别独立估计协方差矩阵，在训练数据量不足时容易过拟合。线性判别分析（LDA, Linear Discriminant Analysis）是 GDA 的一种简化形式，其核心假设是<strong>所有类别共享同一个协方差矩阵</strong>，从而降低模型复杂度并提升泛化能力。</p>
+<blockquote>
+<p><strong>说明</strong>：严格来说，GDA 本身并未规定协方差矩阵 $\boldsymbol{\Sigma}_k$ 是否独立，因此 <strong>GDA 是一个生成模型的“框架”或“家族”</strong>。本文前面讲述的所有内容（如为每类单独估计 $\boldsymbol{\Sigma}_k$）实际上对应的是 GDA 的一个特例，称为 <strong>QDA（Quadratic Discriminant Analysis，二次判别分析）</strong>。值得注意的是，在部分文献（如 Andrew Ng 的 CS229）中，GDA 常被直接用来指代 QDA。QDA 是 GDA 在“每类协方差矩阵独立”这一设定下的具体实现；而 LDA 则是 GDA 在“协方差矩阵共享”约束下的简化版本。</p>
+</blockquote>
+<p>LDA 的生成模型为：</p>
+<p>$$<br>P_{\boldsymbol{\theta}}(\boldsymbol{x}, y=k) =<br>P_{\boldsymbol{\theta}}(y=k) \cdot P_{\boldsymbol{\theta}}(\boldsymbol{x} \mid y=k) =<br>\pi_k \cdot \mathcal{N}(\boldsymbol{x} \mid \boldsymbol{\mu}_k, \boldsymbol{\Sigma})<br>$$</p>
+<p>其中 $\boldsymbol{\Sigma}$ 不依赖于类别 $k$，即所有类别共享同一个协方差矩阵。下表是详细对比。其实共享的 $\boldsymbol{\Sigma}$ 就是所有类别的 $\boldsymbol{\Sigma}_k$ 的<strong>加权平均</strong>。</p>
+<p><img src="lda-vs-gda.png" alt="figure1"></p>
+<div style="text-align: center;"><em>LDA与QDA对比</em></div>
+
+<p>LDA中的L(Linear)是什么意思呢？采用相同的 $\boldsymbol{\Sigma}$ 时，各个类别的分界线是线性的。假如$\boldsymbol{x}$是二维的，即特征数是2，分界线就是平面坐标系上的直线。</p>
+<p>如果每个类有自己的 $\boldsymbol{\Sigma}_k$（即 QDA），那么决策边界会包含 $\boldsymbol{x}^\top \boldsymbol{\Sigma}_k^{-1} \boldsymbol{x}$ 这样的二次项，结果是椭圆、抛物线、双曲线等 曲线边界（假设 $\boldsymbol{x}$ 是二维的），故称 Quadratic（二次）判别分析。</p>
+<h1 id="小结-8"><a href="#小结-8" class="headerlink" title="小结 (8)"></a>小结 (8)</h1><p>想象真实世界是一个<strong>黑箱机器</strong>，看不见里面怎么运作，但可以观察大量输出，试着<strong>反向造一台类似的机器</strong>。</p>
+<p>GDA 就是这样一种尝试：</p>
+<blockquote>
+<p>“我猜，这个黑箱对每个类别，都是从一个高斯分布里随机‘采样’输出数据的。”</p>
+</blockquote>
+<p>于是，我们<strong>为每个类别打造一个高斯模具</strong>——由均值（中心位置）和协方差（形状、方向）定义。</p>
+<ul>
+<li>如果我们让每个类别的模具自由变形（各自有独立的协方差），这就是 QDA ——灵活，能贴合复杂形状，但需要很多数据才能把模具调准，否则容易过拟合。</li>
+<li>如果我们强制所有类别的模具共用同一个形状（共享协方差），这就是 LDA ——虽然牺牲了一些灵活性，但模具更稳定，哪怕数据不多也能靠谱工作。</li>
+</ul>
+<p>训练过程，就是<strong>观察真实数据，不断调整这些模具的参数</strong>。预测时，则是看新样本<strong>最像哪个模具“吐出来”的</strong>，就把它归到那一类。</p>
+<p>所以，<strong>GDA 不是在直接划分类别边界，而是在模仿世界生成数据的方式</strong>——它相信：理解“如何产生”，才能更好“判断归属”。</p>
+<p>这正是生成模型的哲学：<strong>不是记住答案，而是学会造答案</strong>。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/llm/" rel="tag"># llm</a>
+              <a href="/tags/machine-learning/" rel="tag"># machine-learning</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/11/08/llm-machine-learning-2/" rel="prev" title="机器学习原理-回归中的遗留问题">
+      <i class="fa fa-chevron-left"></i> 机器学习原理-回归中的遗留问题
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2026/01/12/llm-concepts/" rel="next" title="LLM中的名词概念">
+      LLM中的名词概念 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%97%AE%E9%A2%98%E8%AE%BE%E5%AE%9A-1"><span class="nav-number">1.</span> <span class="nav-text">问题设定 (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%A0%B8%E5%BF%83%E6%80%9D%E6%83%B3-2"><span class="nav-number">2.</span> <span class="nav-text">核心思想 (2)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%AB%98%E6%96%AF%E5%88%A4%E5%88%AB%E5%88%86%E6%9E%90-3"><span class="nav-number">3.</span> <span class="nav-text">高斯判别分析 (3)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%9C%80%E5%A4%A7%E4%BC%BC%E7%84%B6%E4%BC%B0%E8%AE%A1-4"><span class="nav-number">4.</span> <span class="nav-text">最大似然估计 (4)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AF%B9%E6%AF%94%E5%9B%9E%E5%BD%92%E9%97%AE%E9%A2%98-5"><span class="nav-number">5.</span> <span class="nav-text">对比回归问题 (5)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%A2%84%E6%B5%8B%E9%98%B6%E6%AE%B5-6"><span class="nav-number">6.</span> <span class="nav-text">预测阶段 (6)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%B4%9D%E5%8F%B6%E6%96%AF%E5%85%AC%E5%BC%8F-6-1"><span class="nav-number">6.1.</span> <span class="nav-text">贝叶斯公式 (6.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%B4%9D%E5%8F%B6%E6%96%AF%E5%88%86%E7%B1%BB-6-2"><span class="nav-number">6.2.</span> <span class="nav-text">贝叶斯分类 (6.2)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%BA%BF%E6%80%A7%E5%88%A4%E5%88%AB%E5%88%86%E6%9E%90-7"><span class="nav-number">7.</span> <span class="nav-text">线性判别分析 (7)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93-8"><span class="nav-number">8.</span> <span class="nav-text">小结 (8)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">66</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">106</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>
