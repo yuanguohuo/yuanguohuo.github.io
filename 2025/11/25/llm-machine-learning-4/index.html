@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="机器学习主要分为监督学习（Supervised Learning）、无监督学习（Unsupervised Learning）、强化学习（Reinforcement Learning）以及半监督学习（Semi-supervised Learning）等范式。 监督学习主要包括两大类基础任务：回归（Regression）和分类（Classification）。回归用于预测连续值（输出为实数），分类则用">
+<meta property="og:type" content="article">
+<meta property="og:title" content="机器学习原理-分类(判别式)">
+<meta property="og:url" content="http://yoursite.com/2025/11/25/llm-machine-learning-4/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="机器学习主要分为监督学习（Supervised Learning）、无监督学习（Unsupervised Learning）、强化学习（Reinforcement Learning）以及半监督学习（Semi-supervised Learning）等范式。 监督学习主要包括两大类基础任务：回归（Regression）和分类（Classification）。回归用于预测连续值（输出为实数），分类则用">
+<meta property="og:locale">
+<meta property="og:image" content="http://yoursite.com/2025/11/25/llm-machine-learning-4/generative-vs-discriminative.png">
+<meta property="og:image" content="http://yoursite.com/2025/11/25/llm-machine-learning-4/loss-of-logistic-regression.png">
+<meta property="article:published_time" content="2025-11-25T18:20:55.000Z">
+<meta property="article:modified_time" content="2026-08-22T03:59:23.961Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="llm">
+<meta property="article:tag" content="machine-learning">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2025/11/25/llm-machine-learning-4/generative-vs-discriminative.png">
+
+<link rel="canonical" href="http://yoursite.com/2025/11/25/llm-machine-learning-4/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>机器学习原理-分类(判别式) | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2025/11/25/llm-machine-learning-4/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          机器学习原理-分类(判别式)
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2025-11-25 18:20:55" itemprop="dateCreated datePublished" datetime="2025-11-25T18:20:55+00:00">2025-11-25</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2026-08-22 03:59:23" itemprop="dateModified" datetime="2026-08-22T03:59:23+00:00">2026-08-22</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/llm/" itemprop="url" rel="index"><span itemprop="name">llm</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2025/11/25/llm-machine-learning-4/" class="post-meta-item leancloud_visitors" data-flag-title="机器学习原理-分类(判别式)" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/11/25/llm-machine-learning-4/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/11/25/llm-machine-learning-4/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>机器学习主要分为监督学习（Supervised Learning）、无监督学习（Unsupervised Learning）、强化学习（Reinforcement Learning）以及半监督学习（Semi-supervised Learning）等范式。</p>
+<p>监督学习主要包括两大类基础任务：回归（Regression）和分类（Classification）。回归用于预测连续值（输出为实数），分类则用于预测离散类别标签（输出为有限集合中的某个类别）。此外，结构化学习（Structured Learning）是一类更复杂的监督学习任务，其输出是具有内部结构的对象（如序列、树等），可视为分类或回归的高维扩展。</p>
+<p>在分类任务中，模型可分为生成式模型（Generative Models）和判别式模型（Discriminative Models）。生成式模型通过对联合分布 P(x,y) 建模来实现分类，典型方法包括高斯判别分析（GDA）及其两种常见形式——假设协方差矩阵共享的线性判别分析（LDA）和允许协方差矩阵独立的二次判别分析（QDA），以及朴素贝叶斯等。判别式模型则直接建模条件分布 P(y∣x)，代表方法有逻辑回归（Logistic Regression）、支持向量机（SVM）等。</p>
+<p>本文将简要介绍逻辑回归 Logistic Regression。</p>
+<a id="more"></a>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+
+<script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+<h1 id="问题设定-1"><a href="#问题设定-1" class="headerlink" title="问题设定 (1)"></a>问题设定 (1)</h1><p>训练数据为一组带标签的样本。</p>
+<ul>
+<li><p><strong>对象</strong>：由 $d$ 个连续特征描述，表示为特征向量 $\boldsymbol{x} \in \mathbb{R}^d$；</p>
+</li>
+<li><p><strong>标签</strong>：样本所属的类别，记为 $y$，其中 $y \in {c_1, c_2, \dots, c_K}$（离散变量，共 $K$ 个类别）后文使用$k$表示一个具体的类别，$y$表示类别变量；</p>
+</li>
+<li><p><strong>样本</strong>：一个对象及其所属的类别构成一个样本，记为 $(\boldsymbol{x}_i, y_i)$；</p>
+</li>
+<li><p><strong>样本集</strong>：给定 $N$ 个独立同分布的训练样本</p>
+<p>$$<br>(\boldsymbol{x}_1, y_1),\ (\boldsymbol{x}_2, y_2),\ \dots,\ (\boldsymbol{x}_N, y_N)<br>$$<br>其中 $\boldsymbol{x}_i \in \mathbb{R}^d$ 是第 $i$ 个样本的特征向量，$y_i$ 是其对应的类别标签。</p>
+</li>
+</ul>
+<blockquote>
+<p><strong>注</strong>：下标 $i$ 表示<strong>样本索引</strong>，而非向量分量；向量 $\boldsymbol{x}_i$ 的第 $j$ 个分量记为 $x_{ij}$。</p>
+</blockquote>
+<p><strong>任务</strong>：学习一个分类模型，使其能够对新的输入 $\boldsymbol{x}_{\text{new}}$ 预测其所属类别 $y$。</p>
+<h1 id="核心思想-2"><a href="#核心思想-2" class="headerlink" title="核心思想 (2)"></a>核心思想 (2)</h1><p>在<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2025/11/20/llm-machine-learning-3/">上一章</a>中，LDA（Linear Discriminant Analysis）通过训练样本，估计每个类别 $k$ 的先验概率 $\pi_k$、均值向量 $\boldsymbol{\mu}_k$ 以及所有类别共享的协方差矩阵 $\boldsymbol{\Sigma}$，然后根据贝叶斯公式计算新特征向量的后验概率。</p>
+<p>据其第7节可知，后验概率可表示为：</p>
+<p>$$<br>P(y \mid \boldsymbol{x}) = \operatorname{softmax}(\boldsymbol{z})<br>$$</p>
+<p>其中，</p>
+<p>$$<br>\boldsymbol{z} =<br>\boldsymbol{W}\boldsymbol{x} + \boldsymbol{b} = \begin{bmatrix}<br>\boldsymbol{w}_1^\top \boldsymbol{x} + b_1 \\<br>\boldsymbol{w}_2^\top \boldsymbol{x} + b_2 \\<br>\vdots                                     \\<br>\boldsymbol{w}_K^\top \boldsymbol{x} + b_K<br>\end{bmatrix} \in \mathbb{R}^K<br>$$</p>
+<p>对所有 $k \in 1, 2, \dots, K$，$\boldsymbol{w}_k$ 和 $b_k$ 由 $\pi_k$、$\boldsymbol{\mu}_k$ 和 $\boldsymbol{\Sigma}$ 解析确定。</p>
+<p>既然如此，何不跳过对数据生成过程的假设（如特征服从高斯分布），<strong>直接假设后验概率具有这种 softmax 形式</strong>，并将 $\boldsymbol{w}_k$、$b_k$ 视为待学习的参数？</p>
+<p>这正是逻辑回归（Logistic Regression）的核心思想：它是一种判别式模型，直接对条件概率 $P(y \mid \boldsymbol{x})$ 建模，并通过最大似然估计（等价于最小化交叉熵 Cross Entropy）从数据中学习参数。</p>
+<h1 id="二分类-3"><a href="#二分类-3" class="headerlink" title="二分类 (3)"></a>二分类 (3)</h1><p>现在，我们完全放弃生成式假设（如类别先验 $\pi_k$、均值向量 $\boldsymbol{\mu}_k$、共享协方差矩阵 $\boldsymbol{\Sigma}$），转而直接通过数据学习条件概率 $P(y \mid \boldsymbol{x})$。</p>
+<h2 id="定义模型（function-set）-3-1"><a href="#定义模型（function-set）-3-1" class="headerlink" title="定义模型（function set）(3.1)"></a>定义模型（function set）(3.1)</h2><p>考虑二分类问题，类别标签 $y \in {1, 2}$，只需建模一个类别（例如 $y=1$）的概率：</p>
+<p>$$<br>P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}) = \sigma(z) = \frac{1}{1+e^{-z}}<br>$$</p>
+<p>其中 $z$ 叫做<strong>线性得分（logit）</strong>，是未经过 sigmoid（softmax，在多分类场景下）归一化的原始输出：</p>
+<p>$$<br>z = \boldsymbol{w}^\top \boldsymbol{x} + b = \sum_{h=1}^d w_h x_h + b<br>$$</p>
+<p>因此，模型（function set）可显式写为：</p>
+<p>$$<br>P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}) = \frac{1}{1+e^{-(\boldsymbol{w}^\top \boldsymbol{x} + b)}} =<br>\frac{1}{1+e^{-(\sum_{h=1}^d w_h x_h + b)}}<br>$$</p>
+<blockquote>
+<p><strong>符号说明</strong>：</p>
+</blockquote>
+<blockquote>
+<ul>
+<li>黑体 $\boldsymbol{x}$ 表示任意特征向量（任意样本的特征）。</li>
+<li>黑体 $\boldsymbol{x}_i$ 表示第 $i$ 个特征向量（第 $i$ 个样本的特征），其中 $i \in 1, 2, \dots, N$ ；仍是向量，使用黑体表示。</li>
+<li>任意特征向量 $\boldsymbol{x}$ 的第 $h$ 个分量，是标量，使用非黑体 $x_h$ 表示； 其中 $h \in 1, 2, \dots, d$，因为样本包含 $d$ 个特征，即特征向量是 $d$ 维。</li>
+<li>第 $i$ 个特征向量的第 $h$ 个分量，是标量，使用非黑体 $x_{ih}$ 表示。</li>
+</ul>
+</blockquote>
+<h2 id="定义损失函数（3-2）"><a href="#定义损失函数（3-2）" class="headerlink" title="定义损失函数（3.2）"></a>定义损失函数（3.2）</h2><p>假设训练样本：</p>
+<p>$$<br>(\boldsymbol{x}_1, y=1),\ (\boldsymbol{x}_2, y=1),\ (\boldsymbol{x}_3, y=2),\ \dots,\ (\boldsymbol{x}_N, y=1)<br>$$</p>
+<p>所以：</p>
+<ul>
+<li>$\boldsymbol{x}_1$ 属于类别1；模型算得它属于类别1的概率是 $P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_1)$，越大说明模型对样本$1$ 越友好；</li>
+<li>$\boldsymbol{x}_2$ 属于类别1；模型算得它属于类别1的概率是 $P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_2)$，越大说明模型对样本$2$ 越友好；</li>
+<li>$\boldsymbol{x}_3$ 属于类别2；模型算得它属于类别1的概率是 $1 - P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_3)$，越大说明模型对样本$3$ 越友好；</li>
+<li>…</li>
+<li>$\boldsymbol{x}_N$ 属于类别1；模型算得它属于类别1的概率是 $P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_N)$，越大说明模型对样本$N$ 越友好；</li>
+</ul>
+<p>显然，对所有样本越友好，模型就越优秀。也就是，它们的联合概率越大，Loss越低。</p>
+<p>联合概率：</p>
+<p>$$<br>P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_1) \cdot P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_2) \cdot (1 - P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_3)) \cdot \dots \cdot P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_N)<br>$$</p>
+<p>联合概率（越大越好）取负号后再取自然对数，就变成Loss（越小越好）：</p>
+<p>$$<br>L_{\boldsymbol{w},b} = -\log \left[ P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_1) \cdot P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_2) \cdot (1 - P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_3)) \cdot \dots \cdot P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_N) \right]<br>$$</p>
+<p>展开：</p>
+<p>$$<br>\begin{aligned}<br>&amp; L_{\boldsymbol{w},b} = \\<br>&amp; \quad \quad -\log P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_1)  \\<br>&amp; \quad \quad -\log P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_2)  \\<br>&amp; \quad \quad -\log \left(1 - P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_3) \right)  \\<br>&amp; \quad \quad \dots   \\<br>&amp; \quad \quad -\log P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_N)<br>\end{aligned}<br>$$</p>
+<p>这里做一个符号上的转换，引入一个表示类别的变量 $t$ （其实<strong>当初直接把 $y$ 的取值定义为 ${1, 0}$ 就不需要此转换了</strong>）：</p>
+<ul>
+<li>若 $y_i=1$（即 $\boldsymbol{x}_i$ 属于类别1），则 $t_i=1$；</li>
+<li>若 $y_i=2$（即 $\boldsymbol{x}_i$ 属于类别2），则 $t_i=0$；</li>
+</ul>
+<p>于是，无论 $\boldsymbol{x}_i$ 属于那一类，都可以统一形式：</p>
+<p>$$<br>-\left[ t_i \log P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_i) + (1 - t_i) \log (1 - P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_i)) \right]<br>$$</p>
+<p>明显，若 $\boldsymbol{x}_i$ 属于类别1，则$1-t_i=0$，即后半部分为0；否则，前半部分为0；</p>
+<p>即：</p>
+<p>$$<br>\begin{aligned}<br>&amp; L_{\boldsymbol{w},b} = \\<br>&amp; \quad \quad -\left[ t_1 \log P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_1) + (1 - t_1) \log (1 - P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_1)) \right] \\<br>&amp; \quad \quad -\left[ t_2 \log P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_2) + (1 - t_2) \log (1 - P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_2)) \right] \\<br>&amp; \quad \quad \dots   \\<br>&amp; \quad \quad -\left[ t_N \log P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_N) + (1 - t_N) \log (1 - P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_N)) \right]<br>\end{aligned}<br>$$</p>
+<p>即：</p>
+<p>$$<br>L_{\boldsymbol{w},b} = \sum_{i=1}^N -\left[ t_i \log P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_i) + (1 - t_i) \log (1 - P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_i)) \right]<br>$$</p>
+<p>再除以 $N$，并把负号放在前面，Loss 函数正式定义为：</p>
+<p>$$<br>\mathcal{L}(\boldsymbol{w}, b) = - \frac{1}{N} \sum_{i=1}^N \left[ t_i \log P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_i) + (1 - t_i) \log (1 - P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_i)) \right]<br>$$</p>
+<p>简记为：</p>
+<p>$$<br>\mathcal{L}(\boldsymbol{w}, b) = - \frac{1}{N} \sum_{i=1}^N \left[ t_i \log p_i + (1 - t_i) \log (1 - p_i) \right]<br>$$</p>
+<p>其中，</p>
+<p>$$<br>p_i = P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_i)<br>$$</p>
+<blockquote>
+<p><strong>说明</strong>：此即二元交叉熵（Binary Cross-Entropy）；即证明了：<strong>最大化似然（Likelihood）</strong> ，也叫<strong>最大似然估计（MLE, Maximum Likelihood Estimation）</strong> 等价于 <strong>最小化交叉熵（Cross Entropy）</strong>。</p>
+</blockquote>
+<h2 id="交叉熵-3-4"><a href="#交叉熵-3-4" class="headerlink" title="交叉熵 (3.4)"></a>交叉熵 (3.4)</h2><p>给定一个特征向量 $\boldsymbol{x}$，其所属类别的真实分布为 $t(y \mid \boldsymbol{x})$，模型预测的类别分布为 $p(y \mid \boldsymbol{x})$；其中 $y \in 1, 2, \dots, K$ 表示 $K$ 个可能的类别。则该样本的交叉熵定义为：</p>
+<p>$$<br>H(t, p) = - \sum_{k=1}^K t(k \mid \boldsymbol{x}) \log p(k \mid \boldsymbol{x})<br>$$</p>
+<p>在监督分类任务中，真实分布 $t(y \mid \boldsymbol{x})$ 通常是 <strong>one-hot 分布</strong>，即：</p>
+<p>$$<br>\begin{aligned}<br>t_k =<br>\begin{cases}<br>1, &amp; \quad \text{若 } \boldsymbol{x} \text{ 的实际类别为 } k\\<br>0, &amp; \quad \text{否则}<br>\end{cases}<br>\end{aligned}<br>$$</p>
+<p>例如，前文的训练样本，</p>
+<ul>
+<li>$(\boldsymbol{x}_1, y=1)$ 的类别的真实分布是 $(1, 0)$；模型预测分布是$(p_1, 1 - p_1)$；交叉熵是 $-\big(1 \cdot \log p_1 + 0 \cdot \log(1 - p_1)\big)$；</li>
+<li>$(\boldsymbol{x}_2, y=1)$ 的类别的真实分布是 $(1, 0)$；模型预测分布是$(p_2, 1 - p_2)$；交叉熵是 $-\big(1 \cdot \log p_2 + 0 \cdot \log(1 - p_2)\big)$；</li>
+<li>$(\boldsymbol{x}_3, y=2)$ 的类别的真实分布是 $(0, 1)$；模型预测分布是$(p_3, 1 - p_3)$；交叉熵是 $-\big(0 \cdot \log p_3 + 1 \cdot \log (1 - p_3)\big)$；</li>
+<li>…</li>
+</ul>
+<p>其中 $p_i$ 表示模型预测的特征向量 $\boldsymbol{x}_i$ 属于类别1的概率；显然 $(1 - p_i)$ 表示模型预测的特征向量 $\boldsymbol{x}_i$ 属于类别2的概率。</p>
+<p>实际应用中，模型预测值需满足 $p_i \in (0, 1)$（从而 ($1 - p_i) \in (0, 1)$），以保证 $\log p_i$ 和 $\log (1 - p_i)$ 有定义。通常通过 <strong>sigmoid</strong>（二分类）或 <strong>softmax</strong>（多分类）实现。</p>
+<p>注意观察：对于 <strong>one-hot</strong>分布，交叉熵等价于 $-log(\text{模型预测特征向量属于实际类别的概率})$；因为真实分布中，其它类别的概率为0，在 sum 中不作贡献。</p>
+<ul>
+<li>$(\boldsymbol{x}_1, y=1)$ 的交叉熵是 $-\log p_1$；实际类别是类别1，预测类别1概率是$p_1$;</li>
+<li>$(\boldsymbol{x}_2, y=1)$ 的交叉熵是 $-\log p_2$；实际类别是类别1，预测类别1概率是$p_2$;</li>
+<li>$(\boldsymbol{x}_3, y=2)$ 的交叉熵是 $-\log (1 - p_3)$；实际类别是类别2，预测类别2概率是$1 - p_3$;</li>
+<li>…</li>
+</ul>
+<p>所以，前一节中定义的损失函数，</p>
+<p>$$<br>\mathcal{L}(\boldsymbol{w}, b) = - \frac{1}{N} \sum_{i=1}^N \left[ t_i \log p_i + (1 - t_i) \log (1 - p_i) \right]<br>$$</p>
+<p>就是<strong>所有样本的平均交叉熵</strong>。</p>
+<p>该形式可自然推广至多分类情形：若实际类别为 $k^*$，则交叉熵为 $-\log p(k^* \mid \boldsymbol{x})$。</p>
+<p>在信息论中，交叉熵表示用错误模型 $p$ 去编码真实数据 $t$ 所需的平均比特数。<br>在分类任务中，交叉熵表示模型预测分布与真实 one-hot 分布之间的差距。</p>
+<p>可以使用均方误差（MSE, Mean Square Error）替换交叉熵吗？</p>
+<p>$$<br>L_{mse} = \frac{1}{N} \sum_{i=1}^N (t_i - p_i)^2<br>$$</p>
+<p>这个公式“数学上”完全可以计算。但它不适合用于训练逻辑回归这样的分类模型，原因主要是：</p>
+<ul>
+<li>梯度性质差：Sigmoid 函数的输出范围是 (0,1)，其导数在两端（接近 0 或 1）非常小。<strong>在距离最优解很远的地方，梯度很差</strong>。</li>
+<li>统计假设不匹配：平方误差假设观测值服从高斯分布，这在二分类（标签为 0/1）中不合理。前面在二分类场景下，证明了<strong>最大化似然函数等价于最小化交叉熵</strong>。</li>
+</ul>
+<h2 id="最小化损失函数-3-5"><a href="#最小化损失函数-3-5" class="headerlink" title="最小化损失函数 (3.5)"></a>最小化损失函数 (3.5)</h2><p>采用梯度下降法（Gradient Descent）来最小化损失函数：</p>
+<p>$$<br>\mathcal{L}(\boldsymbol{w}, b) = - \frac{1}{N} \sum_{i=1}^N \left[ t_i \log p_i + (1 - t_i) \log (1 - p_i) \right]<br>$$</p>
+<p>其中：</p>
+<p>$$<br>\begin{aligned}<br>&amp; p_i = P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}_i) = \sigma(z_i) \\<br>&amp; z_i = \boldsymbol{w}^\top \boldsymbol{x}_i + b = \sum_{h=1}^d w_h x_{ih} + b \\<br>&amp; \sigma(z) = \frac{1}{1+e^{-z}} \text{  是sigmoid函数}<br>\end{aligned}<br>$$</p>
+<p>代入训练样本之后，$\mathcal{L}$的变量只剩下 $d$ 维权重向量 $\boldsymbol{w}$ 和偏置标量 $b$。记为：</p>
+<p>$$<br>\boldsymbol{\theta} = (w_1, w_2, \dots, w_d, b)<br>$$</p>
+<p>由于所有权重分量 $w_h$ 在模型中地位对称，它们的偏导数具有相同形式。因此，只需推导两类偏导数：</p>
+<ul>
+<li>对任意 $w_h$，$h \in 1, 2, \dots, d$</li>
+<li>对偏置 $b$</li>
+</ul>
+<p>过程复杂，待学习。</p>
+<p>$$<br>\begin{aligned}<br>&amp; \frac{\partial \mathcal{L}(\boldsymbol{w}, b)}{\partial w_h} = \frac{1}{N} \sum_{i=1}^N (p_i - t_i) x_{ih} \\<br>&amp; \frac{\partial \mathcal{L}(\boldsymbol{w}, b)}{\partial b} = \frac{1}{N} \sum_{i=1}^N (p_i - t_i)<br>\end{aligned}<br>$$</p>
+<p>梯度下降：</p>
+<p>$$<br>\begin{aligned}<br>&amp; w_{h}^{t+1} = w_{h}^t - \eta \cdot \frac{1}{N} \sum_{i=1}^N (p_i - t_i) x_{ih} \\<br>&amp; b^{t+1}     = b^t     - \eta \cdot \frac{1}{N} \sum_{i=1}^N (p_i - t_i)<br>\end{aligned}<br>$$</p>
+<p>其中 $\eta$ 是 learning rate；</p>
+<p>参数更新是什么意思呢？直观解释是，误差驱动学习。主要看 $p_i - t_i$，它表示模型预测概率 $p_i$ 与真实标签 $t_i \in 1, 0$ 之间的误差。误差越大，参数调整幅度越大。这体现了误差反向传播的核心思想：模型通过“哪里错了、错得多严重”来指导自身修正。</p>
+<h1 id="生成式-vs-判别式-4"><a href="#生成式-vs-判别式-4" class="headerlink" title="生成式 vs 判别式 (4)"></a>生成式 vs 判别式 (4)</h1><p>事实上，生成式模型LDA 和判别式模型 Logistic Regression 的 function set 是一样的：</p>
+<p>$$<br>P(y=1 \mid \boldsymbol{x}) = \sigma(\boldsymbol{w}^\top \boldsymbol{x} + b)<br>$$</p>
+<ul>
+<li>生成式模型LDA：先计算 $\pi_k$、$\boldsymbol{\mu}_k$、$\boldsymbol{\Sigma}$，再算出参数 $\boldsymbol{w}$ 和 $b$；</li>
+<li>判别式模型Logistic Regression：直接寻找（学习）$\boldsymbol{w}$ 和 $b$；</li>
+</ul>
+<p>不过，通过这两种方法，找到的 $\boldsymbol{w}$ 和 $b$ 通常是不一样的（从function set中找到的function不是同一个），因为做的假设不一样：</p>
+<ul>
+<li>在生成式模型LDA中，假设每个类别的样本服从高斯分布（也可以是别的，例如伯努利分布，朴素贝叶斯等；下面有个例子就是朴素贝叶斯）。</li>
+<li>在Logistic Regression中没有做任何假设。</li>
+</ul>
+<p>那么个更好呢？一般来说，Logistic Regression会更好。举个例子。</p>
+<p>训练样本（13个）：</p>
+<p>$$<br>\left[(1,1), y=1 \right] \quad \quad \text{1个} \\<br>\left[(1,0), y=2 \right] \quad \quad \text{4个} \\<br>\left[(0,1), y=2 \right] \quad \quad \text{4个} \\<br>\left[(0,0), y=2 \right] \quad \quad \text{4个}<br>$$</p>
+<p>假如让人来学习，$\boldsymbol{x}_{\text{new}} = (1,1)$ 应该属于类别1还是类别2呢？那肯定是类别1（$y=1$）。</p>
+<p>但是使用生成式，根据贝叶斯公式：</p>
+<p>$$<br>P(y=1 \mid \boldsymbol{x}_{\text{new}}) = \frac{P(y=1) P(\boldsymbol{x}_{\text{new}} \mid y=1)}{P(\boldsymbol{x}_{\text{new}})}<br>$$</p>
+<p>再根据全概率公式：</p>
+<p>$$<br>P(\boldsymbol{x}_{\text{new}}) = P(y=1) P(\boldsymbol{x}_{\text{new}} \mid y=1) + P(y=2) P(\boldsymbol{x}_{\text{new}} \mid y=2)<br>$$</p>
+<p>由训练样本知：</p>
+<p>$$<br>\begin{aligned}<br>&amp; P(y=1) = \frac{1}{13}  \\<br>&amp; P(y=2) = \frac{12}{13}<br>\end{aligned}<br>$$</p>
+<p>要计算 $P(\boldsymbol{x}_{\text{new}} \mid y=1)$ 和 $P(\boldsymbol{x}_{\text{new}} \mid y=2)$，这里再引入一个假设：<strong>特征向量的两个维度独立</strong>（即两个维度完全不相关）。注意：这实际上是朴素贝叶斯（Naive Bayes），而<strong>不是标准的LDA（Linear Discriminant Analysis）</strong>。</p>
+<ul>
+<li>在类别1中，$x_1$（维度1）为1的概率是1，$x_2$（维度2）为1的概率也是1；所以，在类别1中，出现 $(1,1)$ 的概率是1；</li>
+<li>在类别2中，$x_1$（维度1）为1的概率是$\frac{4}{12}$，$x_2$（维度2）为1的概率也是$\frac{4}{12}$；所以，在类别2中，出现 $(1,1)$ 的概率是$\frac{1}{9}$；</li>
+</ul>
+<p>也就是，</p>
+<p>$$<br>\begin{aligned}<br>&amp; P(\boldsymbol{x}_{\text{new}} \mid y=1) = 1 \\<br>&amp; P(\boldsymbol{x}_{\text{new}} \mid y=2) = \frac{1}{9}<br>\end{aligned}<br>$$</p>
+<p>所以，</p>
+<p>$$<br>P(y=1 \mid \boldsymbol{x}_{\text{new}}) = \frac{\frac{1}{13} \times 1}{\frac{1}{13} \times 1 + \frac{12}{13} \times \frac{1}{9}} = \frac{3}{7} = 0.4286 \lt 0.5<br>$$</p>
+<p>因此，生成式模型（此处为朴素贝叶斯）会被判定为类别2！这和直觉是相反的。</p>
+<p>原因在于生成式模型依赖对 $P(\boldsymbol{x} \mid y)$ 的建模假设：</p>
+<ul>
+<li>先验主导：由于类别2的先验概率很高（$\frac{12}{13}$），即使似然较低，后验仍可能更大。</li>
+<li>特征独立假设（朴素贝叶斯）：在类别2中，虽然没有样本是 $(1,1)$，但模型认为有 $\frac{1}{9}$ 的概率会出现；只是采用不够多，没有采到而已。叠加上类别2的先验概率高，模型就认为它属于类别2（虽然选中类别1时，$(1,1)$ 被产生的概率很高，但是类别1被选中的概率很低）。</li>
+</ul>
+<p>根本原因是，生成式模型对数据生成过程做了强假设，并据此“脑补”未观测到的可能性。这通常不是一件好的事情。</p>
+<p>但在训练数据比较少的时候，也可能优于判别式。判别式没有做任何假设，只是看着训练数据说话，受训练数据影响更大。生成式有时会忽视数据，而尊从它的假设。</p>
+<p>当训练数据noise比较大，生成式也可能表现更好：那些假设可能把noise忽略掉。</p>
+<p><img src="generative-vs-discriminative.png" alt="figure1"></p>
+<div style="text-align: center;"><em>生成式与判别式对比</em></div>
+
+<p>总结：</p>
+<ul>
+<li>生成式模型：“用理论解释数据”——通过假设生成机制来填补数据空白，假设“理解世界”。在小样本、高噪声、或生成机制确知的场景下，这种“脑补”恰恰是优势。但若假设失真，反而会“聪明反被聪明误”。</li>
+<li>判别式模型：“看数据说话”——忠实地拟合训练样本中的输入-输出关系，通过数据“描述边界”，不做关于数据如何生成的假设。</li>
+</ul>
+<h1 id="多分类-5"><a href="#多分类-5" class="headerlink" title="多分类 (5)"></a>多分类 (5)</h1><h2 id="定义模型（function-set）-5-1"><a href="#定义模型（function-set）-5-1" class="headerlink" title="定义模型（function set）(5.1)"></a>定义模型（function set）(5.1)</h2><p>根据<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2025/11/20/llm-machine-learning-3/">上一章</a>第7节可知，模型可以表示成如下形式：</p>
+<p>$$<br>P(y \mid \boldsymbol{x}) = \operatorname{softmax}(\boldsymbol{z})<br>$$</p>
+<p>其中，</p>
+<p>$$<br>\boldsymbol{z} =<br>\boldsymbol{W}\boldsymbol{x} + \boldsymbol{b} = \begin{bmatrix}<br>\boldsymbol{w}_1^\top \boldsymbol{x} + b_1 \\<br>\boldsymbol{w}_2^\top \boldsymbol{x} + b_2 \\<br>\vdots                                     \\<br>\boldsymbol{w}_K^\top \boldsymbol{x} + b_K<br>\end{bmatrix} \in \mathbb{R}^K<br>$$</p>
+<p>现在，和二分类一样，完全放弃生成式假设（类别先验 $\pi_k$、均值向量 $\boldsymbol{\mu}_k$、共享协方差矩阵 $\boldsymbol{\Sigma}$），采用<strong>判别式方法</strong>，直接学习输入特征向量 $\boldsymbol{x}$ 到类别分布 $P(y \mid \boldsymbol{x})$ 的映射，无需建模联合分布 $P(\boldsymbol{x}, y)$。</p>
+<p>注意：二分类中，一直针对 $y=1$ 这一个类别，所以只有一个 $\boldsymbol{w}$ 和 一个 $b$。多分类中，每个类别都有自己的 $\boldsymbol{w}_j$ 和 $b_j$；$j=1, 2, \dots, K$（共 $K$ 个类别）。</p>
+<h2 id="定义损失函数（5-2）"><a href="#定义损失函数（5-2）" class="headerlink" title="定义损失函数（5.2）"></a>定义损失函数（5.2）</h2><p>给定训练集：</p>
+<p>$$<br>(\boldsymbol{x}_1, y_1)  \\<br>(\boldsymbol{x}_2, y_2)  \\<br>(\boldsymbol{x}_3, y_3)  \\<br>\dots   \\<br>(\boldsymbol{x}_N, y_N)<br>$$</p>
+<p>其中真实标签 $y_i \in 1, 2, \dots, K$。</p>
+<p>我们使用 <strong>交叉熵</strong> 作为损失函数。首先，将真实标签转换为 one-hot 向量 $\boldsymbol{t}_i \in {0,1}^K$：</p>
+<p>$$<br>\begin{aligned}<br>t_{ik} =<br>\begin{cases}<br>1, &amp; \text{若 } y_i = k \\<br>0, &amp; \text{否则}<br>\end{cases}<br>\end{aligned}<br>$$</p>
+<blockquote>
+<p><strong>说明</strong>：$\boldsymbol{t}_i$ 是一个 $K$ 维向量，表示样本 $\boldsymbol{x}$ 分别属于 $K$ 个类别的概率，即 $t_{ik}$ 表示样本 $\boldsymbol{x}_i$ 属于类别 $k$ 的概率。这是实际分布，故只有 $k=y_i$ 的那一项为1，其它为0；显然满足：$\sum_{k=1}^K t_{ik}=1$</p>
+</blockquote>
+<p>模型对样本 $\boldsymbol{x}_i$ 的预测分布为：</p>
+<p>$$<br>\boldsymbol{p}_i = \operatorname{softmax}(\boldsymbol{W}\boldsymbol{x}_i + \boldsymbol{b}) \in (0,1)^K<br>$$</p>
+<blockquote>
+<p><strong>说明</strong>：$\boldsymbol{p}_i$ 也是一个 $K$ 维向量，表示模型预测样本 $\boldsymbol{x}$ 分别属于 $K$ 个类别的概率，即 $p_{ik}$ 表示模型预测样本 $\boldsymbol{x}_i$ 属于类别 $k$ 的概率。满足：$\sum_{k=1}^K p_{ik}=1$</p>
+</blockquote>
+<p>则第 $i$ 个样本的交叉熵为：<br>$$<br>H(\boldsymbol{t}_i, \boldsymbol{p}_i) = -\sum_{k=1}^K t_{ik} \log p_{ik}<br>$$</p>
+<p>由于 $\boldsymbol{t}_i$ 是 one-hot，上式等价于：</p>
+<p>$$<br>H(\boldsymbol{t}_i, \boldsymbol{p}_i) = -\log p_{i y_i}<br>$$</p>
+<p>即：<strong>负的模型对真实类别 $y_i$ 的预测概率的对数</strong>。</p>
+<p>换言之：$-log(\text{模型预测特征向量属于实际类别的概率})$</p>
+<p>因此，整个训练集的<strong>平均交叉熵损失</strong>为：</p>
+<p>$$<br>\mathcal{L}(\boldsymbol{W}, \boldsymbol{b}) = -\frac{1}{N} \sum_{i=1}^N \log p_{i y_i}<br>$$</p>
+<p>其中，</p>
+<p>$$<br>p_{i y_i} = \frac{\exp(\boldsymbol{w}_{y_i}^\top \boldsymbol{x}_i + b_{y_i})}{\sum_{k=1}^K \exp(\boldsymbol{w}_k^\top \boldsymbol{x}_i + b_k)}<br>$$</p>
+<p>注意：$y_i$ 代表样本 $\boldsymbol{x}_i$ 的实际所属类别，和 $k$ 类型相同。</p>
+<p>该损失函数也称为 <strong>softmax loss</strong> 或 <strong>multinomial logistic loss</strong>，是多分类任务的标准目标函数。</p>
+<p><img src="loss-of-logistic-regression.png" alt="figure1"></p>
+<div style="text-align: center;"><em>损失函数</em></div>
+
+<h2 id="最小化损失函数-5-3"><a href="#最小化损失函数-5-3" class="headerlink" title="最小化损失函数 (5.3)"></a>最小化损失函数 (5.3)</h2><p>最小化损失函数，就是优化模型参数。我们将所有可学习参数整理为一个参数向量：</p>
+<p>$$<br>\boldsymbol{\theta} = \big(<br>w_{11}, w_{12}, \dots, w_{1d},;<br>w_{21}, w_{22}, \dots, w_{2d},;<br>\dots,;<br>w_{K1}, w_{K2}, \dots, w_{Kd},;<br>b_1, b_2, \dots, b_K<br>\big)<br>$$</p>
+<p>其中：</p>
+<ul>
+<li>$w_{kh}$ 表示第 $k$ 个类别的权重向量 $\boldsymbol{w}_k$ 的第 $h$ 个分量；$k = 1, 2, \dots, K$；$h = 1, 2, \dots, d$；</li>
+<li>$b_k$ 表示第 $k$ 个类别的偏置项；</li>
+</ul>
+<p>目标是最小化平均交叉熵损失函数：</p>
+<p>$$<br>\mathcal{L}(\boldsymbol{\theta}) = -\frac{1}{N} \sum_{i=1}^N \log p_{i y_i}<br>$$</p>
+<p>其中 $p_{i y_i} = P_{\boldsymbol{\theta}}(y = y_i \mid \boldsymbol{x}_i)$ 由 softmax 模型给出。</p>
+<p>为此，需计算损失函数对每一个标量参数的偏导数。</p>
+<p>与二分类场景类似，在多分类 softmax 模型中：</p>
+<ul>
+<li>所有权重分量 $w_{kh}$（固定 $k$，变化 $h$）在模型中地位对称，其偏导数具有相同形式；</li>
+<li>所有偏置项 $b_k$（不同类别）也具有统一的偏导结构。</li>
+</ul>
+<p>因此，只需推导以下两类典型偏导数。待学习，以下由AI给出（待验证）。</p>
+<p>$$<br>\begin{aligned}<br>&amp; \frac{\partial \mathcal{L}(\boldsymbol{\theta})}{\partial w_{kh}} = \frac{1}{N} \sum_{i=1}^N (p_{ik} - t_{ik}) x_{ih}  \\<br>&amp; \frac{\partial \mathcal{L}(\boldsymbol{\theta})}{\partial b_k} = \frac{1}{N} \sum_{i=1}^N (p_{ik} - t_{ik})<br>\end{aligned}<br>$$</p>
+<h1 id="逻辑回归的局限性-6"><a href="#逻辑回归的局限性-6" class="headerlink" title="逻辑回归的局限性 (6)"></a>逻辑回归的局限性 (6)</h1><p>考虑二分类场景下的 4 个样本（输入为二维特征，标签为类别）：</p>
+<p>$$<br>\begin{aligned}<br>&amp; \boldsymbol{x}_1 = (1,1), \quad y=1 \\<br>&amp; \boldsymbol{x}_2 = (1,0), \quad y=2 \\<br>&amp; \boldsymbol{x}_3 = (0,1), \quad y=2 \\<br>&amp; \boldsymbol{x}_4 = (0,0), \quad y=1<br>\end{aligned}<br>$$</p>
+<p>逻辑回归模型的形式为：</p>
+<p>$$<br>P_{\boldsymbol{w},b}(y=1 \mid \boldsymbol{x}) = \sigma(\boldsymbol{w}^\top \boldsymbol{x} + b)<br>$$</p>
+<p>无论 $\boldsymbol{w}$ 和 $b$ 取何值，都无法将这4个样本分开，这是典型的XOR型（“异或”型）线性不可分问题，而决策边界 $\boldsymbol{w}^\top \boldsymbol{x} + b$ 是一条直线。</p>
+<p>如何突破线性限制？一种办法是对原始特征进行非线性变换（feature transformation）。例如把 $\boldsymbol{x}_i$ （$i=1, 2, 3, 4$）做如下转换：</p>
+<p>$$<br>\begin{aligned}<br>&amp; x_{i1}^{\prime} = \text{distance from } \boldsymbol{x}_i \text{ to } (0, 0) = \sqrt{x_{i1}^2 + x_{i2}^2} \\<br>&amp; x_{i2}^{\prime} = \text{distance from } \boldsymbol{x}_i \text{ to } (1, 1) = \sqrt{(x_{i1}-1)^2 + (x_{i2}-1)^2}<br>\end{aligned}<br>$$</p>
+<p>则 4 个样本在新空间中变为：</p>
+<p>$$<br>\begin{aligned}<br>&amp; \boldsymbol{x}_1^{\prime} = (\sqrt{2},0), \quad y=1  \\<br>&amp; \boldsymbol{x}_2^{\prime} = (1,1),        \quad y=2  \\<br>&amp; \boldsymbol{x}_3^{\prime} = (1,1),        \quad y=2  \\<br>&amp; \boldsymbol{x}_4^{\prime} = (0,\sqrt{2}), \quad y=1<br>\end{aligned}<br>$$</p>
+<p>现在，类别1的点落在坐标轴两端，类别2的点重合在 $(1,1)$。此时，存在一条直线可以将它们分开，逻辑回归就能有效工作。</p>
+<p>如何设计这样的变换？依赖人工构造特征既困难又不通用。于是我们想到：能否让模型自己学习合适的特征表示？答案是：使用多层结构！</p>
+<ul>
+<li>前面的层（隐藏层）可以看作在自动学习非线性特征变换；</li>
+<li>最后一层（输出层）仍是一个逻辑回归单元，负责最终分类；</li>
+</ul>
+<p>这正是多层感知机（MLP）——通过堆叠多个带非线性激活的线性变换，模型能学习复杂的决策边界，从而解决”异或”模式等线性不可分问题。</p>
+<blockquote>
+<p>注意：这时的模型已经不是逻辑回归了，而是一个多层神经网络。逻辑回归特指没有隐藏层的单层模型。</p>
+</blockquote>
+<h1 id="小结-7"><a href="#小结-7" class="headerlink" title="小结 (7)"></a>小结 (7)</h1><p>逻辑回归（Logistic Regression）是一种<strong>直接对条件概率建模</strong>的分类方法。</p>
+<p>它的核心思想是：不关心输入特征向量 $\boldsymbol{x}$ 本身的分布，而是直接学习“给定 $\boldsymbol{x}$ 时，属于某个类别的概率”，即建模 $P(y \mid \boldsymbol{x})$。</p>
+<ul>
+<li>在二分类中，用 sigmoid 函数将线性得分（logit）映射到 (0,1) 区间；</li>
+<li>在多分类中，用 softmax 函数将多个线性得分（logit）转换为归一化的类别概率。</li>
+</ul>
+<p>模型输出具有明确的概率解释，可用于分类决策（如取最大概率），也可用于风险评估（如预测患病概率为 85%）。</p>
+<p>关键特点：逻辑回归是判别式模型（discriminative model）——它只关注如何从输入“判别”出输出，而不试图描述数据是如何生成的。</p>
+<p>这与生成式模型（如 LDA）形成鲜明对比：</p>
+<ul>
+<li>LDA 先假设每个类别的特征服从某种分布（如高斯分布），再用贝叶斯公式推导出 $P(y \mid \boldsymbol{x})$；</li>
+<li>而逻辑回归跳过生成过程，直接拟合决策边界对应的概率。</li>
+</ul>
+<p>因此，逻辑回归更灵活、对分布假设更少，在实践中常表现稳健，是分类任务中的基础工具之一。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/llm/" rel="tag"># llm</a>
+              <a href="/tags/machine-learning/" rel="tag"># machine-learning</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/11/20/llm-machine-learning-3/" rel="prev" title="机器学习原理-分类(生成式)">
+      <i class="fa fa-chevron-left"></i> 机器学习原理-分类(生成式)
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2025/11/30/llm-machine-learning-5/" rel="next" title="机器学习原理-CNN">
+      机器学习原理-CNN <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%97%AE%E9%A2%98%E8%AE%BE%E5%AE%9A-1"><span class="nav-number">1.</span> <span class="nav-text">问题设定 (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%A0%B8%E5%BF%83%E6%80%9D%E6%83%B3-2"><span class="nav-number">2.</span> <span class="nav-text">核心思想 (2)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BA%8C%E5%88%86%E7%B1%BB-3"><span class="nav-number">3.</span> <span class="nav-text">二分类 (3)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9A%E4%B9%89%E6%A8%A1%E5%9E%8B%EF%BC%88function-set%EF%BC%89-3-1"><span class="nav-number">3.1.</span> <span class="nav-text">定义模型（function set）(3.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9A%E4%B9%89%E6%8D%9F%E5%A4%B1%E5%87%BD%E6%95%B0%EF%BC%883-2%EF%BC%89"><span class="nav-number">3.2.</span> <span class="nav-text">定义损失函数（3.2）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%A4%E5%8F%89%E7%86%B5-3-4"><span class="nav-number">3.3.</span> <span class="nav-text">交叉熵 (3.4)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%80%E5%B0%8F%E5%8C%96%E6%8D%9F%E5%A4%B1%E5%87%BD%E6%95%B0-3-5"><span class="nav-number">3.4.</span> <span class="nav-text">最小化损失函数 (3.5)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%94%9F%E6%88%90%E5%BC%8F-vs-%E5%88%A4%E5%88%AB%E5%BC%8F-4"><span class="nav-number">4.</span> <span class="nav-text">生成式 vs 判别式 (4)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%A4%9A%E5%88%86%E7%B1%BB-5"><span class="nav-number">5.</span> <span class="nav-text">多分类 (5)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9A%E4%B9%89%E6%A8%A1%E5%9E%8B%EF%BC%88function-set%EF%BC%89-5-1"><span class="nav-number">5.1.</span> <span class="nav-text">定义模型（function set）(5.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9A%E4%B9%89%E6%8D%9F%E5%A4%B1%E5%87%BD%E6%95%B0%EF%BC%885-2%EF%BC%89"><span class="nav-number">5.2.</span> <span class="nav-text">定义损失函数（5.2）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%80%E5%B0%8F%E5%8C%96%E6%8D%9F%E5%A4%B1%E5%87%BD%E6%95%B0-5-3"><span class="nav-number">5.3.</span> <span class="nav-text">最小化损失函数 (5.3)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%80%BB%E8%BE%91%E5%9B%9E%E5%BD%92%E7%9A%84%E5%B1%80%E9%99%90%E6%80%A7-6"><span class="nav-number">6.</span> <span class="nav-text">逻辑回归的局限性 (6)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93-7"><span class="nav-number">7.</span> <span class="nav-text">小结 (7)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">72</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">110</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>
