@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="SSD 的写入性能并非一成不变。一块全新的 SSD 顺序写入可以跑到 3 GB&#x2F;s，但当盘接近写满时，性能可能骤降至几百 MB&#x2F;s 甚至更低，延迟也会出现剧烈抖动。这一切的根源在于 NAND 闪存的物理特性，以及 SSD 内部的垃圾回收（Garbage Collection, GC） 机制。而 TRIM（又称 Discard &#x2F; Deallocate）正是操作系统与 SSD 之间沟通”哪些数据不再">
+<meta property="og:type" content="article">
+<meta property="og:title" content="NAND SSD TRIM and GC">
+<meta property="og:url" content="http://yoursite.com/2020/10/08/nand-ssd-trim-discard/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="SSD 的写入性能并非一成不变。一块全新的 SSD 顺序写入可以跑到 3 GB&#x2F;s，但当盘接近写满时，性能可能骤降至几百 MB&#x2F;s 甚至更低，延迟也会出现剧烈抖动。这一切的根源在于 NAND 闪存的物理特性，以及 SSD 内部的垃圾回收（Garbage Collection, GC） 机制。而 TRIM（又称 Discard &#x2F; Deallocate）正是操作系统与 SSD 之间沟通”哪些数据不再">
+<meta property="og:locale">
+<meta property="article:published_time" content="2020-10-08T18:18:20.000Z">
+<meta property="article:modified_time" content="2026-09-02T11:46:11.508Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="disk">
+<meta property="article:tag" content="ssd">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2020/10/08/nand-ssd-trim-discard/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>NAND SSD TRIM and GC | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/10/08/nand-ssd-trim-discard/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          NAND SSD TRIM and GC
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2020-10-08 18:18:20" itemprop="dateCreated datePublished" datetime="2020-10-08T18:18:20+00:00">2020-10-08</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2026-09-02 11:46:11" itemprop="dateModified" datetime="2026-09-02T11:46:11+00:00">2026-09-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/disk/" itemprop="url" rel="index"><span itemprop="name">disk</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2020/10/08/nand-ssd-trim-discard/" class="post-meta-item leancloud_visitors" data-flag-title="NAND SSD TRIM and GC" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2020/10/08/nand-ssd-trim-discard/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2020/10/08/nand-ssd-trim-discard/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>SSD 的写入性能并非一成不变。一块全新的 SSD 顺序写入可以跑到 3 GB/s，但当盘接近写满时，性能可能骤降至几百 MB/s 甚至更低，延迟也会出现剧烈抖动。这一切的根源在于 NAND 闪存的物理特性，以及 SSD 内部的<strong>垃圾回收（Garbage Collection, GC）</strong> 机制。而 <strong>TRIM</strong>（又称 Discard / Deallocate）正是操作系统与 SSD 之间沟通”哪些数据不再需要”的关键桥梁。</p>
+<p>本文将从 NAND 闪存的物理结构出发，逐步深入到 GC 机制、TRIM 命令的工作原理，以及在不同存储栈中的工程实践。</p>
+<a id="more"></a>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+
+<script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+
+<h1 id="NAND-闪存的物理结构-1"><a href="#NAND-闪存的物理结构-1" class="headerlink" title="NAND 闪存的物理结构 (1)"></a>NAND 闪存的物理结构 (1)</h1><p>NAND 闪存有两个核心概念：</p>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>说明</th>
+<th>典型大小</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Page</strong></td>
+<td>最小<strong>读写</strong>单位，只能整 page 读写</td>
+<td>4 KB / 8 KB / 16 KB</td>
+</tr>
+<tr>
+<td><strong>Block</strong></td>
+<td>最小<strong>擦除</strong>单位，包含多个 page，只能整 block 擦除</td>
+<td>256 KB ~ 数 MB（如 64 × 4 KB）</td>
+</tr>
+</tbody></table>
+<p>除了必须整 page 读写（假如不对齐，则RMW: Read-Modify-Write），还有一个关键约束：</p>
+<p><strong>NAND 只能向已擦除（erased）的 page 写入数据，不能像 HDD 那样直接覆盖。</strong></p>
+<blockquote>
+<p>例外：Intel Optane（3D XPoint）支持 write-in-place，不受此限制，但该技术已停产。</p>
+</blockquote>
+<hr>
+<h1 id="SSD-的写入机制-2"><a href="#SSD-的写入机制-2" class="headerlink" title="SSD 的写入机制 (2)"></a>SSD 的写入机制 (2)</h1><p>由于不能覆盖写，SSD 内部维护了一张 <strong>FTL（Flash Translation Layer）</strong> 映射表，记录逻辑地址到物理地址的对应关系。</p>
+<h2 id="覆盖写流程-2-1"><a href="#覆盖写流程-2-1" class="headerlink" title="覆盖写流程 (2.1)"></a>覆盖写流程 (2.1)</h2><p>假设操作系统要覆盖逻辑 page-100（当前映射到物理 page-M）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">1. SSD 找到一个已擦除的物理 page-N；</span><br><span class="line">2. 将新数据写入 page-N；</span><br><span class="line">3. 更新 FTL 映射：逻辑 100 → 物理 N；</span><br><span class="line">4. 物理 page-M 标记为 stale（无效但未擦除）。</span><br></pre></td></tr></table></figure>
+
+<p>注意：<strong>stale page 既不在使用中，也未被擦除</strong>（not in use but not erased），它占着空间却无法直接写入，只能等待 GC 处理。</p>
+<hr>
+<h1 id="SSD-垃圾回收-3"><a href="#SSD-垃圾回收-3" class="headerlink" title="SSD 垃圾回收 (3)"></a>SSD 垃圾回收 (3)</h1><p>当 SSD 内部的空闲（erased）block 不足时，必须触发 GC 来回收空间。</p>
+<h2 id="GC-流程-3-1"><a href="#GC-流程-3-1" class="headerlink" title="GC 流程 (3.1)"></a>GC 流程 (3.1)</h2><p>假设 block P 包含 64 个 page，其中 61 个 stale，3 个 in use：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">1. 从 block-P 中读出 3 个有效 page；</span><br><span class="line">2. 在其他 block（如 Q、R）中找到 3 个 erased page，写入这 3 个有效 page；</span><br><span class="line">3. 更新 FTL 映射；</span><br><span class="line">4. 擦除整个 block-P → 64 个 page 全部变为可用。</span><br></pre></td></tr></table></figure>
+
+<h2 id="GC-的代价-3-2"><a href="#GC-的代价-3-2" class="headerlink" title="GC 的代价 (3.2)"></a>GC 的代价 (3.2)</h2><ul>
+<li><strong>写放大（Write Amplification）</strong>：为了回收 61 个 stale page 的空间，需要额外搬运 3 个有效 page。</li>
+<li><strong>延迟抖动</strong>：如果写入时恰好没有空闲 block，必须<strong>同步等待 GC 完成</strong>才能继续写入，导致尾延迟飙升。</li>
+<li><strong>寿命损耗</strong>：每次擦除都消耗 block 的 P/E 寿命。</li>
+</ul>
+<p><strong>核心矛盾：SSD 不知道哪些数据已经”逻辑上”不再需要，只能被动等待覆盖写时才发现 stale page。如果 SSD 能提前知道，就可以主动、从容地在空闲时做 GC，而不是在写入路径上被迫同步 GC。</strong></p>
+<hr>
+<h1 id="问题：文件系统删除-≠-SSD-感知-4"><a href="#问题：文件系统删除-≠-SSD-感知-4" class="headerlink" title="问题：文件系统删除 ≠ SSD 感知 (4)"></a>问题：文件系统删除 ≠ SSD 感知 (4)</h1><p>对于<strong>覆盖写</strong>，SSD 没有问题——旧映射自然失效，SSD 知道哪些 page 是 stale 的，可以GC。</p>
+<p>但对于<strong>文件删除（delete）和截断（truncate）</strong>，问题就来了：</p>
+<p>假如删除或截断了一个文件：</p>
+<table>
+<thead>
+<tr>
+<th>视角</th>
+<th>动作</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>文件系统</td>
+<td>仅更新自己的元数据</td>
+<td>逻辑 page 200~300 已释放，可复用</td>
+</tr>
+<tr>
+<td>SSD</td>
+<td>毫不知情，无 stale 更无 GC</td>
+<td>逻辑 page 200~300 仍然有效</td>
+</tr>
+</tbody></table>
+<p>文件系统只在自己的元数据（inode、bitmap）中标记空间可用，<strong>并不会通知 SSD</strong>。等到文件系统真正复用 200~300 进行覆盖写时，SSD 才知道旧数据已失效。</p>
+<p>这意味着：</p>
+<ul>
+<li>SSD 无法提前对 200~300 进行 GC；</li>
+<li>当 SSD 中 erased block 耗尽时，写入必须先触发同步 GC → <strong>性能断崖</strong>。</li>
+</ul>
+<hr>
+<h1 id="TRIM：告知-SSD-“这些空间不再需要”-5"><a href="#TRIM：告知-SSD-“这些空间不再需要”-5" class="headerlink" title="TRIM：告知 SSD “这些空间不再需要” (5)"></a>TRIM：告知 SSD “这些空间不再需要” (5)</h1><h2 id="术语统一-5-1"><a href="#术语统一-5-1" class="headerlink" title="术语统一 (5.1)"></a>术语统一 (5.1)</h2><p>不同层级和协议对同一操作有不同的命名，但<strong>语义完全相同</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>层级/协议</th>
+<th>术语</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>SATA</td>
+<td><strong>TRIM</strong></td>
+<td>SATA 协议中的命令名</td>
+</tr>
+<tr>
+<td>NVMe</td>
+<td><strong>Deallocate</strong></td>
+<td>通过 Dataset Management 命令实现</td>
+</tr>
+<tr>
+<td>SCSI</td>
+<td><strong>UNMAP</strong></td>
+<td>SCSI 标准术语</td>
+</tr>
+<tr>
+<td>Linux 块设备层</td>
+<td><strong>Discard</strong></td>
+<td><code>BLKDISCARD</code> ioctl</td>
+</tr>
+<tr>
+<td>Linux 文件系统</td>
+<td><strong>Discard</strong></td>
+<td><code>mount -o discard</code> / <code>fstrim</code></td>
+</tr>
+<tr>
+<td>SPDK BlobStore</td>
+<td><strong>Unmap</strong></td>
+<td><code>spdk_blob_io_unmap()</code></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>一句话总结：<strong>TRIM = Discard = Deallocate = UNMAP</strong>，都是”通知 SSD 某些 LBA 不再使用，可以回收”。</p>
+</blockquote>
+<h2 id="TRIM-的作用-5-2"><a href="#TRIM-的作用-5-2" class="headerlink" title="TRIM 的作用 (5.2)"></a>TRIM 的作用 (5.2)</h2><p>操作系统通过 TRIM 命令告诉 SSD：”逻辑地址 X~Y 的数据已无效。”SSD 收到后：</p>
+<ol>
+<li>在 FTL 中将对应 page 标记为 stale；</li>
+<li>在空闲时主动进行 GC（defragmentation），提前擦除 block；</li>
+<li>后续写入时大概率已有充足的 erased block，<strong>避免同步 GC</strong>。</li>
+</ol>
+<h2 id="Linux-内核中的实现-5-3"><a href="#Linux-内核中的实现-5-3" class="headerlink" title="Linux 内核中的实现 (5.3)"></a>Linux 内核中的实现 (5.3)</h2><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 块设备层下发 discard</span></span><br><span class="line">blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 用户态直接 ioctl</span></span><br><span class="line">ioctl(fd, BLKDISCARD, &amp;range);   <span class="comment">// range = &#123;start, length&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>判断设备是否支持 discard：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">$ cat /sys/block/sdc/queue/discard_granularity</span><br><span class="line">0   <span class="comment"># HDD，不支持</span></span><br><span class="line"></span><br><span class="line">$ cat /sys/block/nvme0n1/queue/discard_granularity</span><br><span class="line">512 <span class="comment"># NVMe SSD，支持，最小粒度 512 字节</span></span><br></pre></td></tr></table></figure>
+
+<hr>
+<h1 id="TRIM-的层级透传-6"><a href="#TRIM-的层级透传-6" class="headerlink" title="TRIM 的层级透传 (6)"></a>TRIM 的层级透传 (6)</h1><p>TRIM 必须在<strong>所有 I/O 抽象层</strong>上逐层启用，否则命令无法到达 SSD。</p>
+<p>以 <code>ext4 → LVM → dm-crypt → NVMe SSD</code> 为例：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────────────┐</span><br><span class="line">│  ext4 (mount -o discard)        │  ← 文件系统层</span><br><span class="line">├─────────────────────────────────┤</span><br><span class="line">│  LVM (issue_discards &#x3D; 1)       │  ← 逻辑卷层</span><br><span class="line">├─────────────────────────────────┤</span><br><span class="line">│  dm-crypt (--allow-discards)    │  ← 加密层</span><br><span class="line">├─────────────────────────────────┤</span><br><span class="line">│  NVMe SSD                       │  ← 硬件</span><br><span class="line">└─────────────────────────────────┘</span><br></pre></td></tr></table></figure>
+
+<p>任何一层未启用，TRIM 命令就会在该层被丢弃，SSD 永远收不到。</p>
+<hr>
+<h1 id="TRIM-策略：Continuous-vs-Periodic-7"><a href="#TRIM-策略：Continuous-vs-Periodic-7" class="headerlink" title="TRIM 策略：Continuous vs Periodic (7)"></a>TRIM 策略：Continuous vs Periodic (7)</h1><p>Linux 文件系统提供两种 TRIM 策略：</p>
+<h2 id="Continuous-TRIM-7-1"><a href="#Continuous-TRIM-7-1" class="headerlink" title="Continuous TRIM (7.1)"></a>Continuous TRIM (7.1)</h2><p>Continuous TRIM 即 实时 TRIM。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mount -o discard /dev/nvme0n1p1 /mnt/data</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>行为</strong>：每次删除文件时，立即向 SSD 发送 TRIM 命令。</li>
+<li><strong>优点</strong>：空间回收最及时。</li>
+<li><strong>缺点</strong>：<ul>
+<li>频繁触发 SSD 内部 GC，可能影响前台 I/O 性能；</li>
+<li>若中间某层未正确启用 TRIM，<strong>不会报错</strong>，静默失败；</li>
+<li>误删文件后，数据立即被标记无效，<strong>无法恢复</strong>。</li>
+</ul>
+</li>
+</ul>
+<h2 id="Periodic-TRIM-7-2"><a href="#Periodic-TRIM-7-2" class="headerlink" title="Periodic TRIM (7.2)"></a>Periodic TRIM (7.2)</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">systemctl <span class="built_in">enable</span> fstrim.timer    <span class="comment"># 默认每周执行一次</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>行为</strong>：定期（默认每周）扫描整个文件系统，一次性 TRIM 所有空闲空间。</li>
+<li><strong>优点</strong>：<ul>
+<li>效率高，批量下发；</li>
+<li>若中间层未启用 TRIM，<code>fstrim</code> <strong>会报错</strong>，便于排查；</li>
+<li>一周内误删文件仍有恢复机会。</li>
+</ul>
+</li>
+<li><strong>缺点</strong>：空间回收不及时，两次 TRIM 之间 SSD 可能积累大量 stale 数据。</li>
+</ul>
+<h2 id="如何选择-7-3"><a href="#如何选择-7-3" class="headerlink" title="如何选择 (7.3)"></a>如何选择 (7.3)</h2><table>
+<thead>
+<tr>
+<th>场景</th>
+<th>推荐策略</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>桌面 / 普通服务器</td>
+<td><strong>Periodic TRIM</strong>（<code>fstrim.timer</code>）</td>
+</tr>
+<tr>
+<td>分布式存储（Ceph、SPDK）</td>
+<td><strong>异步实时 Discard</strong>（见下文）</td>
+</tr>
+<tr>
+<td>数据库（高写入负载）</td>
+<td>视 SSD OP 空间而定，通常 Periodic + 配置充足的 OP</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>OP: Over-Provisioning，预留空间；即对用户不可见、仅供控制器内部使用的额外 NAND 空间。</p>
+</blockquote>
+<hr>
+<h1 id="高性能存储系统中的实践-8"><a href="#高性能存储系统中的实践-8" class="headerlink" title="高性能存储系统中的实践 (8)"></a>高性能存储系统中的实践 (8)</h1><h2 id="Ceph-BlueStore：异步-Discard-线程-8-1"><a href="#Ceph-BlueStore：异步-Discard-线程-8-1" class="headerlink" title="Ceph BlueStore：异步 Discard 线程 (8.1)"></a>Ceph BlueStore：异步 Discard 线程 (8.1)</h2><p>Periodic TRIM 对分布式存储来说回收太慢，而 Continuous TRIM 如果同步执行又会阻塞主 I/O 路径。Ceph BlueStore 的解决方案是<strong>独立的异步 discard 线程</strong>：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">WAL &#x2F; DB &#x2F; 数据删除</span><br><span class="line">    → wal_discard_cb &#x2F; db_discard_cb &#x2F; slow_discard_cb</span><br><span class="line">        → KernelDevice::_discard_thread（独立线程）</span><br><span class="line">            → 积攒一批 interval_set</span><br><span class="line">                → BlkDev::discard()</span><br><span class="line">                    → ioctl(fd, BLKDISCARD, range)</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>主 I/O 路径只负责将待 discard 的范围加入队列，<strong>不阻塞</strong>；</li>
+<li>后台线程批量下发，兼顾及时性与性能；</li>
+<li>仅在设备支持 discard 时启用（通过 <code>discard_granularity</code> 判断）。</li>
+</ul>
+<h2 id="SPDK-用户态：绕过内核-8-2"><a href="#SPDK-用户态：绕过内核-8-2" class="headerlink" title="SPDK 用户态：绕过内核 (8.2)"></a>SPDK 用户态：绕过内核 (8.2)</h2><p>SPDK 使用用户态 NVMe 驱动，<strong>完全绕过 Linux 内核块设备层</strong>，因此：</p>
+<ul>
+<li>没有 <code>/sys/block/...</code>；</li>
+<li>没有 <code>BLKDISCARD</code> ioctl；</li>
+<li>直接通过 PCIe 下发 <strong>NVMe Dataset Management（Deallocate）</strong> 命令；</li>
+<li>BlobStore 层对应 API 为 <code>spdk_blob_io_unmap()</code>；</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">spdk_blob_io_unmap()          [BlobStore 层，异步]</span><br><span class="line">    → 更新 cluster 元数据映射</span><br><span class="line">    → spdk_nvme_ns_cmd_dataset_management()   [NVMe 层]</span><br><span class="line">        → SSD 控制器标记 LBA 无效</span><br><span class="line">            → SSD 后台 GC 择机擦除</span><br></pre></td></tr></table></figure>
+
+<p><strong>注意</strong>：无论是内核态的 <code>BLKDISCARD</code> 还是用户态的 NVMe Deallocate，都只是<strong>通知 SSD 标记无效</strong>，物理擦除仍然由 SSD 固件在后台异步完成，无法强制立即擦除。</p>
+<hr>
+<h1 id="安全注意事项：加密层的-TRIM-9"><a href="#安全注意事项：加密层的-TRIM-9" class="headerlink" title="安全注意事项：加密层的 TRIM (9)"></a>安全注意事项：加密层的 TRIM (9)</h1><p>在 dm-crypt / LUKS 加密卷上启用 TRIM（<code>--allow-discards</code>）存在<strong>信息泄露风险</strong>：</p>
+<ul>
+<li>攻击者可以观察哪些 block 被 discard，推断出加密卷中哪些区域有数据、哪些是空闲的；</li>
+<li>结合文件系统结构知识，可能进一步推断文件分配模式。</li>
+</ul>
+<p><strong>建议</strong>：在高安全要求场景下，加密层<strong>不要</strong>启用 discard 透传。</p>
+<hr>
+<h1 id="总结-10"><a href="#总结-10" class="headerlink" title="总结 (10)"></a>总结 (10)</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">┌──────────────────────────────────────────────────────────────┐</span><br><span class="line">│                      应用 &#x2F; 文件系统                         │</span><br><span class="line">│         删除文件 → 释放逻辑空间 → 发送 TRIM&#x2F;Discard          │</span><br><span class="line">└────────────────────────┬─────────────────────────────────────┘</span><br><span class="line">                         │  TRIM &#x2F; Discard &#x2F; Deallocate</span><br><span class="line">                         ▼</span><br><span class="line">┌──────────────────────────────────────────────────────────────┐</span><br><span class="line">│                      SSD 控制器 (FTL)                        │</span><br><span class="line">│         标记对应 page 为 stale → 空闲时后台 GC               │</span><br><span class="line">│         搬运有效 page → 擦除整个 block → 释放空间            │</span><br><span class="line">└──────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure>
+
+<p>核心要点：</p>
+<ol>
+<li><strong>NAND 不能覆盖写</strong>，只能写 erased page，擦除以 block 为单位 → 必须有 GC。</li>
+<li><strong>文件系统删除不通知 SSD</strong> → SSD 无法提前 GC → 写入时可能被迫同步 GC → 性能断崖。</li>
+<li><strong>TRIM 是桥梁</strong>：告知 SSD 哪些 LBA 已无效，让 GC 从容进行。</li>
+<li><strong>TRIM ≠ 立即擦除</strong>：它只是通知，物理擦除由 SSD 固件异步完成。</li>
+<li><strong>工程实践</strong>：通用场景用 Periodic TRIM；高性能存储用异步 discard 线程；SPDK 用户态直接下发 NVMe Deallocate。</li>
+<li><strong>保障写入性能的关键</strong>：充足的 OP 空间 + 及时的 TRIM + 企业级 SSD 固件。</li>
+</ol>
+<h1 id="参考-11"><a href="#参考-11" class="headerlink" title="参考 (11)"></a>参考 (11)</h1><ul>
+<li><a target="_blank" rel="noopener" href="https://www.digitalocean.com/community/tutorials/how-to-configure-periodic-trim-for-ssd-storage-on-linux-servers">How To Configure Periodic TRIM for SSD Storage on Linux Servers</a></li>
+<li><a target="_blank" rel="noopener" href="http://blog.neutrino.es/2013/howto-properly-activate-trim-for-your-ssd-on-linux-fstrim-lvm-and-dmcrypt/">How to properly activate trim for your ssd on linux fstrim lvm and dmcrypt</a></li>
+<li><a target="_blank" rel="noopener" href="https://lwn.net/Articles/293658/">Block layer discard requests</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/disk/" rel="tag"># disk</a>
+              <a href="/tags/ssd/" rel="tag"># ssd</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/09/21/spanner-truetime/" rel="prev" title="Spanner TrueTime 与并发控制">
+      <i class="fa fa-chevron-left"></i> Spanner TrueTime 与并发控制
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/07/18/linux-tracing-tracepoint/" rel="next" title="Linux Tracepoint">
+      Linux Tracepoint <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#NAND-%E9%97%AA%E5%AD%98%E7%9A%84%E7%89%A9%E7%90%86%E7%BB%93%E6%9E%84-1"><span class="nav-number">1.</span> <span class="nav-text">NAND 闪存的物理结构 (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#SSD-%E7%9A%84%E5%86%99%E5%85%A5%E6%9C%BA%E5%88%B6-2"><span class="nav-number">2.</span> <span class="nav-text">SSD 的写入机制 (2)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%A6%86%E7%9B%96%E5%86%99%E6%B5%81%E7%A8%8B-2-1"><span class="nav-number">2.1.</span> <span class="nav-text">覆盖写流程 (2.1)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#SSD-%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6-3"><span class="nav-number">3.</span> <span class="nav-text">SSD 垃圾回收 (3)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#GC-%E6%B5%81%E7%A8%8B-3-1"><span class="nav-number">3.1.</span> <span class="nav-text">GC 流程 (3.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#GC-%E7%9A%84%E4%BB%A3%E4%BB%B7-3-2"><span class="nav-number">3.2.</span> <span class="nav-text">GC 的代价 (3.2)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%97%AE%E9%A2%98%EF%BC%9A%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E5%88%A0%E9%99%A4-%E2%89%A0-SSD-%E6%84%9F%E7%9F%A5-4"><span class="nav-number">4.</span> <span class="nav-text">问题：文件系统删除 ≠ SSD 感知 (4)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#TRIM%EF%BC%9A%E5%91%8A%E7%9F%A5-SSD-%E2%80%9C%E8%BF%99%E4%BA%9B%E7%A9%BA%E9%97%B4%E4%B8%8D%E5%86%8D%E9%9C%80%E8%A6%81%E2%80%9D-5"><span class="nav-number">5.</span> <span class="nav-text">TRIM：告知 SSD “这些空间不再需要” (5)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%AF%E8%AF%AD%E7%BB%9F%E4%B8%80-5-1"><span class="nav-number">5.1.</span> <span class="nav-text">术语统一 (5.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#TRIM-%E7%9A%84%E4%BD%9C%E7%94%A8-5-2"><span class="nav-number">5.2.</span> <span class="nav-text">TRIM 的作用 (5.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Linux-%E5%86%85%E6%A0%B8%E4%B8%AD%E7%9A%84%E5%AE%9E%E7%8E%B0-5-3"><span class="nav-number">5.3.</span> <span class="nav-text">Linux 内核中的实现 (5.3)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#TRIM-%E7%9A%84%E5%B1%82%E7%BA%A7%E9%80%8F%E4%BC%A0-6"><span class="nav-number">6.</span> <span class="nav-text">TRIM 的层级透传 (6)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#TRIM-%E7%AD%96%E7%95%A5%EF%BC%9AContinuous-vs-Periodic-7"><span class="nav-number">7.</span> <span class="nav-text">TRIM 策略：Continuous vs Periodic (7)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Continuous-TRIM-7-1"><span class="nav-number">7.1.</span> <span class="nav-text">Continuous TRIM (7.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Periodic-TRIM-7-2"><span class="nav-number">7.2.</span> <span class="nav-text">Periodic TRIM (7.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E9%80%89%E6%8B%A9-7-3"><span class="nav-number">7.3.</span> <span class="nav-text">如何选择 (7.3)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E9%AB%98%E6%80%A7%E8%83%BD%E5%AD%98%E5%82%A8%E7%B3%BB%E7%BB%9F%E4%B8%AD%E7%9A%84%E5%AE%9E%E8%B7%B5-8"><span class="nav-number">8.</span> <span class="nav-text">高性能存储系统中的实践 (8)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Ceph-BlueStore%EF%BC%9A%E5%BC%82%E6%AD%A5-Discard-%E7%BA%BF%E7%A8%8B-8-1"><span class="nav-number">8.1.</span> <span class="nav-text">Ceph BlueStore：异步 Discard 线程 (8.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#SPDK-%E7%94%A8%E6%88%B7%E6%80%81%EF%BC%9A%E7%BB%95%E8%BF%87%E5%86%85%E6%A0%B8-8-2"><span class="nav-number">8.2.</span> <span class="nav-text">SPDK 用户态：绕过内核 (8.2)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%AE%89%E5%85%A8%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9%EF%BC%9A%E5%8A%A0%E5%AF%86%E5%B1%82%E7%9A%84-TRIM-9"><span class="nav-number">9.</span> <span class="nav-text">安全注意事项：加密层的 TRIM (9)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93-10"><span class="nav-number">10.</span> <span class="nav-text">总结 (10)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%82%E8%80%83-11"><span class="nav-number">11.</span> <span class="nav-text">参考 (11)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">74</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">111</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

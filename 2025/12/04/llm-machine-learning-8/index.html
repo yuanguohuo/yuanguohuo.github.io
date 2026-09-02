@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="从 batch 张量出发，揭示 PyTorch 如何批量地进行前向计算（forward）和后向求导（backward）；并介绍 PyTorch 编程中的一些概念。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="机器学习-PyTorch训练循环">
+<meta property="og:url" content="http://yoursite.com/2025/12/04/llm-machine-learning-8/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="从 batch 张量出发，揭示 PyTorch 如何批量地进行前向计算（forward）和后向求导（backward）；并介绍 PyTorch 编程中的一些概念。">
+<meta property="og:locale">
+<meta property="og:image" content="http://yoursite.com/2025/12/04/llm-machine-learning-8/network-1.png">
+<meta property="og:image" content="http://yoursite.com/2025/12/04/llm-machine-learning-8/dag-scalar-forward-2.png">
+<meta property="og:image" content="http://yoursite.com/2025/12/04/llm-machine-learning-8/dag-vector-forward-3.png">
+<meta property="og:image" content="http://yoursite.com/2025/12/04/llm-machine-learning-8/dag-scalar-backward-4.png">
+<meta property="og:image" content="http://yoursite.com/2025/12/04/llm-machine-learning-8/dag-vector-backward-5.png">
+<meta property="article:published_time" content="2025-12-04T20:15:18.000Z">
+<meta property="article:modified_time" content="2026-09-02T11:46:11.503Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="llm">
+<meta property="article:tag" content="machine-learning">
+<meta property="article:tag" content="pytorch">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://yoursite.com/2025/12/04/llm-machine-learning-8/network-1.png">
+
+<link rel="canonical" href="http://yoursite.com/2025/12/04/llm-machine-learning-8/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>机器学习-PyTorch训练循环 | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2025/12/04/llm-machine-learning-8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          机器学习-PyTorch训练循环
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2025-12-04 20:15:18" itemprop="dateCreated datePublished" datetime="2025-12-04T20:15:18+00:00">2025-12-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2026-09-02 11:46:11" itemprop="dateModified" datetime="2026-09-02T11:46:11+00:00">2026-09-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/llm/" itemprop="url" rel="index"><span itemprop="name">llm</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2025/12/04/llm-machine-learning-8/" class="post-meta-item leancloud_visitors" data-flag-title="机器学习-PyTorch训练循环" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/12/04/llm-machine-learning-8/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/12/04/llm-machine-learning-8/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>从 batch 张量出发，揭示 PyTorch 如何<strong>批量地</strong>进行前向计算（forward）和后向求导（backward）；并介绍 PyTorch 编程中的一些概念。</p>
+<a id="more"></a>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+});
+</script>
+
+<script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+<h1 id="张量-tensor-1"><a href="#张量-tensor-1" class="headerlink" title="张量 tensor (1)"></a>张量 tensor (1)</h1><p>在前一篇<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2025/12/03/llm-machine-learning-7/">PyTorch自动求导</a>的第5小节（例3）中，引入了一个极小的神经网络作为例子，如图1：</p>
+<p><img src="network-1.png" alt="figure1"></p>
+<div style="text-align: center;"><em>图1:网络结构</em></div>
+
+<p>当时，为了清晰地展示前向计算与后向求导的数学过程，计算全部采用标量（0维tensor）形式；2个样本（图2中红色的$\boldsymbol{x}^1$ 和 绿色的$\boldsymbol{x}^2$），每个样本2个特征，标量形式的 DAG 如图2所示：</p>
+<p><img src="dag-scalar-forward-2.png" alt="figure2"></p>
+<div style="text-align: center;"><em>图2:DAG标量版</em></div>
+
+<p>实际上，PyTorch 使用矩阵（多维tensor）一次性处理一个 batch，即 $B$ 个样本组成一个 $B \times N$ 的矩阵（其中 $B$ 是一个 batch 的样本数；$N$ 是一个样本的特征数），前向计算从”逐样本循环”变成”一次矩阵运算”。向量形式的 DAG（PyTorch真实情况）如图3所示：</p>
+<p><img src="dag-vector-forward-3.png" alt="figure3"></p>
+<div style="text-align: center;"><em>图3:DAG向量版</em></div>
+
+<p>其中矩阵的每行是一个样本，和图2严格一一对应；矩阵运算按行拆开，就是每个样本的运算。注：叶子框的 <code>.grad</code> 零数组画的是 <code>zero_grad()</code> 之后的状态（新建时为 <code>None</code>）；中间 tensor 的 <code>.grad</code> 永远为 <code>None</code>，除非调用 <code>retain_grad()</code>。</p>
+<blockquote>
+<p>对账：图3中 $Y$ 的两行 $1.5362$ 和 $1.4915$ 即前一篇<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2025/12/03/llm-machine-learning-7/">PyTorch自动求导</a>第 5.5 小节的 $\hat{y}^1$ 和 $\hat{y}^2$。</p>
+</blockquote>
+<p>标量版 backward 如图4：</p>
+<p><img src="dag-scalar-backward-4.png" alt="figure4"></p>
+<div style="text-align: center;"><em>图4:Backward标量版</em></div>
+
+<p>向量形式如图5所示（记 $\boldsymbol{A}$ 为当前累积梯度，它沿 DAG 反向流动，每经过一个节点按该节点规则更新）：</p>
+<p><img src="dag-vector-backward-5.png" alt="figure5"></p>
+<div style="text-align: center;"><em>图5:Backward向量版</em></div>
+
+<blockquote>
+<p>对账：$w_{11}$ 的梯度是 $0.006731$，与<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2025/12/03/llm-machine-learning-7/">PyTorch自动求导</a>第 5.7 小节手算的一致。边注数值按图中已舍入中间值手算，个别末位与代码全精度输出差 1（如 0.0141 vs 0.0140），属舍入口径，非计算错误。</p>
+</blockquote>
+<p>其中第一个麻烦点是 $mm(\boldsymbol{G}, \boldsymbol{v}^T)$；先看前向计算过程：</p>
+<p>$$<br>\boldsymbol{G} \boldsymbol{v}^T =<br>\begin{bmatrix}<br>g_{11}, \quad g_{12} \\<br>g_{21}, \quad g_{22}<br>\end{bmatrix}<br>\begin{bmatrix}<br>v_1 \\<br>v_2<br>\end{bmatrix} =<br>\begin{bmatrix}<br>g_{11}v_1 + g_{12}v_2 \\<br>g_{21}v_1 + g_{22}v_2<br>\end{bmatrix}  \quad \tag{forward算式}<br>$$</p>
+<p>可以看出，贡献给 $\boldsymbol{G}$ 4个分量的梯度分别是：</p>
+<p>$$<br>\begin{bmatrix}<br>v_1, v_2 \\<br>v_1, v_2<br>\end{bmatrix}<br>$$</p>
+<p>前面还应该乘上累积的 $\boldsymbol{A}$。用向量表示就是：</p>
+<p>$$<br>\begin{aligned}<br>\boldsymbol{A} \boldsymbol{v} &amp; =<br>\begin{bmatrix}<br>0.0362 \\<br>0.5915<br>\end{bmatrix} \begin{bmatrix}<br>v_1, v_2<br>\end{bmatrix} \\<br>\\<br>&amp; = \begin{bmatrix}<br>0.0362 v_1, 0.0362 v_2 \\<br>0.5915 v_1, 0.5915 v_2<br>\end{bmatrix} \\<br>\\<br>&amp; = \begin{bmatrix}<br>0.0217, 0.0290 \\<br>0.3549, 0.4732<br>\end{bmatrix}<br>\end{aligned}<br>$$</p>
+<p><strong>这也符合乘法规则</strong>：对 $\boldsymbol{G}$ 求导时，$\boldsymbol{G}$ 看到的另一槽是 $\boldsymbol{v}^T$，转置即 $\boldsymbol{v}$（横排），乘上累积梯度得 $\boldsymbol{A} \boldsymbol{v}$。</p>
+<p>那么对 $\boldsymbol{v}$ 求导呢？由前面 $\text{forward算式}$ 可知：分量 $v_1$ 从输出两行拿到的系数是 $g_{11}$ 和 $g_{21}$；分量 $v_2$ 从输出两行拿到的系数是 $g_{12}$ 和 $g_{22}$。当然，都要乘以累积梯度，所以，使用向量形式表示是：</p>
+<p>$$<br>\begin{aligned}<br>\boldsymbol{G}^T \boldsymbol{A} &amp; =<br>\begin{bmatrix}<br>g_{11}, g_{21} \\<br>g_{12}, g_{22}<br>\end{bmatrix} \begin{bmatrix}<br>0.0362 \\<br>0.5915<br>\end{bmatrix} \\<br>\\<br>&amp; = \begin{bmatrix}<br>0.0362 g_{11} + 0.5915 g_{21} \\<br>0.0362 g_{12} + 0.5915 g_{22}<br>\end{bmatrix} \\<br>\\<br>&amp; = \begin{bmatrix}<br>0.5173 \\<br>0.5489<br>\end{bmatrix}<br>\end{aligned}<br>$$</p>
+<p><strong>可见，同样符合乘法规则</strong>：对 $\boldsymbol{v}$ 求导时，$\boldsymbol{v}$ 看到的另一槽是 $\boldsymbol{G}$，转置即 $\boldsymbol{G}^T$，放在左边乘上累积梯度，得 $\boldsymbol{G}^T \boldsymbol{A}$。</p>
+<p>另外，$v_1$ 的梯度是 $0.0362 g_{11} + 0.5915 g_{21}$，$v_2$ 的梯度是 $0.0362 g_{12} + 0.5915 g_{22}$。展开看，$v$ <strong>的梯度的每个分量都是两样本贡献之和（即整个batch内所有样本的累加），而机器用一次</strong> $\boldsymbol{G}^T \boldsymbol{A}$ <strong>把这个求和一并算完</strong>。</p>
+<p>和乘法相比，$sigmoid(\boldsymbol{T})$ 就容易多了：对应分量上 $\text{累积梯度} \times \sigma(t_{ij}) \times (1-\sigma(t_{ij}))$。其实，从图2上也能看出来，$t \to g$ 就是互不交叉的$\sigma$ 运算。</p>
+<p>$$<br>\begin{aligned}<br>\boldsymbol{A} &amp; =<br>\begin{bmatrix}<br>0.0217 \sigma(t_{11}) (1-\sigma(t_{11})), 0.0290 \sigma(t_{12}) (1-\sigma(t_{12})) \\<br>0.3549 \sigma(t_{21}) (1-\sigma(t_{21})), 0.4732 \sigma(t_{22}) (1-\sigma(t_{22}))<br>\end{bmatrix} \\<br>\\<br>&amp; = \begin{bmatrix}<br>0.0217 g_{11} (1-g_{11}), 0.0290 g_{12} (1-g_{12}) \\<br>0.3549 g_{21} (1-g_{21}), 0.4732 g_{22} (1-g_{22})<br>\end{bmatrix} \\<br>\\<br>&amp; = \begin{bmatrix}<br>0.00263, 0.00258 \\<br>0.05193, 0.05250<br>\end{bmatrix}<br>\end{aligned}<br>$$</p>
+<p>继续backward，又遇到乘法 $mm(\boldsymbol{H}, \boldsymbol{U}^T)$；直接套用前面的方法：分发给 $\boldsymbol{H}$ 的是 $\boldsymbol{A} \boldsymbol{U}$；分发给 $\boldsymbol{U}$ 的是 $\boldsymbol{H}^T \boldsymbol{A}$。</p>
+<p>后面再无新运算符，以此继续，直至梯度全部算出。</p>
+<p>使用 PyTorch 构造和图3一模一样的DAG，然后反向求导并打印结果：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"></span><br><span class="line"><span class="comment"># ---------- 与图3 完全相同的计算图 ----------</span></span><br><span class="line">W = torch.tensor([[<span class="number">0.3</span>, <span class="number">0.6</span>], [<span class="number">0.4</span>, <span class="number">0.7</span>], [<span class="number">0.8</span>, <span class="number">0.1</span>]], requires_grad=<span class="literal">True</span>)  <span class="comment"># W,  隐藏层1的权重矩阵</span></span><br><span class="line">bv = torch.tensor([<span class="number">0.2</span>, <span class="number">0.5</span>, <span class="number">0.9</span>], requires_grad=<span class="literal">True</span>)                      <span class="comment"># b,  隐藏层1的偏置向量</span></span><br><span class="line">U = torch.tensor([[<span class="number">0.7</span>, <span class="number">0.2</span>, <span class="number">0.8</span>], [<span class="number">0.5</span>, <span class="number">0.4</span>, <span class="number">0.9</span>]], requires_grad=<span class="literal">True</span>)    <span class="comment"># U,  隐藏层2的权重矩阵</span></span><br><span class="line">dv = torch.tensor([<span class="number">0.2</span>, <span class="number">0.5</span>], requires_grad=<span class="literal">True</span>)                           <span class="comment"># d,  隐藏层2的偏置向量</span></span><br><span class="line">vv = torch.tensor([<span class="number">0.6</span>, <span class="number">0.8</span>], requires_grad=<span class="literal">True</span>)                           <span class="comment"># v,  输出层的权重向量</span></span><br><span class="line">bs = torch.tensor(<span class="number">0.3</span>, requires_grad=<span class="literal">True</span>)                                  <span class="comment"># bs, 输出层的偏置（标量）</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 样本</span></span><br><span class="line">X = torch.tensor([[<span class="number">3.0</span>, <span class="number">2.0</span>], [<span class="number">0.5</span>, <span class="number">1.2</span>]])</span><br><span class="line">y = torch.tensor([[<span class="number">1.5</span>], [<span class="number">0.9</span>]])</span><br><span class="line"></span><br><span class="line">R1 = X @ W.T           <span class="comment"># mm(X,W^T)</span></span><br><span class="line">Z = R1 + bv            <span class="comment"># add(R1,b)</span></span><br><span class="line">H = torch.sigmoid(Z)   <span class="comment"># sigmoid(Z)</span></span><br><span class="line">R2 = H @ U.T           <span class="comment"># mm(H,U^T)</span></span><br><span class="line">T = R2 + dv            <span class="comment"># add(R2,d)</span></span><br><span class="line">G = torch.sigmoid(T)   <span class="comment"># sigmoid(T)</span></span><br><span class="line">R3 = G @ vv.view(<span class="number">2</span>, <span class="number">1</span>) <span class="comment"># mm(G,v^T)</span></span><br><span class="line">Y = R3 + bs            <span class="comment"># add(R3,b)</span></span><br><span class="line">R4 = Y - y             <span class="comment"># sub(Y,y)</span></span><br><span class="line">R5 = R4.square()       <span class="comment"># square(R4)</span></span><br><span class="line">r6 = R5.sum()          <span class="comment"># sum(R5)</span></span><br><span class="line">Loss = r6 * <span class="number">0.5</span>        <span class="comment"># mul(r6,1/2)</span></span><br><span class="line"></span><br><span class="line">Loss.backward()</span><br><span class="line"></span><br><span class="line">torch.set_printoptions(precision=<span class="number">5</span>, sci_mode=<span class="literal">False</span>)</span><br><span class="line">print(<span class="string">&#x27;------------ W.grad ------------&#x27;</span>)</span><br><span class="line">print(W.grad)</span><br><span class="line"></span><br><span class="line">torch.set_printoptions(precision=<span class="number">4</span>, sci_mode=<span class="literal">False</span>)</span><br><span class="line">print(<span class="string">&#x27;\n-------- vector b.grad ---------&#x27;</span>)</span><br><span class="line">print(bv.grad)</span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;\n------------ U.grad ------------&#x27;</span>)</span><br><span class="line">print(U.grad)</span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;\n-------- vector d.grad ---------&#x27;</span>)</span><br><span class="line">print(dv.grad)</span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;\n-------- vector v.grad ---------&#x27;</span>)</span><br><span class="line">print(vv.grad)</span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;\n-------- scalar b.grad ---------&#x27;</span>)</span><br><span class="line">print(bs.grad)</span><br></pre></td></tr></table></figure>
+
+<p>打印结果：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">------------ W.grad ------------</span><br><span class="line">tensor([[0.00673, 0.01480],</span><br><span class="line">        [0.00247, 0.00560],</span><br><span class="line">        [0.00734, 0.01696]])</span><br><span class="line"></span><br><span class="line">-------- vector b.grad ---------</span><br><span class="line">tensor([0.0122, 0.0046, 0.0140])</span><br><span class="line"></span><br><span class="line">------------ U.grad ------------</span><br><span class="line">tensor([[0.0411, 0.0453, 0.0444],</span><br><span class="line">        [0.0414, 0.0457, 0.0448]])</span><br><span class="line"></span><br><span class="line">-------- vector d.grad ---------</span><br><span class="line">tensor([0.0546, 0.0551])</span><br><span class="line"></span><br><span class="line">-------- vector v.grad ---------</span><br><span class="line">tensor([0.5173, 0.5489])</span><br><span class="line"></span><br><span class="line">-------- scalar b.grad ---------</span><br><span class="line">tensor(0.6277)</span><br></pre></td></tr></table></figure>
+
+<p>可见，与图5手算结果吻合（除了个别末位二次四舍五入引入的误差）。</p>
+<h1 id="用-nn-Module-搭网络-2"><a href="#用-nn-Module-搭网络-2" class="headerlink" title="用 nn.Module 搭网络 (2)"></a>用 nn.Module 搭网络 (2)</h1><p>在前一篇<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2025/12/03/llm-machine-learning-7/">PyTorch自动求导</a>的第5小节中，我们搭建了一个神经网络（其结构如本文图1），它有20个参数。本文第1节把 20 个标量收成 6 个向量，但如第1节代码所示，仍要：</p>
+<ul>
+<li>手写 6 个tensor：<code>W</code>, <code>bv</code>, <code>U</code>, <code>dv</code>, <code>vv</code> 及 <code>bs</code>；</li>
+<li>forward 链条：<code>R1 = X @ W.T; Z = R1 + bv; ...</code>；</li>
+</ul>
+<p>本节 <code>nn.Module</code> 就是要打包这件事。先看使用 <code>nn.Module</code> 版本的网络：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">from</span> torch <span class="keyword">import</span> nn</span><br><span class="line"></span><br><span class="line">torch.set_printoptions(precision=<span class="number">5</span>, sci_mode=<span class="literal">False</span>)</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MLP</span>(<span class="params">nn.Module</span>):</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span>(<span class="params">self</span>):</span></span><br><span class="line">        super().__init__()</span><br><span class="line">        self.fc1 = nn.Linear(<span class="number">2</span>, <span class="number">3</span>)   <span class="comment"># mm(X,W^T)+b;  隐藏层1： 2 个特征，3 个神经元， 6个权重 + 3个偏置 = 9 个参数</span></span><br><span class="line">        self.act1 = nn.Sigmoid()     <span class="comment"># sigmoid(Z)</span></span><br><span class="line">        self.fc2 = nn.Linear(<span class="number">3</span>, <span class="number">2</span>)   <span class="comment"># mm(H,U^T)+d;  隐藏层2： 3 个特征，2 个神经元， 6个权重 + 2个偏置 = 8 个参数</span></span><br><span class="line">        self.act2 = nn.Sigmoid()     <span class="comment"># sigmoid(T)</span></span><br><span class="line">        self.fc3 = nn.Linear(<span class="number">2</span>, <span class="number">1</span>)   <span class="comment"># mm(G,v^T)+bs; 输出层：  2 个特征，1 个神经元ŷ，2个权重 + 1个偏置 = 3 个参数</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">forward</span>(<span class="params">self, x</span>):</span></span><br><span class="line">        <span class="keyword">return</span> self.fc3(self.act2(self.fc2(self.act1(self.fc1(x)))))</span><br><span class="line"></span><br><span class="line">net = MLP()</span><br></pre></td></tr></table></figure>
+
+<p>可见，通过 <code>nn.Module</code> 图1中的神经网络直接被翻译成了代码：<strong>参数按层归组</strong>，不用显式地定义<code>W</code>, <code>bv</code>, <code>U</code>等6个参数tensor（20个参数）。代码中 <code>net = MLP()</code> 生成了网络的一个实例，那么它如何运行呢？</p>
+<p>首先，要灌入参数的初始值（灌入和前文一样的初始值，方便对账）：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">with</span> torch.no_grad():</span><br><span class="line">    net.fc1.weight.copy_(torch.tensor([[<span class="number">0.3</span>, <span class="number">0.6</span>], [<span class="number">0.4</span>, <span class="number">0.7</span>], [<span class="number">0.8</span>, <span class="number">0.1</span>]]))   <span class="comment"># W,  隐藏层1的权重矩阵</span></span><br><span class="line">    net.fc1.bias.copy_(torch.tensor([<span class="number">0.2</span>, <span class="number">0.5</span>, <span class="number">0.9</span>]))                          <span class="comment"># b,  隐藏层1的偏置向量</span></span><br><span class="line">    net.fc2.weight.copy_(torch.tensor([[<span class="number">0.7</span>, <span class="number">0.2</span>, <span class="number">0.8</span>], [<span class="number">0.5</span>, <span class="number">0.4</span>, <span class="number">0.9</span>]]))     <span class="comment"># U,  隐藏层2的权重矩阵</span></span><br><span class="line">    net.fc2.bias.copy_(torch.tensor([<span class="number">0.2</span>, <span class="number">0.5</span>]))                               <span class="comment"># d,  隐藏层2的偏置向量</span></span><br><span class="line">    net.fc3.weight.copy_(torch.tensor([[<span class="number">0.6</span>, <span class="number">0.8</span>]]))                           <span class="comment"># v,  输出层的权重向量</span></span><br><span class="line">    net.fc3.bias.copy_(torch.tensor([<span class="number">0.3</span>]))                                    <span class="comment"># bs, 输出层的偏置（标量）</span></span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;------------------------- net.state_dict() -------------------------&#x27;</span>)</span><br><span class="line">print(net.state_dict())</span><br></pre></td></tr></table></figure>
+
+<p>说明：叶子（模型的参数）禁止原地修改，因为 DAG 图里存的是叶子的引用，改它相当于篡改 DAG 图——而 forward 实时建图、backward 消费图，都不允许历史被悄悄改动。但初始化时，不得不原地修改它们（即灌入初始值）。为此，<code>torch.no_grad()</code> 提供了必要的通行证：关掉“自动求导录像机（边计算边构建计算图）”的开关，<code>with</code> 块内运算照常，但不计入计算图（否则报错：a leaf Variable that requires grad is being used in an in-place operation）。</p>
+<p>打印（经人工排版）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">------------------------- net.state_dict() -------------------------</span><br><span class="line">OrderedDict(&#123;</span><br><span class="line">  &#39;fc1.weight&#39;: tensor([[0.30000, 0.60000], [0.40000, 0.70000], [0.80000, 0.10000]]),</span><br><span class="line">  &#39;fc1.bias&#39;:   tensor([0.20000, 0.50000, 0.90000]),</span><br><span class="line">  &#39;fc2.weight&#39;: tensor([[0.70000, 0.20000, 0.80000], [0.50000, 0.40000, 0.90000]]),</span><br><span class="line">  &#39;fc2.bias&#39;:   tensor([0.20000, 0.50000]),</span><br><span class="line">  &#39;fc3.weight&#39;: tensor([[0.60000, 0.80000]]),</span><br><span class="line">  &#39;fc3.bias&#39;:   tensor([0.30000])</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+
+<p>然后，调用 <code>net(样本矩阵)</code> 执行前向计算：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">X = torch.tensor([[<span class="number">3.0</span>, <span class="number">2.0</span>], [<span class="number">0.5</span>, <span class="number">1.2</span>]])</span><br><span class="line">Y = net(X)</span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;\n------------------------- output -----------------------------------&#x27;</span>)</span><br><span class="line">print(Y)</span><br></pre></td></tr></table></figure>
+
+<p>语法是：<code>网络实例的变量名(样本矩阵)</code>——这完全是因为 <code>nn.Module</code> 定义了 <code>__call__()</code>函数，<code>MLP</code> 通过继承获得了它。根据 <code>__call__</code> 协议，Python 会转成 <code>type(net).__call__(net, X)</code>，即调用从 <code>nn.Module</code> 继承来的 <code>__call__()</code>。参数 <code>X</code> 是一个batch的所有样本构成的矩阵（不包括样本的标签<code>y</code>）。</p>
+<p>这就是前向计算发生的地方：<code>nn.Module.__call__()</code> 会转调我们写的 <code>forward(self, x)</code> 函数；其中每一层又各自是一次 <code>nn.Module</code> 调用（因为 <code>nn.Linear</code>、<code>nn.Sigmoid</code>都是 <code>nn.Module</code> 的子类）：</p>
+<ul>
+<li><code>self.fc1</code>（类型是<code>nn.Linear</code>） 的内部 forward 是 $\boldsymbol{Z} = \boldsymbol{x} \boldsymbol{W}^T + \boldsymbol{b}$；</li>
+<li><code>self.act1</code>（类型是<code>nn.Sigmoid</code>）的内部 forward 是 $\sigma(\boldsymbol{Z})$；</li>
+<li>依此逐层嵌套……</li>
+<li>最终，返回 [2,1] 张量 <code>Y</code>。</li>
+</ul>
+<p>打印（经人工排版）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">------------------------- output -----------------------------------</span><br><span class="line">tensor([[1.53616], [1.49151]], grad_fn&#x3D;&lt;AddmmBackward0&gt;)</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>对账：$1.53616 \approx 1.5362$；$1.49151 \approx 1.4915$，和图2及图3中的两个样本的 output 吻合。</p>
+</blockquote>
+<p>在软件领域，module 一词通常指 “有接口的、可组合的单元”。PyTorch 里 Module 到底指什么？是指满足以下3个条件的东西：</p>
+<ol>
+<li>有自己的<strong>前向计算</strong>和<strong>局部反向规则（能接入梯度链条）</strong>；局部反向规则由 forward 内各 op 的 backward 自动合成，无需手写。每个 Module 的前向计算对其输入/参数可微（或分段可微），所以能定义局部导数，backward 才过得去。“可微 + 可组合” 是 autograd 的全部前提。</li>
+<li>可带一本登记簿（参数、子Module）；</li>
+<li>能作为子Module嵌套进别的 Module；</li>
+</ol>
+<blockquote>
+<p>严谨性补注：数学上个别点不可微的（ReLU 在 0，取次梯度）、甚至不求导的（Dropout、Flatten）也同样是 Module——预定义 backward 规则或直通凑进同一套接口。所以“可微”描述的是这个生态的设计意图：能接入梯度链。</p>
+</blockquote>
+<p>所以，前面例子中的 <code>nn.Linear</code> 是 Module（带参数），<code>nn.Sigmoid</code> 是 Module（不带参数），我们自己实现的类 <code>MLP</code> 也是 Module（带子模块）；它们都是 <code>nn.Module</code> 的直接子类。<strong>下文的</strong> <code>nn.MSELoss</code> 也是 Module。</p>
+<p>可以打印出 Module 的参数：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">print(<span class="string">&#x27;\n------------------------- Linear parameters ------------------------&#x27;</span>)</span><br><span class="line">print(net.fc1._parameters)</span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;\n------------------------- Linear weights ---------------------------&#x27;</span>)</span><br><span class="line">print(net.fc1.weight)</span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;\n------------------------- Linear bias ------------------------------&#x27;</span>)</span><br><span class="line">print(net.fc1.bias)</span><br></pre></td></tr></table></figure>
+
+<p>打印（经人工排版）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">------------------------- Linear parameters ------------------------</span><br><span class="line">&#123;</span><br><span class="line">&#39;weight&#39;: Parameter containing:</span><br><span class="line">tensor([[0.30000, 0.60000],</span><br><span class="line">        [0.40000, 0.70000],</span><br><span class="line">        [0.80000, 0.10000]], requires_grad&#x3D;True),</span><br><span class="line">&#39;bias&#39;: Parameter containing:</span><br><span class="line">tensor([0.20000, 0.50000, 0.90000], requires_grad&#x3D;True)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">------------------------- Linear weights ---------------------------</span><br><span class="line">Parameter containing:</span><br><span class="line">tensor([[0.30000, 0.60000],</span><br><span class="line">        [0.40000, 0.70000],</span><br><span class="line">        [0.80000, 0.10000]], requires_grad&#x3D;True)</span><br><span class="line"></span><br><span class="line">------------------------- Linear bias ------------------------------</span><br><span class="line">Parameter containing:</span><br><span class="line">tensor([0.20000, 0.50000, 0.90000], requires_grad&#x3D;True)</span><br></pre></td></tr></table></figure>
+
+<p>也可以打印出 Module 的子Module（2种方式）：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">print(<span class="string">&#x27;\n------------------------- network sub-modules ----------------------&#x27;</span>)</span><br><span class="line">print(net._modules)</span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;\n------------------------- network sub-modules ----------------------&#x27;</span>)</span><br><span class="line"><span class="keyword">for</span> name, m <span class="keyword">in</span> net.named_children():</span><br><span class="line">    print(name, <span class="string">&#x27;-&gt;&#x27;</span>, m)</span><br></pre></td></tr></table></figure>
+
+<p>打印（经人工排版）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">------------------------- network sub-modules ----------------------</span><br><span class="line">&#123;</span><br><span class="line">&#39;fc1&#39;:  Linear(in_features&#x3D;2, out_features&#x3D;3, bias&#x3D;True),</span><br><span class="line">&#39;act1&#39;: Sigmoid(),</span><br><span class="line">&#39;fc2&#39;:  Linear(in_features&#x3D;3, out_features&#x3D;2, bias&#x3D;True),</span><br><span class="line">&#39;act2&#39;: Sigmoid(),</span><br><span class="line">&#39;fc3&#39;:  Linear(in_features&#x3D;2, out_features&#x3D;1, bias&#x3D;True)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">------------------------- network sub-modules ----------------------</span><br><span class="line">fc1 -&gt; Linear(in_features&#x3D;2, out_features&#x3D;3, bias&#x3D;True)</span><br><span class="line">act1 -&gt; Sigmoid()</span><br><span class="line">fc2 -&gt; Linear(in_features&#x3D;3, out_features&#x3D;2, bias&#x3D;True)</span><br><span class="line">act2 -&gt; Sigmoid()</span><br><span class="line">fc3 -&gt; Linear(in_features&#x3D;2, out_features&#x3D;1, bias&#x3D;True)</span><br></pre></td></tr></table></figure>
+
+<p>如前所述，Module 满足 backward 所需的一些条件，那么 Module （我们的 <code>net</code> 实例）可直接调用 backward 吗？</p>
+<p>显然不行，因为 backward 实际上是计算 Error Surface 上某一点的梯度；还没定义损失函数呢，何来 Error Surface？何况，backward 是 tensor 的方法，Module 本身连这个方法都没有。</p>
+<h1 id="损失函数-3"><a href="#损失函数-3" class="headerlink" title="损失函数 (3)"></a>损失函数 (3)</h1><p>前面说到，backward 实际上是计算 Error Surface 上某一点的梯度，而 Error Surface 是损失函数的“图像”。并且，backward 需要标量起点，那就是损失。</p>
+<p><a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2025/12/03/llm-machine-learning-7/">PyTorch自动求导</a> 中，通过 <code>sub</code>、<code>square</code>、<code>sum</code> 和 <code>mul</code> 四个 op 凑出 $Loss = \frac{1}{2} \sum(\hat{y}-y)^2$，本文第1节的代码也使用PyTorch向量的方法重新实现了它。但PyTorch 有更简便的写法，那就是 <code>nn.MSELoss</code>。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">y = torch.tensor([[<span class="number">1.5</span>], [<span class="number">0.9</span>]])</span><br><span class="line"></span><br><span class="line">loss_fn = nn.MSELoss(reduction=<span class="string">&#x27;mean&#x27;</span>)</span><br><span class="line">loss = loss_fn(Y, y)</span><br><span class="line"></span><br><span class="line">print(loss)</span><br></pre></td></tr></table></figure>
+
+<p>打印：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tensor(0.17559, grad_fn&#x3D;&lt;MseLossBackward0&gt;)</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>对账：损失 $0.17559 \approx 0.1756$ 和图2及图3一致。</p>
+</blockquote>
+<p>从 <code>loss</code> 值（标量）就可以 backward 了：也就是，在模型选择当前参数、得到当前损失的情况下，参数的<strong>梯度</strong>，即参数的更新方向！</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">loss.backward()</span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;\n------------------------- W (matrix) gradient ----------------------&#x27;</span>)</span><br><span class="line">print(net.fc1.weight.grad)</span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;\n------------------------- b (vector) gradient ----------------------&#x27;</span>)</span><br><span class="line">print(net.fc1.bias.grad)</span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;\n------------------------- U (matrix) gradient ----------------------&#x27;</span>)</span><br><span class="line">print(net.fc2.weight.grad)</span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;\n------------------------- d (vector) gradient ----------------------&#x27;</span>)</span><br><span class="line">print(net.fc2.bias.grad)</span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;\n------------------------- v (vector) gradient ----------------------&#x27;</span>)</span><br><span class="line">print(net.fc3.weight.grad)</span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;\n------------------------- b (scalar) gradient ----------------------&#x27;</span>)</span><br><span class="line">print(net.fc3.bias.grad)</span><br></pre></td></tr></table></figure>
+
+<p>打印：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">------------------------- W (matrix) gradient ----------------------</span><br><span class="line">tensor([[0.00673, 0.01480],</span><br><span class="line">        [0.00247, 0.00560],</span><br><span class="line">        [0.00734, 0.01696]])</span><br><span class="line"></span><br><span class="line">------------------------- b (vector) gradient ----------------------</span><br><span class="line">tensor([0.01216, 0.00463, 0.01405])</span><br><span class="line"></span><br><span class="line">------------------------- U (matrix) gradient ----------------------</span><br><span class="line">tensor([[0.04105, 0.04527, 0.04437],</span><br><span class="line">        [0.04144, 0.04571, 0.04479]])</span><br><span class="line"></span><br><span class="line">------------------------- d (vector) gradient ----------------------</span><br><span class="line">tensor([0.05455, 0.05509])</span><br><span class="line"></span><br><span class="line">------------------------- v (vector) gradient ----------------------</span><br><span class="line">tensor([[0.51729, 0.54890]])</span><br><span class="line"></span><br><span class="line">------------------------- b (scalar) gradient ----------------------</span><br><span class="line">tensor([0.62767])</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>对账：与图5手算的梯度一致（忽略末位精度，它是有手算时二次四舍五入导致的）。</p>
+</blockquote>
+<p><code>MSELoss</code> 还有一个参数 <code>reduction</code>。MSELoss 的计算过程是，计算每个样本的误差的平方，即 $loss_i = (\hat{y}^i - y^i)^2$，其中 $i = 1,2, \dots, N$ 对应 batch 的样本数；显然，这是一个与 $Y$ 同形的张量。参数 <code>reduction</code> 就是如何把这个张量聚合一个标量值，有3种选择：</p>
+<ul>
+<li>‘mean’：平均；</li>
+<li>‘sum’：求和。显然，只求和不平均，所有参数的梯度分量会放大 $N$ 倍，因为 backward 第一步没有 <code>mul(1/N)</code>，就引入了放大。这个放大会一直传递下去，直到叶子（参数）；注：严格说放大倍数是元素个数（样本数 $\times$ 输出维），本例输出一维故等于样本数；</li>
+<li>‘none’：不聚合，返回张量；注意：backward 需要从标量起始，所以不聚合也无法 backward。</li>
+</ul>
+<blockquote>
+<p><strong>说明：MSE = Mean Squared Error；严格来说，不应该有其它行为（sum/none），但这是 PyTorch 顺手引入的变体，默认行为还是 mean</strong>。</p>
+</blockquote>
+<p><strong>注意：</strong> <code>nn.MSELoss</code> <strong>也是 Module——满足第2节三条件</strong>：forward（即算损失）、可微、可组合，且 <code>loss_fn(Y, y)</code> 同样走 <strong>call</strong> 协议。</p>
+<p><strong>损失函数全家福。</strong> 除了 MSELoss，PyTorch 还内置了一大批损失函数，且清一色都是 Module（都继承自 <code>nn.Module</code> 的子类 <code>_Loss</code>），满足第2节三条件：</p>
+<ul>
+<li>回归：<code>nn.L1Loss</code>（绝对误差）、<code>nn.SmoothL1Loss</code> / <code>nn.HuberLoss</code>（小误差平方、大误差线性，折中）；</li>
+<li>分类：<code>nn.BCELoss</code> / <code>nn.BCEWithLogitsLoss</code>（二分类）、<code>nn.CrossEntropyLoss</code>（多分类，内含 log_softmax + NLL）；</li>
+<li>其它：<code>nn.KLDivLoss</code>、<code>nn.CTCLoss</code>（序列）等。</li>
+</ul>
+<p>一行取证：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">print(issubclass(nn.CrossEntropyLoss, nn.Module), len(list(nn.CrossEntropyLoss().parameters())))</span><br></pre></td></tr></table></figure>
+
+<p>打印：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">True 0</span><br></pre></td></tr></table></figure>
+
+<p>与 MSELoss 同款：0 个可训练参数（损失函数自身无参数）、可微、可组合。<strong>正因为损失没有可训练参数</strong>，优化器只管 <code>net.parameters()</code> 即可——换损失函数才只改一行构造代码，训练循环纹丝不动；假如某损失带可训练参数，替换它就得把其参数并进优化器（<code>zero_grad()</code>/<code>state_dict()</code> 也要算上它），一行便不够了。且它们都带同一个 <code>reduction</code> 旋钮（默认 <code>&#39;mean&#39;</code>）——这是 <code>_Loss</code> 基类的通用设计。</p>
+<blockquote>
+<p>补注：少数损失带可选 <code>weight</code>（如 <code>CrossEntropyLoss</code> 的类别权重），它注册为 <strong>buffer</strong> 而非 Parameter：随 <code>to(device)</code> 迁移，但不在 <code>parameters()</code> 里、不接收梯度。可见登记簿除了 <code>_parameters</code>、<code>_modules</code> 两页，还有第三页 <code>_buffers</code>。</p>
+</blockquote>
+<h1 id="优化器-4"><a href="#优化器-4" class="headerlink" title="优化器 (4)"></a>优化器 (4)</h1><p>在上一节，backward 计算出了初始参数（记为$\boldsymbol{\theta}^0$）的梯度；<strong>梯度指向损失增长最陡的方向（故反方向是下降最快的方向）</strong>。</p>
+<p>在<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2025/10/02/llm-machine-learning-1/">机器学习原理-回归</a>中，已经总结过梯度下降的更新规则：</p>
+<p>$$<br>\boldsymbol{\theta}^{t+1} = \boldsymbol{\theta}^t - \eta \boldsymbol{\nabla}L(\boldsymbol{\theta}^t) = \boldsymbol{\theta}^t - \eta \boldsymbol{g}^t<br>$$</p>
+<p>其中，</p>
+<ul>
+<li>$\eta$ 是学习率，控制每步迈多大；</li>
+<li>$L$ 表示损失函数；显然，它的自变量就是模型的全体可训练参数；</li>
+<li>$\boldsymbol{\nabla}L(\boldsymbol{\theta}^t)$ 表示在损失函数 $L$ 的“图像”（Error Surface）上，点 $\boldsymbol{\theta}^t$ 处的梯度；</li>
+<li>$\boldsymbol{g}^t$，上述梯度的简写形式；</li>
+<li>减号是取梯度的反方向，即损失下降的方向；如前所述，<strong>梯度指向损失增长最陡的方向（故反方向是下降最快的方向）</strong>。</li>
+</ul>
+<p>这条规则只依赖两样东西：参数和它们的 <code>.grad</code>。先手写一个最朴素的优化器：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> copy</span><br><span class="line"></span><br><span class="line">init_sd = copy.deepcopy(net.state_dict())   <span class="comment"># 存档（state_dict 返回的是引用，须 deepcopy）</span></span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;\n------------------------- before update ----------------------------&#x27;</span>)</span><br><span class="line">print(net.fc1.weight)</span><br><span class="line"></span><br><span class="line">lr = <span class="number">0.1</span></span><br><span class="line"><span class="keyword">with</span> torch.no_grad():</span><br><span class="line">    <span class="keyword">for</span> p <span class="keyword">in</span> net.parameters():</span><br><span class="line">        p -= lr * p.grad</span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;\n------------------------- after update -----------------------------&#x27;</span>)</span><br><span class="line">print(net.fc1.weight)</span><br></pre></td></tr></table></figure>
+
+<p>几点细节说明：</p>
+<ul>
+<li>如第2节初始化模型参数时所述：叶子（模型的参数）禁止原地修改，因为 DAG 图里存的是叶子的引用，改它相当于篡改 DAG 图——而 forward 实时建图、backward 消费图，都不允许历史被悄悄改动。这里我手搓优化器，需要手工更新参数，故使用 <code>no_grad</code> 关掉“自动求导录像机（边计算边构建计算图）”：<code>with</code> 块内照常计算（<code>-=</code>运算符），但不记入计算图。实际上，PyTorch 自己做这件事时，也需要关掉“录像机”（总之：<strong>谁在图外原地修改叶子，谁负责关录像机</strong>）：<code>optimizer.step()</code> 内部以 <code>set_grad_enabled(False)</code> 关掉同一个开关（它也是 <code>no_grad</code> 的底层实现）；</li>
+<li><code>net.parameters()</code> 递归遍历登记树，把 20 个参数一个不漏地收进来——正是上面说的消费路径；</li>
+<li><code>copy.deepcopy()</code>  克隆每个张量，存档；用于恢复<code>net</code>，以便演示 PyTorch 自动优化（和这里手搓优化对账）；</li>
+</ul>
+<p>打印：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">------------------------- before update ----------------------------</span><br><span class="line">Parameter containing:</span><br><span class="line">tensor([[0.30000, 0.60000],</span><br><span class="line">        [0.40000, 0.70000],</span><br><span class="line">        [0.80000, 0.10000]], requires_grad&#x3D;True)</span><br><span class="line"></span><br><span class="line">------------------------- after update -----------------------------</span><br><span class="line">Parameter containing:</span><br><span class="line">tensor([[0.29933, 0.59852],</span><br><span class="line">        [0.39975, 0.69944],</span><br><span class="line">        [0.79927, 0.09830]], requires_grad&#x3D;True)</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>对账：一轮之后模型参数 $W$ 被更新如下（梯度值来自图5的手算结果）</p>
+<ul>
+<li>$0.3 - 0.1 \times 0.00673 = 0.29933$</li>
+<li>$0.6 - 0.1 \times 0.01480 = 0.59852$</li>
+<li>$0.4 - 0.1 \times 0.00246 = 0.39975$</li>
+<li>$0.7 - 0.1 \times 0.00559 = 0.69944$</li>
+<li>$0.8 - 0.1 \times 0.00735 = 0.79927$</li>
+<li>$0.1 - 0.1 \times 0.01696 = 0.09830$</li>
+</ul>
+</blockquote>
+<p>手写只为看清本质，PyTorch 把这条规则打包成了 <code>torch.optim</code>：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">net.load_state_dict(init_sd)   <span class="comment"># 恢复初始参数</span></span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;\n------------------------- before torch.optim -----------------------&#x27;</span>)</span><br><span class="line">print(net.fc1.weight)</span><br><span class="line"></span><br><span class="line">optimizer = torch.optim.SGD(net.parameters(), lr=<span class="number">0.1</span>)</span><br><span class="line">optimizer.zero_grad()</span><br><span class="line">loss = loss_fn(net(X), y)</span><br><span class="line">loss.backward()</span><br><span class="line">optimizer.step()</span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;\n------------------------- after torch.optim ------------------------&#x27;</span>)</span><br><span class="line">print(net.fc1.weight)</span><br></pre></td></tr></table></figure>
+
+<p>打印：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">------------------------- before torch.optim -----------------------</span><br><span class="line">Parameter containing:</span><br><span class="line">tensor([[0.30000, 0.60000],</span><br><span class="line">        [0.40000, 0.70000],</span><br><span class="line">        [0.80000, 0.10000]], requires_grad&#x3D;True)</span><br><span class="line"></span><br><span class="line">------------------------- after torch.optim ------------------------</span><br><span class="line">Parameter containing:</span><br><span class="line">tensor([[0.29933, 0.59852],</span><br><span class="line">        [0.39975, 0.69944],</span><br><span class="line">        [0.79927, 0.09830]], requires_grad&#x3D;True)</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>对账：和前面手搓版完全一致；</p>
+</blockquote>
+<p>说明：</p>
+<ul>
+<li><code>net.parameters()</code>：生成器；递归遍历登记树（<code>net</code>的子孙Module、它们的参数，也就是从<code>net</code>开始递归遍历<code>_modules</code>及<code>_parameters</code>），产出 6 个 Parameter 张量（共 20 个标量）<strong>的引用</strong>；</li>
+<li><code>torch.optim.SGD(...)</code>：<ul>
+<li>以 6 个张量<strong>的引用</strong>，以及<code>lr</code>为参数，构造优化器<code>SGD</code>；优化器持有 6 个张量<strong>的引用</strong>；</li>
+<li><code>torch.optim.SGD</code> 是 <code>optim.Optimizer</code> 的子类（实跑 True），公共接口 <code>zero_grad</code> / <code>step</code> / <code>state_dict</code> / <code>load_state_dict</code> 齐全；</li>
+<li><strong>但，优化器不是 Module</strong> （不是 <code>nn.Module</code> 的子类）：不参与前向计算、没有计算图，它只是站在网络旁边、手里拿着参数引用的”管理员”。这与第3节的损失（是 Module）、第2节的网络（是 Module）形成三分：网络是主角（Module），损失是裁判（Module），优化器是教练（Optimizer，非 Module）；</li>
+<li><code>torch.optim.SGD</code> 是纯梯度下降，没有其它花活——除了 momentum（默认为0）以及<code>weight_decay</code>等旋钮。关于 momentum，见<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2025/11/08/llm-machine-learning-2/">回归中的遗留问题</a>；</li>
+<li>SGD 表示“随机梯度下降”（Stochastic Gradient Descent），”随机”指的是：每步的梯度不是在全量数据上算的，而是在随机抽出的一个 batch 上算的。这里，我们只有一个 batch，严格说不是随机的，但 PyTorch 里这条更新规则就叫 SGD；DataLoader （见后文）每次吐出的 batch 是随机的，也就是”随机性”的来源；</li>
+<li>SGD 只是优化器的一种，还有很多其它类型的优化器：自适应学习率（按历史梯度给每个参数调步长，包括 Adagrad、RMSprop、Adadelta）；Adam 系（动量 + 自适应步长，包括 Adam、AdamW、Adamax 等）；以及一些适用于特定场景的优化器。</li>
+</ul>
+</li>
+<li><code>optimizer.zero_grad()</code>：<code>load_state_dict</code> 不清除 <code>.grad</code>，所以 backward 前必须先清零；</li>
+<li><code>loss_fn(net(X), y)</code>：一行代码包含两步 forward，<code>net(X)</code>（通过 <code>__call__</code> 调用我们实现的<code>MLP::forward()</code>）和 <code>loss_fn(output, 样本标签)</code>；整个（两步）forward 过程中，<strong>边算边建计算图（define-by-run）</strong>——生成每个可微 op （output张量和<code>grad_fn</code> 节点），节点按最小信息原则保存 backward 所需的输入；</li>
+<li><code>loss.backward()</code>：引擎从 <code>loss.grad_fn</code> 出发逆拓扑序遍历，逐节点执行求导局部规则（如前文所述）；只有叶子实际落入 <code>.grad</code>（AccumulateGrad 节点），中间张量不落（见<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2025/12/03/llm-machine-learning-7/">PyTorch自动求导</a>）；<strong>图是一次性消费品：结算完即释放 saved tensors</strong>，第二次 backward 直接报错（实跑原文 “Trying to backward through the graph a second time”）。一方面：计算图的作用全在于自动求导，backward 之后理应销毁；另一方面，省显存的最小信息原则也源于“用完即弃”；</li>
+<li><code>optimizer.step()</code>：就是前面手搓版做的事——关录像机（<code>set_grad_enabled(False)</code>）；然后对每个模型参数<code>p</code>执行<code>p.add_(p.grad, alpha=-lr)</code>——原地修改、不生成计算图；</li>
+</ul>
+<p>上面代码中，构造优化器之后的部分，其实是<strong>一步训练（更新一次参数）</strong>，后文将把它们放到循环体中，它包含 3 个关键动作：</p>
+<ul>
+<li>清理梯度：如<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2025/12/03/llm-machine-learning-7/">PyTorch自动求导</a>中所述，叶子节点（模型参数）的梯度使用 <code>+=</code> 累加，所以一步训练之后，必须清除。一步训练中，计算梯度的唯一目的是更新参数，参数更新之后，应该立即清除。<strong>但代码实现上，往往放在 forward 之前，这样更清晰：不管之前啥状态，清除完再开始。</strong></li>
+<li>forward + backward：前文已详述；</li>
+<li>更新参数：消费梯度；计算梯度的目的在于此；</li>
+</ul>
+<p>至此，训练循环的主件齐了：Module（第2节）、损失（第3节）、优化器（本节）。下一节让真实数据登场。</p>
+<h1 id="数据加载-5"><a href="#数据加载-5" class="headerlink" title="数据加载 (5)"></a>数据加载 (5)</h1><p>前几节手写了一个 2 样本的小例子：<code>X</code> 形状 $(2, 2)$、<code>y</code> 形状 $(2, 1)$。真实训练当然不止 2 个样本，本章把它扩到 10 个，走一遍数据从“样本”到“batch”的完整链路：</p>
+<ul>
+<li><code>Dataset</code>：样本容器；</li>
+<li><code>DataLoader</code>：攒 batch；</li>
+<li>喂给“一步训练”（第4节）；</li>
+</ul>
+<p><strong>训练数据如何组织与存储</strong>：假设训练数据已经就位，以表格形式存放（CSV 或 NumPy 文件皆可）——<strong>每行一个样本，每列一个特征，最后一列（或单独一份文件）放标签</strong>。读进内存后堆成两个张量：</p>
+<ul>
+<li>特征 <code>X</code>：即第1节的 $B \times N$ 的矩阵（shape 是 <code>[B, N]</code>）；第0维是样本数，第1维是样本的特征数；</li>
+<li>标签 <code>y</code>：$B \times 1$ 的矩阵（shape 是 <code>[B, 1]</code>）；与模型输出同形，第3节的 <code>MSELoss</code> 直接可用；</li>
+</ul>
+<p>真实项目里需要“读文件”并“转成张量”两步；这里直接手写张量（包含 10 个样本）：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> torch.utils.data <span class="keyword">import</span> TensorDataset, DataLoader</span><br><span class="line"></span><br><span class="line">torch.set_printoptions(precision=<span class="number">5</span>, sci_mode=<span class="literal">False</span>)</span><br><span class="line"></span><br><span class="line">X = torch.tensor([[<span class="number">3.0</span>, <span class="number">2.0</span>], [<span class="number">0.5</span>, <span class="number">1.2</span>],      <span class="comment"># 前 2 个样本即前文原值</span></span><br><span class="line">                  [<span class="number">2.1</span>, <span class="number">0.8</span>], [<span class="number">1.4</span>, <span class="number">3.3</span>],</span><br><span class="line">                  [<span class="number">0.7</span>, <span class="number">2.5</span>], [<span class="number">3.8</span>, <span class="number">0.4</span>],</span><br><span class="line">                  [<span class="number">1.9</span>, <span class="number">1.9</span>], [<span class="number">2.6</span>, <span class="number">3.0</span>],</span><br><span class="line">                  [<span class="number">0.3</span>, <span class="number">0.9</span>], [<span class="number">3.1</span>, <span class="number">1.5</span>]])</span><br><span class="line"></span><br><span class="line">y = torch.tensor([[<span class="number">1.5</span>], [<span class="number">0.9</span>],</span><br><span class="line">                  [<span class="number">1.3</span>], [<span class="number">2.4</span>], [<span class="number">1.8</span>], [<span class="number">0.6</span>],</span><br><span class="line">                  [<span class="number">2.0</span>], [<span class="number">2.7</span>], [<span class="number">0.5</span>], [<span class="number">1.1</span>]])</span><br><span class="line"></span><br><span class="line">print(<span class="string">f&#x27;X.shape: <span class="subst">&#123;X.shape&#125;</span>/<span class="subst">&#123;tuple(X.shape)&#125;</span>&#x27;</span>)</span><br><span class="line">print(<span class="string">f&#x27;y.shape: <span class="subst">&#123;y.shape&#125;</span>/<span class="subst">&#123;tuple(y.shape)&#125;</span>&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>打印：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">X.shape: torch.Size([10, 2])&#x2F;(10, 2)</span><br><span class="line">y.shape: torch.Size([10, 1])&#x2F;(10, 1)</span><br></pre></td></tr></table></figure>
+
+<p><strong>Dataset：可索引的样本容器。</strong> 协议只有两个方法：</p>
+<ul>
+<li><code>__len__()</code>：有多少样本</li>
+<li><code>__getitem__(i)</code>：取第 <code>i</code> 个样本</li>
+</ul>
+<p>一个实现类是<code>TensorDataset</code>：把若干第0维<strong>长度相等</strong>的张量捆在一起，构成一个 Dataset：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">train_ds = TensorDataset(X, y)</span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;len(train_ds) = %d&#x27;</span> % len(train_ds))</span><br><span class="line"></span><br><span class="line">x0, y0 = train_ds[<span class="number">0</span>]</span><br><span class="line"></span><br><span class="line">print(<span class="string">f&#x27;x0.shape: <span class="subst">&#123;x0.shape&#125;</span>/<span class="subst">&#123;tuple(x0.shape)&#125;</span> x0: <span class="subst">&#123;x0&#125;</span>&#x27;</span>)</span><br><span class="line">print(<span class="string">f&#x27;y0.shape: <span class="subst">&#123;y0.shape&#125;</span>/<span class="subst">&#123;tuple(y0.shape)&#125;</span> y0: <span class="subst">&#123;y0&#125;</span>&#x27;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>打印：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">len(train_ds) &#x3D; 10</span><br><span class="line">x0.shape: torch.Size([2])&#x2F;(2,) x0: tensor([3., 2.])</span><br><span class="line">y0.shape: torch.Size([1])&#x2F;(1,) y0: tensor([1.50000])</span><br></pre></td></tr></table></figure>
+
+<p>注意：</p>
+<ul>
+<li>shape <code>[N]</code>（tuple 形式 <code>(N,)</code>），表示1维向量，长度是<code>N</code>；</li>
+<li>shape <code>[1]</code>（tuple 形式 <code>(1,)</code>）的张量和标量也不同：前者是1维向量、后者是0维标量；只是都只有一个数，广播时可以相互运算；</li>
+</ul>
+<p><strong>DataLoader：把样本攒成 batch</strong></p>
+<ul>
+<li>它消费 Dataset，沿第0维把 <code>batch_size</code> 个样本堆成新张量；</li>
+<li>训练循环每迭代一次，就吐出一对 <code>(xb, yb)</code>——<code>xb</code>是 $B \times N$ 矩阵；<code>yb</code> 是 $B \times 1$矩阵，正是第4节 <code>loss_fn(net(xb), yb)</code> 需要的形状；</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">i = <span class="number">0</span></span><br><span class="line">loader = DataLoader(train_ds, batch_size=<span class="number">4</span>)</span><br><span class="line"><span class="keyword">for</span> batch <span class="keyword">in</span> loader:</span><br><span class="line">    print(<span class="string">f&#x27;batch-<span class="subst">&#123;i&#125;</span>: <span class="subst">&#123;batch&#125;</span>&#x27;</span>)</span><br><span class="line">    i += <span class="number">1</span></span><br></pre></td></tr></table></figure>
+
+<p>打印（经人工排版）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">batch-0: [tensor([[3.00000, 2.00000], [0.50000, 1.20000], [2.10000, 0.80000], [1.40000, 3.30000]]),</span><br><span class="line">          tensor([[1.50000],          [0.90000],          [1.30000],          [2.40000]])]</span><br><span class="line"></span><br><span class="line">batch-1: [tensor([[0.70000, 2.50000], [3.80000, 0.40000], [1.90000, 1.90000], [2.60000, 3.00000]]),</span><br><span class="line">          tensor([[1.80000],          [0.60000],          [2.00000],          [2.70000]])]</span><br><span class="line"></span><br><span class="line">batch-2: [tensor([[0.30000, 0.90000], [3.10000, 1.50000]]),</span><br><span class="line">          tensor([[0.50000],          [1.10000]])]</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>对账：$10 = 4 + 4 + 2$——样本数除不尽时，尾部凑不满一批是常态。不在意就留着；想批批同形状就加 <code>drop_last=True</code>（尾批被丢，剩 2 批）。</p>
+</blockquote>
+<p>当 <code>shuffle=True</code> 时，DataLoader 对每个 epoch 都重新生成一个随机排列，按排列取样（不动数据本身）；可另指定 <code>generator</code> 固定随机种子，使打乱可复现。</p>
+<p><strong>时序数据的例外</strong>（真实项目里绕不开，先立规矩）：若样本沿时间排列且任务依赖先后关系（如用过去 N 分钟预测下一分钟）：</p>
+<ul>
+<li>不能随机划分 train/val/test——“未来”的样本混进训练集，模型提前见过答案，评估是自欺，必须按时间切；</li>
+<li>不能 <code>shuffle</code>——样本跨时间重叠时，打乱等于把”未来”塞进”过去”的输入里。</li>
+</ul>
+<p>我们的小例子中样本互相独立，可以设置 <code>shuffle=True</code>。</p>
+<h1 id="训练循环-6"><a href="#训练循环-6" class="headerlink" title="训练循环 (6)"></a>训练循环 (6)</h1><p>在第4节中，已经看到了“一步训练”；而训练就是<strong>把这一步反复执行</strong>，本节就是把它组装成循环。分两步走：先跑最简单的循环，看 loss 真的在降；再接上第5节的 DataLoader，组成实际训练用的完整形态。结尾说推理模式。</p>
+<p>本节沿用第2-5节的现场：<code>net</code>（初始参数存档为 <code>init_sd</code>）、<code>loss_fn</code>（MSELoss）。</p>
+<p><strong>循环首秀</strong>：2 个样本跑 12 步</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">X2 = torch.tensor([[<span class="number">3.0</span>, <span class="number">2.0</span>], [<span class="number">0.5</span>, <span class="number">1.2</span>]])   <span class="comment"># 第4节的 2 样本</span></span><br><span class="line">y2 = torch.tensor([[<span class="number">1.5</span>], [<span class="number">0.9</span>]])</span><br><span class="line"></span><br><span class="line">net.load_state_dict(init_sd)                   <span class="comment"># 再次恢复初始参数</span></span><br><span class="line">optimizer = torch.optim.SGD(net.parameters(), lr=<span class="number">0.2</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> step <span class="keyword">in</span> range(<span class="number">12</span>):</span><br><span class="line">    optimizer.zero_grad()</span><br><span class="line">    loss = loss_fn(net(X2), y2)</span><br><span class="line">    loss.backward()</span><br><span class="line">    <span class="keyword">if</span> step == <span class="number">0</span>:</span><br><span class="line">        print(<span class="string">f&#x27;fc1.weight.grad: <span class="subst">&#123;net.fc1.weight.grad&#125;</span>&#x27;</span>)</span><br><span class="line">    optimizer.step()</span><br><span class="line">    print(<span class="string">&#x27;step %2d  loss=%.5f&#x27;</span> % (step + <span class="number">1</span>, loss.item()))</span><br></pre></td></tr></table></figure>
+
+<p>打印：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">fc1.weight.grad: tensor([[0.00673, 0.01480],</span><br><span class="line">        [0.00247, 0.00560],</span><br><span class="line">        [0.00734, 0.01696]])</span><br><span class="line">step  1  loss&#x3D;0.17559</span><br><span class="line">step  2  loss&#x3D;0.07888</span><br><span class="line">step  3  loss&#x3D;0.07883</span><br><span class="line">step  4  loss&#x3D;0.07879</span><br><span class="line">step  5  loss&#x3D;0.07875</span><br><span class="line">step  6  loss&#x3D;0.07871</span><br><span class="line">step  7  loss&#x3D;0.07867</span><br><span class="line">step  8  loss&#x3D;0.07863</span><br><span class="line">step  9  loss&#x3D;0.07859</span><br><span class="line">step 10  loss&#x3D;0.07855</span><br><span class="line">step 11  loss&#x3D;0.07851</span><br><span class="line">step 12  loss&#x3D;0.07847</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>对账：step 1 的 $loss = 0.17559 \approx 0.1756$，以及第一次 backward 落下的梯度 $0.00673$ 都和图2及图3手算一致。</p>
+</blockquote>
+<p>可见，loss 从 $0.17559$ 一路降到 $0.07847$，单调下降：<strong>循环真的在学</strong>。</p>
+<p>但这 12 步还不算完整的训练循环，因为训练数据只有一个 batch；真实训练里数据由 DataLoader 分 batch 供应，并且外面再套一层 epoch。</p>
+<p><strong>完整组装</strong>：epoch $\times$ batch $\times$ 3个关键动作（见第4节“一步训练”）。 所以，完整的训练如下（数据换成第5节的 10 样本，<code>batch_size=4</code>，每 epoch 3 批，<code>shuffle</code> 固定种子 42）：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">loader = DataLoader(train_ds, batch_size=<span class="number">4</span>, shuffle=<span class="literal">True</span>,</span><br><span class="line">                    generator=torch.Generator().manual_seed(<span class="number">42</span>))</span><br><span class="line"></span><br><span class="line">net.load_state_dict(init_sd)                   <span class="comment"># 回到初始参数再训</span></span><br><span class="line">optimizer = torch.optim.SGD(net.parameters(), lr=<span class="number">0.2</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> epoch <span class="keyword">in</span> range(<span class="number">1</span>, <span class="number">4</span>):</span><br><span class="line">    total, n = <span class="number">0.0</span>, <span class="number">0</span></span><br><span class="line">    <span class="keyword">for</span> xb, yb <span class="keyword">in</span> loader:                      <span class="comment"># 内层循环体：一个batch，&quot;一步训练&quot;</span></span><br><span class="line">        optimizer.zero_grad()</span><br><span class="line">        loss = loss_fn(net(xb), yb)</span><br><span class="line">        loss.backward()</span><br><span class="line">        optimizer.step()</span><br><span class="line">        total += loss.item() * xb.size(<span class="number">0</span>)      <span class="comment"># 按样本数加权，汇总整 epoch 口径</span></span><br><span class="line">        n += xb.size(<span class="number">0</span>)</span><br><span class="line">    print(<span class="string">&#x27;epoch %d  loss=%.5f&#x27;</span> % (epoch, total / n))</span><br></pre></td></tr></table></figure>
+
+<p>打印：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">epoch 1  loss&#x3D;0.74979</span><br><span class="line">epoch 2  loss&#x3D;1.04764</span><br><span class="line">epoch 3  loss&#x3D;0.49353</span><br></pre></td></tr></table></figure>
+
+<p>三点说明：</p>
+<ul>
+<li><strong>外层循环</strong>：对训练数据集，训练3遍；每一遍都会打乱顺序，然后再分 batch，进行$\left\lceil \frac{D}{B} \right\rceil$（向上取整）步训练；$D$表示训练集的样本数；$B$表示 batch size；</li>
+<li><strong>内层循环</strong>：就是第4节的“一步训练”；输入一个 batch 的训练数据，参数更新一次（每个参数都更新一次）；</li>
+<li><strong>loss 回升</strong>：这里 loss 是每个 epoch 内各 batch 损失的加权平均；loss 波动（没有单调下降）也是常态，只要最终收敛到最优解即可。</li>
+</ul>
+<p><strong>评估模式和推理模式</strong>：它们的共同点是<strong>只前向计算、不构建计算图，更不（也无法） backward 及更新参数</strong>——用 <code>eval()</code> 切换网络的行为模式，用 <code>no_grad()</code> 关闭“录像机”；区别在输入的数据与任务：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>推理（inference）</th>
+<th>评估（evaluation）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>数据</td>
+<td>新数据（训练没见过），没有标签</td>
+<td>验证集（训练没见过），有标签</td>
+</tr>
+<tr>
+<td>行为</td>
+<td>只要预测输出</td>
+<td>前向 + 和标签对比算指标（loss、准确率）</td>
+</tr>
+<tr>
+<td>模式</td>
+<td><code>eval() + no_grad()</code></td>
+<td><code>eval() + no_grad()</code></td>
+</tr>
+</tbody></table>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">pred_train = net(X2)</span><br><span class="line">print(<span class="string">&#x27;训练态前向: grad_fn =&#x27;</span>, type(pred_train.grad_fn).__name__)</span><br><span class="line"></span><br><span class="line">net.eval()</span><br><span class="line"><span class="keyword">with</span> torch.no_grad():</span><br><span class="line">    pred = net(X2)</span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;推理态前向: grad_fn =&#x27;</span>, pred.grad_fn)</span><br><span class="line">print(<span class="string">&#x27;两次前向数值一致?&#x27;</span>, torch.allclose(pred_train, pred))</span><br></pre></td></tr></table></figure>
+
+<p>打印：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">训练态前向: grad_fn &#x3D; AddmmBackward0</span><br><span class="line">推理态前向: grad_fn &#x3D; None</span><br><span class="line">两次前向数值一致? True</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><code>net.eval()</code> 把模块切到推理模式（<code>net.training</code> 置 False）；它<strong>只影响训练/推理行为不同的层</strong>（如 Dropout、BatchNorm），本网络没有这类层，所以单看数值没有变化；</li>
+<li>真正关掉”录像机”的是 <code>no_grad()</code>——不记图，<code>grad_fn</code> 为 None；图不记，saved tensors 也不存，<strong>省显存</strong>：这也是“最小信息原则”的体现；</li>
+<li><strong>两者分工配合</strong>：<code>eval()</code> 管行为，<code>no_grad()</code> 管计算图。若忘记把推理循环放在<code>with torch.no_grad()</code>块内，计算图会一路悄悄堆积。</li>
+</ul>
+<p>至此，已经完成训练。下一节，把训好的参数落盘保存。</p>
+<h1 id="保存与恢复-7"><a href="#保存与恢复-7" class="headerlink" title="保存与恢复 (7)"></a>保存与恢复 (7)</h1><p>第6节把模型训好了，本节做三件事：</p>
+<ul>
+<li>把训好的参数<strong>落盘</strong>；</li>
+<li>在一张全新的网络里<strong>恢复</strong>它（用于继续训练还是推理，对恢复动作而言并无区别）；</li>
+<li>训练中断后<strong>从断点继续</strong>；</li>
+</ul>
+<h2 id="保存-7-1"><a href="#保存-7-1" class="headerlink" title="保存 (7.1)"></a>保存 (7.1)</h2><p>沿用第2-6节的现场：<code>net</code>、<code>init_sd</code>、<code>loss_fn</code>、<code>X2</code>/<code>y2</code>、<code>train_ds</code>（第5节的 10 样本）。</p>
+<p><strong>先来一次完整训练，得到要保存的东西</strong>；并且为 SGD 优化器添加 <code>momentum</code> 参数，用以展示优化器的积累状态：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> os</span><br><span class="line"></span><br><span class="line">net.train()  <span class="comment"># 第6节切过 eval()，切回训练模式</span></span><br><span class="line">net.load_state_dict(init_sd)</span><br><span class="line"></span><br><span class="line">loader = DataLoader(train_ds, batch_size=<span class="number">4</span>, shuffle=<span class="literal">True</span>,</span><br><span class="line">                    generator=torch.Generator().manual_seed(<span class="number">42</span>))</span><br><span class="line"></span><br><span class="line">optimizer = torch.optim.SGD(net.parameters(), lr=<span class="number">0.2</span>, momentum=<span class="number">0.9</span>)</span><br><span class="line"><span class="keyword">for</span> epoch <span class="keyword">in</span> range(<span class="number">1</span>, <span class="number">4</span>):</span><br><span class="line">    total, n = <span class="number">0.0</span>, <span class="number">0</span></span><br><span class="line">    <span class="keyword">for</span> xb, yb <span class="keyword">in</span> loader:</span><br><span class="line">        optimizer.zero_grad()</span><br><span class="line">        loss = loss_fn(net(xb), yb)</span><br><span class="line">        loss.backward()</span><br><span class="line">        optimizer.step()</span><br><span class="line">        total += loss.item() * xb.size(<span class="number">0</span>)</span><br><span class="line">        n += xb.size(<span class="number">0</span>)</span><br><span class="line">    print(<span class="string">&#x27;epoch %d  loss=%.5f&#x27;</span> % (epoch, total / n))</span><br><span class="line"></span><br><span class="line">torch.save(net.state_dict(), <span class="string">&#x27;net_sd.pt&#x27;</span>)</span><br><span class="line">print(<span class="string">&#x27;net_sd.pt 已生成?&#x27;</span>, os.path.exists(<span class="string">&#x27;net_sd.pt&#x27;</span>), <span class="string">&#x27; 大小:&#x27;</span>, os.path.getsize(<span class="string">&#x27;net_sd.pt&#x27;</span>), <span class="string">&#x27;bytes&#x27;</span>)</span><br><span class="line">print(<span class="string">&#x27;net.state_dict：&#x27;</span>, net.state_dict())</span><br></pre></td></tr></table></figure>
+
+<p>打印（经人工排版）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">epoch 1  loss&#x3D;0.78050</span><br><span class="line">epoch 2  loss&#x3D;1.03192</span><br><span class="line">epoch 3  loss&#x3D;0.57094</span><br><span class="line">net_sd.pt 已生成? True  大小: 3017 bytes</span><br><span class="line"></span><br><span class="line">net.state_dict： OrderedDict(&#123;</span><br><span class="line">  &#39;fc1.weight&#39;: tensor([[0.18491, 0.57896], [0.36234, 0.68351], [0.78926, 0.10780]]),</span><br><span class="line">  &#39;fc1.bias&#39;:   tensor([0.12105, 0.47035, 0.84763]),</span><br><span class="line">  &#39;fc2.weight&#39;: tensor([[0.58421, 0.05478, 0.63202], [0.41670, 0.28975, 0.76764]]),</span><br><span class="line">  &#39;fc2.bias&#39;:   tensor([-0.01076,  0.32747]),</span><br><span class="line">  &#39;fc3.weight&#39;: tensor([[0.65437, 0.84257]]),</span><br><span class="line">  &#39;fc3.bias&#39;:   tensor([0.30102])</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+
+<p>注意：<strong>只存参数，不存模型</strong>。 第2节见过 <code>net.state_dict()</code>：参数登记树上 20 个参数的纯数据账本（带名字）。网络的结构由 <code>MLP</code> 类代码定义。数据和结构分离，落盘时只写数据：<code>torch.save(net.state_dict(), &#39;net_sd.pt&#39;)</code>：将<strong>内存中的</strong><code>state_dict</code><strong>存储到当前目录的</strong><code>net_sd.pt</code><strong>文件中</strong>。</p>
+<p>其实 <code>torch.save()</code> 的参数是任何<strong>可 pickle 的对象</strong>（见<a target="_blank" rel="noopener" href="https://docs.python.org/3/library/pickle.html">pickle - python object serialization</a>），因此可以把<strong>模型参数</strong>、<strong>优化器参数（例如 momentum 及 lr 等 hyperparameter）</strong>、<strong>进度</strong>及<strong>积累状态</strong>（见下面打印的<code>&#39;state&#39;: &#123;...&#125;</code>）等组成一个 <code>dict</code> 一起保存（<code>dict</code> 可 pickle），构成一个 checkpoint：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">torch.save(&#123;<span class="string">&#x27;model&#x27;</span>: net.state_dict(), <span class="string">&#x27;optimizer&#x27;</span>: optimizer.state_dict(), <span class="string">&#x27;epoch&#x27;</span>: <span class="number">3</span>&#125;,<span class="string">&#x27;ckpt.pt&#x27;</span>)</span><br><span class="line">print(<span class="string">&#x27;ckpt.pt 已生成?&#x27;</span>, os.path.exists(<span class="string">&#x27;ckpt.pt&#x27;</span>), <span class="string">&#x27; 大小:&#x27;</span>, os.path.getsize(<span class="string">&#x27;ckpt.pt&#x27;</span>), <span class="string">&#x27;bytes&#x27;</span>)</span><br><span class="line">print(<span class="string">&#x27;optimizer.state_dict：&#x27;</span>, optimizer.state_dict())</span><br></pre></td></tr></table></figure>
+
+<p>打印（经人工排版）：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">ckpt.pt 已生成? True  大小: 4745 bytes</span><br><span class="line"></span><br><span class="line">optimizer.state_dict：&#123;</span><br><span class="line">  &#39;state&#39;: &#123;</span><br><span class="line">    0: &#123;&#39;momentum_buffer&#39;: tensor([[ 0.06213,  0.00808], [ 0.02329,  0.01296], [-0.00100, -0.00447]])&#125;,</span><br><span class="line">    1: &#123;&#39;momentum_buffer&#39;: tensor([0.06329, 0.02402, 0.05065])&#125;,</span><br><span class="line">    2: &#123;&#39;momentum_buffer&#39;: tensor([[0.04866, 0.07079, 0.08708], [0.03271, 0.05344, 0.06912]])&#125;,</span><br><span class="line">    3: &#123;&#39;momentum_buffer&#39;: tensor([0.13106, 0.11151])&#125;,</span><br><span class="line">    4: &#123;&#39;momentum_buffer&#39;: tensor([[-0.19714, -0.20191]])&#125;,</span><br><span class="line">    5: &#123;&#39;momentum_buffer&#39;: tensor([-0.17843])&#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  &#39;param_groups&#39;: [</span><br><span class="line">    &#123;</span><br><span class="line">      &#39;lr&#39;: 0.2,</span><br><span class="line">      &#39;momentum&#39;: 0.9,</span><br><span class="line">      &#39;dampening&#39;: 0,</span><br><span class="line">      &#39;weight_decay&#39;: 0,</span><br><span class="line">      &#39;nesterov&#39;: False,</span><br><span class="line">      &#39;maximize&#39;: False,</span><br><span class="line">      &#39;foreach&#39;: None,</span><br><span class="line">      &#39;differentiable&#39;: False,</span><br><span class="line">      &#39;fused&#39;: None,</span><br><span class="line">      &#39;params&#39;: [0, 1, 2, 3, 4, 5]</span><br><span class="line">    &#125;</span><br><span class="line">  ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>强调：两个文件（“net_sd.pt”和“ckpt.pt”）都<strong>不含网络结构，也不含模型对象</strong>——网络结构由 <code>MLP</code> 类代码重建。</p>
+<blockquote>
+<p>也可通过 <code>torch.save(net, &#39;net.pt&#39;)</code> 连模型对象整个存档——但烙进文件的所谓<strong>类定义的模块路径</strong>，其实只是<strong>模块名</strong>和<strong>类名</strong>两个字符串（即 <code>&#39;__main__&#39;</code> 和 <code>&#39;MLP&#39;</code>，不是类的代码），读回时按它们去找类；一旦代码移动、类改名，就查无此人，读回直接报错，官方不推荐。</p>
+</blockquote>
+<p>恢复也统一：先按类代码造一张新网络（随机初始化），再 <code>load_state_dict</code> 灌参数。之后分两种用法。</p>
+<h2 id="加载——用于推理-7-2"><a href="#加载——用于推理-7-2" class="headerlink" title="加载——用于推理 (7.2)"></a>加载——用于推理 (7.2)</h2><p>加载用于推理：加载参数（只需“net_sd.pt”），切到推理模式，只要前向计算（第6节的 <code>eval()</code> + <code>no_grad()</code>）：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">fresh = MLP()  <span class="comment"># 新的、随机初始化的网络实例</span></span><br><span class="line"></span><br><span class="line">same = all(torch.equal(p1, p2) <span class="keyword">for</span> p1, p2 <span class="keyword">in</span> zip(net.parameters(), fresh.parameters()))</span><br><span class="line">print(<span class="string">&#x27;load 之前，新旧网络参数全部相同?&#x27;</span>, same)</span><br><span class="line"></span><br><span class="line">fresh.load_state_dict(torch.load(<span class="string">&#x27;net_sd.pt&#x27;</span>, weights_only=<span class="literal">True</span>))</span><br><span class="line"></span><br><span class="line">same = all(torch.equal(p1, p2) <span class="keyword">for</span> p1, p2 <span class="keyword">in</span> zip(net.parameters(), fresh.parameters()))</span><br><span class="line">print(<span class="string">&#x27;load 之后，新旧网络参数全部相同?&#x27;</span>, same)</span><br><span class="line"></span><br><span class="line">fresh.eval()                               <span class="comment"># 推理模式（见第6节）</span></span><br><span class="line"><span class="keyword">with</span> torch.no_grad():</span><br><span class="line">    pred1 = net(X2)</span><br><span class="line">    pred2 = fresh(X2)</span><br><span class="line"></span><br><span class="line">    print(<span class="string">&#x27;推理态前向 : grad_fn =&#x27;</span>, pred2.grad_fn)</span><br><span class="line">    print(<span class="string">&#x27;net 预测   :&#x27;</span>, pred1)</span><br><span class="line">    print(<span class="string">&#x27;fresh 预测 :&#x27;</span>, pred2)</span><br><span class="line">    print(<span class="string">&#x27;两次前向数值一致?&#x27;</span>, torch.allclose(pred1, pred2))</span><br></pre></td></tr></table></figure>
+
+<p>打印：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">load 之前，新旧网络参数全部相同? False</span><br><span class="line">load 之后，新旧网络参数全部相同? True</span><br><span class="line">推理态前向 : grad_fn &#x3D; None</span><br><span class="line">net 预测   : tensor([[1.51188],</span><br><span class="line">        [1.45882]])</span><br><span class="line">fresh 预测 : tensor([[1.51188],</span><br><span class="line">        [1.45882]])</span><br><span class="line">两次前向数值一致? True</span><br></pre></td></tr></table></figure>
+
+<p>说明：<code>fresh</code>是“从磁盘恢复出来的网络”，<code>net</code>是原网络；</p>
+<ul>
+<li><code>all(torch.equal(...))</code>：证明两者 20 个参数逐一相等；</li>
+<li><code>torch.allclose(pred1, pred2)</code>：证明两者前向计算输出一致</li>
+</ul>
+<p>所以，存下来的，就是模型学到的全部”记忆”。</p>
+<p>其中 <code>weights_only=True</code> 是 <code>torch.load</code> 的安全开关：只许读回张量等纯数据，拒绝还原文件里可能藏着的任意代码；从 torch 2.6（包括 2.6）起，它就是默认值，写明只为清晰。</p>
+<p>部署到不带 Python 代码的环境时，另有 TorchScript/ONNX 等把<strong>网络结构</strong>和<strong>参数</strong>打包的格式，那是另一条路线。</p>
+<h2 id="加载——继续训练-7-3"><a href="#加载——继续训练-7-3" class="headerlink" title="加载——继续训练 (7.3)"></a>加载——继续训练 (7.3)</h2><p>其实继续训练有两种情况：</p>
+<table>
+<thead>
+<tr>
+<th>对比</th>
+<th>断点续训（无缝衔接）</th>
+<th>以旧参数为起点继续训</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>目标</td>
+<td>轨迹逐位复现，像没断过</td>
+<td>把模型再训好一点</td>
+</tr>
+<tr>
+<td>超参数</td>
+<td>从 ckpt.pt 原样恢复（load_state_dict 自动）</td>
+<td>随便换，完全自由</td>
+</tr>
+<tr>
+<td>典型场景</td>
+<td>机器挂了、任务被抢占</td>
+<td>微调、二阶段训练</td>
+</tr>
+</tbody></table>
+<p>断点续训，要加载“ckpt.pt”，除了<strong>模型参数</strong>，还有<strong>优化器参数（例如 momentum 及 lr 等 hyperparameter）</strong>、<strong>进度</strong>及<strong>积累状态</strong>。而微调（二阶段训练）只需加载<strong>模型参数</strong>（只需“net_sd.pt”）。</p>
+<p><strong>断点无缝衔接</strong></p>
+<p>第7.1节已经看到：<code>state</code> 里逐参数存着 <code>momentum_buffer</code>（历史梯度的累积），<code>param_groups</code> 里存着超参数。<strong>这些东西丢了，恢复后的训练轨迹就会变</strong>——所以无缝续训要把这些打包成 checkpoint 保存、加载。</p>
+<p>注意，<strong>断点续训必须使用同类优化器，因为涉及到积累状态，而 SGD 的状态灌不进 Adam</strong>。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 同一个类重建实例</span></span><br><span class="line">fresh2 = MLP()</span><br><span class="line"></span><br><span class="line"><span class="comment"># lr 必填；这里写的所有超参数（lr、momentum 等）都会被下面 optimizer.load_state_dict</span></span><br><span class="line"><span class="comment"># 用文件里的值整体覆盖，写真值只为可读</span></span><br><span class="line">optimizer = torch.optim.SGD(fresh2.parameters(), lr=<span class="number">0.2</span>, momentum=<span class="number">0.9</span>)</span><br><span class="line"></span><br><span class="line">ckpt = torch.load(<span class="string">&#x27;ckpt.pt&#x27;</span>, weights_only=<span class="literal">True</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 本例中 ckpt[&#x27;model&#x27;] 等价于 torch.load(&#x27;net_sd.pt&#x27;, weights_only=True)</span></span><br><span class="line">fresh2.load_state_dict(ckpt[<span class="string">&#x27;model&#x27;</span>])</span><br><span class="line"></span><br><span class="line"><span class="comment"># 超参数 + momentum_buffer 一并恢复</span></span><br><span class="line">optimizer.load_state_dict(ckpt[<span class="string">&#x27;optimizer&#x27;</span>])</span><br><span class="line"></span><br><span class="line"><span class="comment"># 从断点处继续</span></span><br><span class="line">start_epoch = ckpt[<span class="string">&#x27;epoch&#x27;</span>] + <span class="number">1</span></span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;从 epoch %d 继续&#x27;</span> % start_epoch)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 假设共训 6 遍，接着跑 4、5、6</span></span><br><span class="line"><span class="keyword">for</span> epoch <span class="keyword">in</span> range(start_epoch, <span class="number">7</span>):</span><br><span class="line">    total, n = <span class="number">0.0</span>, <span class="number">0</span></span><br><span class="line">    <span class="keyword">for</span> xb, yb <span class="keyword">in</span> loader:</span><br><span class="line">        optimizer.zero_grad()</span><br><span class="line">        loss = loss_fn(fresh2(xb), yb)</span><br><span class="line">        loss.backward()</span><br><span class="line">        optimizer.step()</span><br><span class="line">        total += loss.item() * xb.size(<span class="number">0</span>)</span><br><span class="line">        n += xb.size(<span class="number">0</span>)</span><br><span class="line">    print(<span class="string">&#x27;epoch %d  loss=%.5f&#x27;</span> % (epoch, total / n))</span><br></pre></td></tr></table></figure>
+
+<p>打印：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">从 epoch 4 继续</span><br><span class="line">epoch 4  loss&#x3D;0.73603</span><br><span class="line">epoch 5  loss&#x3D;0.96197</span><br><span class="line">epoch 6  loss&#x3D;0.82054</span><br></pre></td></tr></table></figure>
+
+<p>三个细节：</p>
+<ul>
+<li>构造优化器时写的 <code>lr=0.2, momentum=0.9</code> 会被 <code>load_state_dict</code> 用文件里的值整体覆盖——写它只为可读，文件里存的才是准的；</li>
+<li>随机种子也要恢复，否则每个 epoch 内的 batch 顺序会变，<strong>真实项目里种子同样存进 checkpoint</strong>（本例省略）；</li>
+<li>epoch 4 的 loss（0.73603）从 epoch 3（0.57094）的水位接着走，而不是从头开始——断点接上了。</li>
+</ul>
+<p><strong>微调（二次训练）</strong></p>
+<p>实际项目里的样子——只加载参数，优化器全新构造，超参数随便换（例如<code>momentum</code>从 0.9 调成 0.03）：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">fresh3 = MLP()</span><br><span class="line">fresh3.load_state_dict(torch.load(<span class="string">&#x27;net_sd.pt&#x27;</span>, weights_only=<span class="literal">True</span>))     <span class="comment"># 只加载参数</span></span><br><span class="line"></span><br><span class="line">optimizer = torch.optim.SGD(fresh3.parameters(), lr=<span class="number">0.05</span>, momentum=<span class="number">0.03</span>) <span class="comment"># 优化器全新构造，超参数随便换</span></span><br><span class="line"><span class="keyword">for</span> epoch <span class="keyword">in</span> range(<span class="number">1</span>, <span class="number">4</span>):</span><br><span class="line">    total, n = <span class="number">0.0</span>, <span class="number">0</span></span><br><span class="line">    <span class="keyword">for</span> xb, yb <span class="keyword">in</span> loader:</span><br><span class="line">        optimizer.zero_grad()</span><br><span class="line">        loss = loss_fn(fresh3(xb), yb)</span><br><span class="line">        loss.backward()</span><br><span class="line">        optimizer.step()</span><br><span class="line">        total += loss.item() * xb.size(<span class="number">0</span>)</span><br><span class="line">        n += xb.size(<span class="number">0</span>)</span><br><span class="line">    print(<span class="string">&#x27;epoch %d  loss=%.5f&#x27;</span> % (epoch, total / n))</span><br></pre></td></tr></table></figure>
+
+<p>打印：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">epoch 1  loss&#x3D;0.50404</span><br><span class="line">epoch 2  loss&#x3D;0.49840</span><br><span class="line">epoch 3  loss&#x3D;0.55588</span><br></pre></td></tr></table></figure>
+
+<p>三个细节：</p>
+<ul>
+<li>只需 <code>net_sd.pt</code>，不用 <code>ckpt.pt</code>；</li>
+<li>常见做法是把 <code>lr</code> 调小（本例 0.05 &lt; 原训练的 0.2）——参数已经训得不错，小步微调，别把它打回原形；</li>
+<li>微调不恢复优化器状态，所以类型也可以换（如改用 Adam）——“同类优化器”只约束断点续训那一路。</li>
+</ul>
+<p>至此，训练的完整流程齐了。</p>
+<h1 id="数据划分：train-val-test-8"><a href="#数据划分：train-val-test-8" class="headerlink" title="数据划分：train/val/test (8)"></a>数据划分：train/val/test (8)</h1><p>第5-7节把 10 个样本<strong>全部</strong>拿去训练了。真实项目还差最后一块拼图：把数据分成三份。核心问题只有一个——模型在<strong>没见过</strong>的数据上表现如何（泛化能力）。</p>
+<h2 id="为什么要划分"><a href="#为什么要划分" class="headerlink" title="为什么要划分"></a>为什么要划分</h2><ul>
+<li>训练循环中 train loss 一路下降，只说明参数在拟合<strong>见过的</strong>训练数据（train）；</li>
+<li>但可能存在<strong>过拟合</strong>问题：参数把训练样本连噪声一起记下来，也就是在 train 集合上表现优秀，但在<strong>未见过的</strong>数据上表现很差；</li>
+<li>办法：留一部分模型从没见过的数据来检验，分成如下<strong>两份</strong>：<ul>
+<li>val 管训练过程中的调整；</li>
+<li>test 管最终验收；</li>
+</ul>
+</li>
+</ul>
+<h2 id="三者各自的作用"><a href="#三者各自的作用" class="headerlink" title="三者各自的作用"></a>三者各自的作用</h2><table>
+<thead>
+<tr>
+<th>数据集</th>
+<th>参与梯度更新</th>
+<th>目的</th>
+<th>什么时候用</th>
+<th>类比</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>train</td>
+<td>是</td>
+<td>学参数：<code>backward()</code> + <code>step()</code></td>
+<td>每个 epoch 的每一步</td>
+<td>平时做题</td>
+</tr>
+<tr>
+<td>val</td>
+<td>否</td>
+<td>过程中的调整与选择：挑超参数、决定何时停（early stopping）、监控过拟合</td>
+<td>每个 epoch 结束，前向一遍算 val loss</td>
+<td>模拟考（可反复）</td>
+</tr>
+<tr>
+<td>test</td>
+<td>否</td>
+<td>最终验收：报告无偏的泛化成绩</td>
+<td>模型完全定稿后，<strong>只用一次</strong></td>
+<td>高考</td>
+</tr>
+</tbody></table>
+<ul>
+<li>跑 val 的标准姿势就是第6节那套：<code>eval()</code> + <code>no_grad()</code>，只前向、不反向、不更新参数；</li>
+<li>监控过拟合的典型信号：train loss 还在降，val loss 却掉头往上——该停了；</li>
+<li><strong>test 只碰一次</strong>：如果拿 test 结果挑超参数，test 就退化成了 val，最终成绩虚高——骗的是自己。这也是两集划分（train/test）不够的原因：反复调参，任何数据都会被”见过”。</li>
+</ul>
+<h2 id="划分比例与工具"><a href="#划分比例与工具" class="headerlink" title="划分比例与工具"></a>划分比例与工具</h2><p>常见比例 70/15/15 或 80/10/10；数据量大时 98/1/1 也可——原则是 val/test 的样本数要足够多，指标才稳定。</p>
+<p>把本篇的 10 样本按 6/2/2 划分演示（沿用第5节现场）：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> torch.utils.data <span class="keyword">import</span> random_split</span><br><span class="line"></span><br><span class="line">all10 = train_ds                   <span class="comment"># 改名：它其实是“全部数据”</span></span><br><span class="line">g = torch.Generator().manual_seed(<span class="number">7</span>)</span><br><span class="line">train_ds, val_ds, test_ds = random_split(all10, [<span class="number">6</span>, <span class="number">2</span>, <span class="number">2</span>], generator=g)</span><br><span class="line"></span><br><span class="line">print(<span class="string">&#x27;三段样本数:&#x27;</span>, len(train_ds), len(val_ds), len(test_ds))</span><br><span class="line">print(<span class="string">&#x27;train 样本序号:&#x27;</span>, train_ds.indices)</span><br><span class="line">print(<span class="string">&#x27;val   样本序号:&#x27;</span>, val_ds.indices)</span><br><span class="line">print(<span class="string">&#x27;test  样本序号:&#x27;</span>, test_ds.indices)</span><br></pre></td></tr></table></figure>
+
+<p>打印：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">三段样本数: 6 2 2</span><br><span class="line">train 样本序号: [5, 0, 3, 4, 1, 7]</span><br><span class="line">val   样本序号: [9, 6]</span><br><span class="line">test  样本序号: [8, 2]</span><br></pre></td></tr></table></figure>
+
+<p>两个注意点：</p>
+<ul>
+<li><code>random_split</code>：<ul>
+<li>不复制样本，只按<strong>索引</strong>分家；</li>
+<li><strong>三段互斥且覆盖全部</strong>；</li>
+</ul>
+</li>
+<li><strong>时序数据必须按时间切</strong>：<ul>
+<li>train = 过去；val/test = 未来；</li>
+<li>绝不能随机打乱——否则”未来”的信息泄进过去，验证成绩虚高。本篇的 10 个样本没有时间顺序，随机划分没问题；</li>
+</ul>
+</li>
+</ul>
+<h1 id="总结-9"><a href="#总结-9" class="headerlink" title="总结 (9)"></a>总结 (9)</h1><p><a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2025/12/03/llm-machine-learning-7/">PyTorch自动求导</a>以标量推演前向计算（forward）与后向求导（backward），侧重人脑的角度；但现实中 PyTorch 以向量（张量）的方式批量计算。本文第1节通过图2与图3、图4与图5的对比，清晰地展示出了 PyTorch 到底如何运行。后面的章节介绍了基于 PyTorch 实现神经网络、训练、存储等编程细节。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/llm/" rel="tag"># llm</a>
+              <a href="/tags/machine-learning/" rel="tag"># machine-learning</a>
+              <a href="/tags/pytorch/" rel="tag"># pytorch</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/12/03/llm-machine-learning-7/" rel="prev" title="机器学习-PyTorch自动求导">
+      <i class="fa fa-chevron-left"></i> 机器学习-PyTorch自动求导
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2026/01/12/llm-concepts/" rel="next" title="LLM中的名词概念">
+      LLM中的名词概念 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%BC%A0%E9%87%8F-tensor-1"><span class="nav-number">1.</span> <span class="nav-text">张量 tensor (1)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%94%A8-nn-Module-%E6%90%AD%E7%BD%91%E7%BB%9C-2"><span class="nav-number">2.</span> <span class="nav-text">用 nn.Module 搭网络 (2)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%8D%9F%E5%A4%B1%E5%87%BD%E6%95%B0-3"><span class="nav-number">3.</span> <span class="nav-text">损失函数 (3)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BC%98%E5%8C%96%E5%99%A8-4"><span class="nav-number">4.</span> <span class="nav-text">优化器 (4)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E5%8A%A0%E8%BD%BD-5"><span class="nav-number">5.</span> <span class="nav-text">数据加载 (5)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%AE%AD%E7%BB%83%E5%BE%AA%E7%8E%AF-6"><span class="nav-number">6.</span> <span class="nav-text">训练循环 (6)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BF%9D%E5%AD%98%E4%B8%8E%E6%81%A2%E5%A4%8D-7"><span class="nav-number">7.</span> <span class="nav-text">保存与恢复 (7)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BF%9D%E5%AD%98-7-1"><span class="nav-number">7.1.</span> <span class="nav-text">保存 (7.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8A%A0%E8%BD%BD%E2%80%94%E2%80%94%E7%94%A8%E4%BA%8E%E6%8E%A8%E7%90%86-7-2"><span class="nav-number">7.2.</span> <span class="nav-text">加载——用于推理 (7.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8A%A0%E8%BD%BD%E2%80%94%E2%80%94%E7%BB%A7%E7%BB%AD%E8%AE%AD%E7%BB%83-7-3"><span class="nav-number">7.3.</span> <span class="nav-text">加载——继续训练 (7.3)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E5%88%92%E5%88%86%EF%BC%9Atrain-val-test-8"><span class="nav-number">8.</span> <span class="nav-text">数据划分：train&#x2F;val&#x2F;test (8)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E5%88%92%E5%88%86"><span class="nav-number">8.1.</span> <span class="nav-text">为什么要划分</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%89%E8%80%85%E5%90%84%E8%87%AA%E7%9A%84%E4%BD%9C%E7%94%A8"><span class="nav-number">8.2.</span> <span class="nav-text">三者各自的作用</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%92%E5%88%86%E6%AF%94%E4%BE%8B%E4%B8%8E%E5%B7%A5%E5%85%B7"><span class="nav-number">8.3.</span> <span class="nav-text">划分比例与工具</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93-9"><span class="nav-number">9.</span> <span class="nav-text">总结 (9)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">74</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">111</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>

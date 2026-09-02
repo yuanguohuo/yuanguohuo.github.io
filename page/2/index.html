@@ -1,0 +1,1736 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="A little better than yesterday">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Yuanguo&#39;s Blog">
+<meta property="og:url" content="http://yoursite.com/page/2/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="A little better than yesterday">
+<meta property="og:locale">
+<meta property="article:author" content="Yuanguo Huo">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/page/2/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : true,
+    isPost : false,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content index posts-expand">
+            
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2025/08/23/llm-agent/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2025/08/23/llm-agent/" class="post-title-link" itemprop="url">Agent极简理解</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2025-08-23 17:43:20" itemprop="dateCreated datePublished" datetime="2025-08-23T17:43:20+00:00">2025-08-23</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2026-09-02 11:46:11" itemprop="dateModified" datetime="2026-09-02T11:46:11+00:00">2026-09-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/llm/" itemprop="url" rel="index"><span itemprop="name">llm</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2025/08/23/llm-agent/" class="post-meta-item leancloud_visitors" data-flag-title="Agent极简理解" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/08/23/llm-agent/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/08/23/llm-agent/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>本文旨在说明agent如何工作（各个组件LLM, Orchestrator/dify, tool等都做了什么），其中有一些设计上的不合理，例如多轮简单的请求其实可以合并、让LLM做汇总计算容易出错，暂忽略。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2025/08/23/llm-agent/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2025/06/07/persistent-memory/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2025/06/07/persistent-memory/" class="post-title-link" itemprop="url">Persistent Memory</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2025-06-07 11:22:30" itemprop="dateCreated datePublished" datetime="2025-06-07T11:22:30+00:00">2025-06-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2026-09-02 11:46:11" itemprop="dateModified" datetime="2026-09-02T11:46:11+00:00">2026-09-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/daos/" itemprop="url" rel="index"><span itemprop="name">daos</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2025/06/07/persistent-memory/" class="post-meta-item leancloud_visitors" data-flag-title="Persistent Memory" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/06/07/persistent-memory/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/06/07/persistent-memory/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>初识Persistent Memory，记录相关概念，编程模型，及一些初步测试。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2025/06/07/persistent-memory/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2025/03/08/llm-multi-head-attenion/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2025/03/08/llm-multi-head-attenion/" class="post-title-link" itemprop="url">MultiHead Attention</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2025-03-08 18:15:30" itemprop="dateCreated datePublished" datetime="2025-03-08T18:15:30+00:00">2025-03-08</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2026-09-02 11:46:11" itemprop="dateModified" datetime="2026-09-02T11:46:11+00:00">2026-09-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/llm/" itemprop="url" rel="index"><span itemprop="name">llm</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2025/03/08/llm-multi-head-attenion/" class="post-meta-item leancloud_visitors" data-flag-title="MultiHead Attention" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/03/08/llm-multi-head-attenion/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/03/08/llm-multi-head-attenion/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>介绍MultiHead Attention的计算过程。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2025/03/08/llm-multi-head-attenion/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2025/03/07/llm-self-attention/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2025/03/07/llm-self-attention/" class="post-title-link" itemprop="url">Self-Attention</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2025-03-07 20:30:40" itemprop="dateCreated datePublished" datetime="2025-03-07T20:30:40+00:00">2025-03-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2026-09-02 11:46:11" itemprop="dateModified" datetime="2026-09-02T11:46:11+00:00">2026-09-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/llm/" itemprop="url" rel="index"><span itemprop="name">llm</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2025/03/07/llm-self-attention/" class="post-meta-item leancloud_visitors" data-flag-title="Self-Attention" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2025/03/07/llm-self-attention/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2025/03/07/llm-self-attention/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>介绍Self-Attention的计算过程。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2025/03/07/llm-self-attention/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2024/10/06/virtualization-8-kvmtool-vhost/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/10/06/virtualization-8-kvmtool-vhost/" class="post-title-link" itemprop="url">虚拟化入门笔记--kvmtool vhost</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2024-10-06 20:50:33" itemprop="dateCreated datePublished" datetime="2024-10-06T20:50:33+00:00">2024-10-06</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2026-09-02 11:46:11" itemprop="dateModified" datetime="2026-09-02T11:46:11+00:00">2026-09-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/kvm/" itemprop="url" rel="index"><span itemprop="name">kvm</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2024/10/06/virtualization-8-kvmtool-vhost/" class="post-meta-item leancloud_visitors" data-flag-title="虚拟化入门笔记--kvmtool vhost" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/10/06/virtualization-8-kvmtool-vhost/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/10/06/virtualization-8-kvmtool-vhost/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>紧接前文<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2024/08/31/virtualization-6-kvmtool-virtio/">virtio</a>，本文介绍vhost机制。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2024/10/06/virtualization-8-kvmtool-vhost/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2024/09/29/virtualization-7-kvmtool-virtio-blk/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/09/29/virtualization-7-kvmtool-virtio-blk/" class="post-title-link" itemprop="url">虚拟化入门笔记--kvmtool virtio-blk设备</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2024-09-29 20:15:40" itemprop="dateCreated datePublished" datetime="2024-09-29T20:15:40+00:00">2024-09-29</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2026-09-02 11:46:11" itemprop="dateModified" datetime="2026-09-02T11:46:11+00:00">2026-09-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/kvm/" itemprop="url" rel="index"><span itemprop="name">kvm</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2024/09/29/virtualization-7-kvmtool-virtio-blk/" class="post-meta-item leancloud_visitors" data-flag-title="虚拟化入门笔记--kvmtool virtio-blk设备" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/09/29/virtualization-7-kvmtool-virtio-blk/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/09/29/virtualization-7-kvmtool-virtio-blk/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>本文介绍kvmtool中的blk模块。其实所涉及的要点在前几篇文章中都已经讲过，所以本文相当于一个阶段性回顾。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2024/09/29/virtualization-7-kvmtool-virtio-blk/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2024/08/31/virtualization-6-kvmtool-virtio/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/08/31/virtualization-6-kvmtool-virtio/" class="post-title-link" itemprop="url">虚拟化入门笔记--kvmtool virtio设备</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2024-08-31 21:23:47" itemprop="dateCreated datePublished" datetime="2024-08-31T21:23:47+00:00">2024-08-31</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2026-09-02 11:46:11" itemprop="dateModified" datetime="2026-09-02T11:46:11+00:00">2026-09-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/kvm/" itemprop="url" rel="index"><span itemprop="name">kvm</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2024/08/31/virtualization-6-kvmtool-virtio/" class="post-meta-item leancloud_visitors" data-flag-title="虚拟化入门笔记--kvmtool virtio设备" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/08/31/virtualization-6-kvmtool-virtio/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/08/31/virtualization-6-kvmtool-virtio/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>本文介绍kvmtool中对virtio的实现。<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2024/08/11/virtualization-5-kvmtool-interrupt/">前文interrupt virtualization</a>留下一个问题，启用virtio device的queue到底做了什么事，本文一并回答。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2024/08/31/virtualization-6-kvmtool-virtio/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2024/08/22/ceph-mon-disk-big-problem/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/08/22/ceph-mon-disk-big-problem/" class="post-title-link" itemprop="url">Ceph-Mon Disk Big 报警的处理</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2024-08-22 18:30:12" itemprop="dateCreated datePublished" datetime="2024-08-22T18:30:12+00:00">2024-08-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2026-09-02 11:46:11" itemprop="dateModified" datetime="2026-09-02T11:46:11+00:00">2026-09-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/ceph/" itemprop="url" rel="index"><span itemprop="name">ceph</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2024/08/22/ceph-mon-disk-big-problem/" class="post-meta-item leancloud_visitors" data-flag-title="Ceph-Mon Disk Big 报警的处理" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/08/22/ceph-mon-disk-big-problem/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/08/22/ceph-mon-disk-big-problem/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="告警-1"><a href="#告警-1" class="headerlink" title="告警 (1)"></a>告警 (1)</h1><p>告警：<code>ceph -s</code> 出现 <code>mons &lt;a&gt;,&lt;b&gt;,... are using a lot of disk space</code>。</p>
+<p>触发条件：mon 数据目录大小超过 <code>mon_data_size_warn</code> （Nautilus 默认 15GiB，不同ceph版本可能不同）。</p>
+<blockquote>
+<p>说明：</p>
+<ul>
+<li>mon 是 Paxos 多副本，<strong>每个副本各有一份独立的 RocksDB store</strong>；</li>
+<li>内容经 Paxos 提交复制，每台 mon 的 db 大小通常一致；</li>
+<li>PGMap 全量统计由 mgr 维护，不在 mon db 里。</li>
+</ul>
+</blockquote>
+<h1 id="Mon-db-空间分类-2"><a href="#Mon-db-空间分类-2" class="headerlink" title="Mon db 空间分类 (2)"></a>Mon db 空间分类 (2)</h1><p>Ceph Monitor 分为3层（从下到上）：</p>
+<ul>
+<li>存储层：MonitorDBStore (RocksDB)；按 prefix 组织的 KV</li>
+<li>共识层：Paxos；不理解语义，只搬运/复制/持久化“state-machine 指令”</li>
+<li>服务层：理解语义（知道 “osd out” 意味着什么）<ul>
+<li>OSDMonitor</li>
+<li>MDSMonitor</li>
+<li>LogMonitor</li>
+<li>AuthMonitor</li>
+<li>ConfigMonitor</li>
+<li>ConfigKeyService (<code>ceph config-key get/set/rm</code>)</li>
+<li>…</li>
+</ul>
+</li>
+</ul>
+<p>按层级从下到上（注：非按“导致告警的可能性”排序），占 mon db 的地方有：</p>
+<ul>
+<li>存储层：RocksDB 未回收；可通过<code>ceph tell &#39;mon.*&#39; compact</code> 解决；</li>
+<li>共识层：paxos prefix<ul>
+<li>可以理解成 “paxos log” 或 “raft log”；</li>
+<li>每一轮共识（一个 paxos version）提交的聚合事务——这一轮里各服务（osdmap/auth/mdsmap…）各改了什么，打包成一个 blob 存下来；blob 本身就是完整 <code>MonitorDBStore::Transaction</code> 的编码，里面包含本轮对各服务 prefix 的全部写操作——提交时一条原子事务同时写“日志副本”（paxos prefix）和“状态”（服务 prefix）。这正是“两层各有独立裁剪参数”的原因（<code>paxos_trim_min/max</code> vs <code>paxos_service_trim_min/max</code>——前者裁共识流水，后者裁各服务状态）。</li>
+<li>另外，还会维护 <code>first_committed</code>/<code>last_committed</code> 标记（相当于 paxos log 的范围，raft也会维护）。</li>
+<li>注意：各服务的正式数据不在这个 prefix 里——osdmap 存 osdmap prefix、auth 存 auth prefix …… paxos prefix 只是“每轮提交了哪些变更”的流水；是consensus service 的范畴；consensus service “不理解” 每个聚合事务里是什么；对它来说，就是<strong>修改 state-machine 的指令</strong>。</li>
+<li>保留窗口：<code>paxos_min</code>（默认 500） ；</li>
+<li>裁剪：<code>paxos_trim_min=250</code> 意思是超出“保留窗口”250个以上才动手裁剪，例如日志窗口长700，则跳过裁剪；长800则裁剪到<code>paxos_min=500</code>；<code>paxos_trim_max=500</code> 意思是每次裁剪最多前进 500 个；若由于某种原因，窗口累积到1200，不会一下子裁剪到<code>paxos_min=500</code>，而是第一次先裁剪到700（裁剪<code>paxos_trim_max</code>个），第二次跳过，因为700 &lt; 750（<code>paxos_min + paxos_trim_min</code>）；过一段时间，堆积到 750 以上，再裁剪到<code>paxos_min=500</code>。</li>
+</ul>
+</li>
+<li>服务层1：OSDMonitor 维护的 osdmap，这是最有可能导致告警的地方；下一节细讲；</li>
+<li>服务层2：LogMonitor 维护的 cluster 级别的事件log，例如：“osd.123 marked down”、“pg 1.2 entered state active+clean”、health 告警、管理命令审计…… 就是<code>ceph -w</code>滚动刷屏的那份日志的持久副本；只保留最近 500 个 osdmap epoch 窗内的日志（<code>mon_max_log_epochs=500</code>），有天花板，撑不大。</li>
+<li>服务层3：其它服务，例如 AuthMonitor/ConfigMonitor/ConfigKeyService 等，占用空间一般比较小，导致告警的可能性不大；</li>
+</ul>
+<h1 id="OSDMap（最常见）详解-3"><a href="#OSDMap（最常见）详解-3" class="headerlink" title="OSDMap（最常见）详解 (3)"></a>OSDMap（最常见）详解 (3)</h1><h2 id="存储结构：每个-epoch-存两份-3-1"><a href="#存储结构：每个-epoch-存两份-3-1" class="headerlink" title="存储结构：每个 epoch 存两份 (3.1)"></a>存储结构：每个 epoch 存两份 (3.1)</h2><p>每次 osdmap 提交（leader 的 <code>OSDMonitor::encode_pending</code>），store 里写入：</p>
+<table>
+<thead>
+<tr>
+<th>存储项</th>
+<th>写入点</th>
+<th>单个体积</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>full map</strong></td>
+<td><code>put_version_full(t, epoch, fullbl)</code>（无条件、每 epoch 一份）</td>
+<td>与集群规模相关，千盘级集群约 2 MB+</td>
+</tr>
+<tr>
+<td><strong>incremental</strong></td>
+<td><code>put_version(t, epoch, inc_bl)</code></td>
+<td>通常几 KB，crush 变更时可达几百 KB</td>
+</tr>
+</tbody></table>
+<p>体积大头永远是 full。例如一次实际案例：2,000+ OSD 集群，单个 full = 2,226,238 B ≈ 2.12 MB。</p>
+<h2 id="trim-机制：决定“留多久”-3-2"><a href="#trim-机制：决定“留多久”-3-2" class="headerlink" title="trim 机制：决定“留多久” (3.2)"></a>trim 机制：决定“留多久” (3.2)</h2><p>Mon leader 周期性尝试 trim，由<code>Monitor::tick()</code>触发；tick周期默认是 5 秒（见配置项<code>mon_tick_interval</code>）；trim 时，<code>OSDMonitor::get_trim_to()</code> 计算 trim 终点（floor），trim 机制分批（<code>paxos_service_trim_max</code>）删除 <code>first_committed</code> 到 floor 之间的历史；删除区间<code>[first_committed, floor)</code>，floor 保留，成为新的<code>first_committed</code>。</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// floor 是 保留的起点，也就是 trim 的终点；</span></span><br><span class="line"><span class="comment">//   1. 主要是 min(各 pool 的 last_epoch_clean)——哪个池最不干净，整个下限就被它拉到哪；</span></span><br><span class="line"><span class="comment">//   2. 所有已 osd out（未 rm）OSD 上报过的最老 epoch，如果比 1 算出的值还老，继续把下限往下拉（代码里 osd_epochs 那个循环，注释写着 &quot;don&#x27;t trim past the oldest reported osd epoch&quot;）。</span></span><br><span class="line"><span class="keyword">epoch_t</span> <span class="built_in">floor</span> = get_min_last_epoch_clean();</span><br><span class="line"></span><br><span class="line"><span class="comment">// last_committed 是最新提交的 osdmap；</span></span><br><span class="line"><span class="comment">// mon_min_osdmap_epochs 默认 500，即至少保留最近 500 个；</span></span><br><span class="line"><span class="keyword">if</span> (<span class="built_in">floor</span> + mon_min_osdmap_epochs &gt; last_committed)</span><br><span class="line">    <span class="built_in">floor</span> = last_committed - mon_min_osdmap_epochs;</span><br></pre></td></tr></table></figure>
+
+<p>规则拆解：</p>
+<ol>
+<li><code>min_last_epoch_clean</code>：各 pool “最后一次全部 PG clean” 的 epoch 的最小值<ul>
+<li>Nautilus 版本按 pool 跟踪，<code>ceph report</code> 的 <code>osdmap_clean_epochs.last_epoch_clean.per_pool</code> 可查；</li>
+<li><strong>只要集群有降级/恢复中的 PG，或存在长期 down 的 OSD，该值就冻结</strong>；</li>
+<li>trim 一路裁到它为止，之后一步都裁不动；</li>
+</ul>
+</li>
+<li><strong>out OSD 的次级钉扎</strong>：已 <code>osd out</code> 但未 <code>osd rm</code> 的 OSD，其上报的最老 epoch 同样拉低 floor，直到被 <code>osd rm</code> 才解除；</li>
+<li><strong>保底区间</strong>：<code>mon_min_osdmap_epochs</code>，和前文共识层的“paxos_min”完全对应，默认值也是500（只是巧合；它俩是不同层里同一个东西，默认值相同不是必须的）。看前文共识层的保底区间<code>paxos_min</code>即可。唯一不同：某些情况下，floor 被拉低，保留区间会超过 <code>mon_min_osdmap_epochs</code>，甚至超出很多（而共识层不会：其区间受容忍带上限约束，<code>paxos_min + paxos_trim_min</code>，约 750）。</li>
+<li><strong>裁剪</strong>：和前文共识层对应；配置<code>paxos_service_trim_min/max</code>和共识层的<code>paxos_trim_min/max</code>也对应，<code>floor − first_committed &lt; paxos_service_trim_min</code> 则跳过裁剪；每批最多裁剪 <code>paxos_service_trim_max</code> 个。</li>
+<li><strong>trim 时机是持续的</strong>：每个周期（如前所说，默认 5 秒）都尝试裁到 floor，<strong>与 mon_osdmap_full_prune_min 这个数无关</strong>（那是 prune 的，见下文）；</li>
+<li>例外：<code>creating_pgs</code> 非空时 trim 完全暂停；</li>
+<li><code>mon_osd_force_trim_to</code> 可显式指定 floor（会丢弃更早历史，谨慎使用）。</li>
+</ol>
+<h2 id="prune-机制：决定“留的东西怎么存”-3-3"><a href="#prune-机制：决定“留的东西怎么存”-3-3" class="headerlink" title="prune 机制：决定“留的东西怎么存” (3.3)"></a>prune 机制：决定“留的东西怎么存” (3.3)</h2><p>背景：trim 保留区间内每个 epoch 都带一份 2.12 MB 的 full，区间一长（如上万 epoch）体积爆炸。prune 对<strong>保留区间内部</strong>做压缩，不动区间边界。</p>
+<p><strong>激活条件</strong></p>
+<p>激活条件是<code>should_prune()</code>，即同时满足如下2个条件（另隐含：总历史须 &gt; <code>mon_min_osdmap_epochs</code> 且 <code>first_committed</code> 尚未达 B）：</p>
+<ul>
+<li>条件1：<code>(last_committed - mon_min_osdmap_epochs) - first_committed &gt;= mon_osdmap_full_prune_min</code>；即 “可 prune 区间 &gt;= mon_osdmap_full_prune_min”:</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">                                                                  此区间不许动</span><br><span class="line">     |&lt;---------------- 可 prune 区间 ----------------&gt;|&lt;---- mon_min_osdmap_epochs (500)-----&gt;|</span><br><span class="line">     |                                                 |                                       |</span><br><span class="line">     |-------------------------------------------------|---------------------------------------|</span><br><span class="line">A:first_committed                 B:last_committed - mon_min_osdmap_epochs               C:last_committed</span><br><span class="line">  (floor)</span><br></pre></td></tr></table></figure>
+
+<p>其实 <code>first_committed</code> 就是 <code>floor</code>，因为，假如 <code>floor &gt; first_committed</code>，则会被 trim 机制裁剪到 floor 处。通常 <code>mon_osdmap_full_prune_min</code> 比较大（默认是 10,000），所以，满足此条件，意味着 floor 被某种原因（见上一节）拉的很低（即值很小）。也就是说，<strong>prune 机制只是在 trim 机制失效时才起作用</strong>；假如 floor 能及时更新，trim 机制会保持“可 prune 区间”很短（甚至为0，即 <code>first_committed</code> 被裁剪到 B），不会触发大于<code>mon_osdmap_full_prune_min</code>的条件。</p>
+<ul>
+<li>条件 2：最后一个 pinned full 之后还凑得满一个 <code>mon_osdmap_full_prune_interval</code>（默认 10）——不足一个间隔的零头本轮不压（逐轮推进的进度闸门）。</li>
+</ul>
+<p><strong>压缩方式</strong></p>
+<p>每 <code>mon_osdmap_full_prune_interval</code>（默认 10）个 epoch 保留 1 个 full（pinned）osdmap ，<strong>删除中间冗余的 full；增量全部保留</strong>；注：最近 500 个 epoch 原样保留（“此区间不许动”）；</p>
+<p>所以，prune 只是压缩（删除冗余的 full osdmap），<strong>旧 osdmap 仍可精确取回</strong>：请求落在 pinned 区间的任意 epoch，由 <code>get_full_from_pinned_map</code> 取最近的 pinned full，然后逐个 apply 保留的增量（≤10 个）就精确得到请求的 osdmap。即现场重构——<strong>以少量 CPU 时间换 10 倍空间</strong>；</p>
+<p>所以说，<strong>prune 机制是安全的，它没有删除“信息”，只是“压缩”信息</strong>。任何需要旧 osdmap 的场景，例如落后很久的 OSD，需要某个 osdmap 时，先拿到最近的 pinned full 再 apply 增量，就会精确得到所需。</p>
+<p>注意：prune 是 leader 执行、paxos 全集群复制的动作，无法单机灰度；</p>
+<h2 id="故障发生-3-4"><a href="#故障发生-3-4" class="headerlink" title="故障发生 (3.4)"></a>故障发生 (3.4)</h2><p>正常情况下，trim 会把保留区间稳在大约 500 个，<strong>prune 永远不会被激活</strong>；告警是因为两种机制同时没起作用：</p>
+<ul>
+<li>trim 失效：floor 被 <code>min_last_epoch_clean</code> 或者 out OSD 钉死，导致保留区间拉长到数千 epoch；</li>
+<li>prune 还未激活：保留区间被拉长到数千，但仍小于 <code>mon_osdmap_full_prune_min</code> （默认是 10,000）<ul>
+<li>每个 epoch 仍存一份 full osdmap；</li>
+<li>占空间 $=$ epoch数 $\times$ full-osdmap-size，线性持续增长；</li>
+</ul>
+</li>
+</ul>
+<p>一个案例：</p>
+<ul>
+<li>full osdmap 大小 2.12MB</li>
+<li>每天新增约166个epoch</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>集群状态</th>
+<th>哪个机制工作</th>
+<th>db 体积走势</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>正常（持续 clean）</td>
+<td>只有 trim，区间约 500</td>
+<td>稳定在约 1 GiB（500 × 2.12 MB ≈ 1.04 GiB）</td>
+</tr>
+<tr>
+<td>轻度异常（floor 钉住 &lt; ~60 天）</td>
+<td>trim 停住，区间线性增长，prune 未激活</td>
+<td>线性上涨（约 0.34 GiB/天），可能撞告警线 15GiB</td>
+</tr>
+<tr>
+<td>重度异常（floor 钉住 &gt; ~60 天）</td>
+<td>prune 接力，每 10 留 1</td>
+<td>增速降为约 1/10</td>
+</tr>
+</tbody></table>
+<p>经常遇到的场景是：floor 被钉住较久，足以撑爆告警线，但又钉得不够久、未触发 prune 机制。</p>
+<h2 id="排查步骤（按序执行）-3-5"><a href="#排查步骤（按序执行）-3-5" class="headerlink" title="排查步骤（按序执行）(3.5)"></a>排查步骤（按序执行）(3.5)</h2><ol>
+<li>Mon db 体积 与 RocksDB 健康：选择一个 非leader mon 实例（因为所有 mon 实例通常一致）</li>
+</ol>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">du --max-depth=1 -h /var/lib/ceph/mon</span><br><span class="line"></span><br><span class="line"><span class="comment"># 停止 mon 进程</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 看 compaction 是否健康</span></span><br><span class="line">ceph-kvstore-tool rocksdb &#123;mon-home-dir&#125;/store.db stats</span><br><span class="line"></span><br><span class="line"><span class="comment"># 启动 mon 进程</span></span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>查看 osdmap 区间，per-pool floors 等信息：在 mon leader 上执行</li>
+</ol>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">ceph report &gt; /tmp/report.json</span><br><span class="line">python3 - &lt;&lt;<span class="string">&#x27;EOF&#x27;</span></span><br><span class="line">import json</span><br><span class="line">r = json.load(open(<span class="string">&#x27;/tmp/report.json&#x27;</span>))</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;osdmap_first_committed:&quot;</span>, r[<span class="string">&quot;osdmap_first_committed&quot;</span>])</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;osdmap_last_committed :&quot;</span>, r[<span class="string">&quot;osdmap_last_committed&quot;</span>])</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;min_last_epoch_clean  :&quot;</span>, r[<span class="string">&quot;osdmap_clean_epochs&quot;</span>][<span class="string">&quot;min_last_epoch_clean&quot;</span>])</span><br><span class="line">m = r.get(<span class="string">&quot;osdmap_manifest&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;pinned:&quot;</span>, (m[<span class="string">&quot;first_pinned&quot;</span>], m[<span class="string">&quot;last_pinned&quot;</span>], len(m[<span class="string">&quot;pinned_maps&quot;</span>])) <span class="keyword">if</span> m <span class="keyword">else</span> <span class="string">&quot;absent(prune未激活)&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">&quot;per-pool floors:&quot;</span>, r[<span class="string">&quot;osdmap_clean_epochs&quot;</span>][<span class="string">&quot;last_epoch_clean&quot;</span>])  <span class="comment"># 本版本为按 pool 列表</span></span><br><span class="line">EOF</span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>查看 full osdmap 大小</li>
+</ol>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ceph osd getmap -o /tmp/osdmap.current &amp;&amp; ls -l /tmp/osdmap.current</span><br></pre></td></tr></table></figure>
+
+<ol start="4">
+<li>估算体积</li>
+</ol>
+<p>机制 prune 未激活时：</p>
+<p><code>(osdmap_last_committed - osdmap_first_committed + 1) * full_osdmap_size</code></p>
+<p>若大约等于 mon db size （第一步 <code>du</code> 获取），则确认根因！</p>
+<h2 id="处理方案-3-6"><a href="#处理方案-3-6" class="headerlink" title="处理方案 (3.6)"></a>处理方案 (3.6)</h2><ul>
+<li>激活 prune 机制（安全，简单）：<ul>
+<li><strong>虽然安全，但也建议先备份 mon db；备份一台就够，但注意备份时要停 mon 进程</strong>，因为运行中直接拷 RocksDB 可能拿到不一致快照；</li>
+<li>步骤：a. <code>ceph tell &#39;mon.*&#39; injectargs --mon_osdmap_full_prune_min=8000</code>（<strong>注意：只要能激活 prune 机制，设置 8000 还是 2000 并无区别，不会影响 prune 后 mon db 的体积；影响体积的是</strong> <code>mon_osdmap_full_prune_interval</code>，<strong>它是压缩密度</strong>）；b. 用<code>ceph report</code>观察<code>osdmap_manifest</code>推进（<code>first_pinned/last_pinned</code>），等待压缩完成（完成标志是<code>last_pinned</code>逼近<code>last_committed - 500</code>；prune 每 tick 5 秒推进 1 个间隔，8,000 区间需约 1 小时）；c. <code>ceph tell &#39;mon.*&#39; compact</code>；</li>
+<li>注：如前所述，<strong>保留区间没变，信息没有任何丢失，只是压缩了存储</strong>，删除冗余 full osdmap，可由最近 pinned full osdmap 和增量原样重构（<strong>时间换空间</strong>）。</li>
+</ul>
+</li>
+<li>找出 floor 被钉住的根因（彻底）：找出垫底项（per-pool floor / 长期 down OSD / 未 rm 的 out OSD）:<ul>
+<li>降级 pg：尽快恢复clean</li>
+<li>down OSD: 尽快 out，迁数据后 <code>osd rm</code></li>
+</ul>
+</li>
+<li>强制裁剪（风险）：设置 <code>mon_osd_force_trim_to</code>；更早的 osdmap 永久不可取，落后 OSD 只能全量同步，非紧急不用！</li>
+<li>调高告警线（消音）：设置 <code>mon_data_size_warn</code> 到更大值，例如 30GiB；</li>
+</ul>
+<h1 id="小结-4"><a href="#小结-4" class="headerlink" title="小结 (4)"></a>小结 (4)</h1><ol>
+<li>存储层：<code>ceph tell mon.&#123;id&#125; compact</code> 只回收“删了没缩”的部分（RocksDB内部机制），对真实存量数据无效；</li>
+<li>共识层：通过 <code>paxos_min</code>，<code>paxos_trim_min/max</code> 控制 paxos log 的保留区间长度，占很多空间的可能性不大；</li>
+<li>服务层：最可能导致 mon db 体积增大的是 osdmap：相关机制有两套，trim 和 prune；</li>
+<li>trim 缩短保留区间：类似于共识层的 paxos log 的保留区间裁剪，删除 osdmap <code>first_committed</code> 到 floor 之间的 epoch，然后 floor 成为新的 <code>first_committed</code>（由此缩短保留区间）；</li>
+<li>当 floor 被钉死时，区间持续增长，导致 mon db 体积超限；而 floor 被钉死的原因通常是集群不健康：floor = min(所有 pool 的 last_clean, down/out osd 的依赖)；</li>
+<li>所以，治本的办法是尽快让集群恢复到健康状态：所有 pool 的 pg 都恢复到 clean；down/out osd 迁移完后 remove；这些都依赖数据迁移；</li>
+<li>线上通常要控制数据迁移速度，所以，有的时候不能尽快“治本”；此时，可以通过 prune 机制降低存储密度；</li>
+</ol>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2024/08/11/virtualization-5-kvmtool-interrupt/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/08/11/virtualization-5-kvmtool-interrupt/" class="post-title-link" itemprop="url">虚拟化入门笔记--kvmtool interrupt virtualization</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2024-08-11 16:43:25" itemprop="dateCreated datePublished" datetime="2024-08-11T16:43:25+00:00">2024-08-11</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2026-09-02 11:46:11" itemprop="dateModified" datetime="2026-09-02T11:46:11+00:00">2026-09-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/kvm/" itemprop="url" rel="index"><span itemprop="name">kvm</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2024/08/11/virtualization-5-kvmtool-interrupt/" class="post-meta-item leancloud_visitors" data-flag-title="虚拟化入门笔记--kvmtool interrupt virtualization" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/08/11/virtualization-5-kvmtool-interrupt/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/08/11/virtualization-5-kvmtool-interrupt/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>书接<a target="_blank" rel="noopener" href="https://www.yuanguohuo.com/2024/07/22/virtualization-4-kvmtool-pci/">前文</a>，本文介绍kvmtool的中断虚拟化。中断虚拟化是基于pci的capability机制实现的。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2024/08/11/virtualization-5-kvmtool-interrupt/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2024/07/22/virtualization-4-kvmtool-pci/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2024/07/22/virtualization-4-kvmtool-pci/" class="post-title-link" itemprop="url">虚拟化入门笔记--kvmtool pci virtualization</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2024-07-22 18:03:55" itemprop="dateCreated datePublished" datetime="2024-07-22T18:03:55+00:00">2024-07-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2026-09-02 11:46:11" itemprop="dateModified" datetime="2026-09-02T11:46:11+00:00">2026-09-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/kvm/" itemprop="url" rel="index"><span itemprop="name">kvm</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2024/07/22/virtualization-4-kvmtool-pci/" class="post-meta-item leancloud_visitors" data-flag-title="虚拟化入门笔记--kvmtool pci virtualization" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2024/07/22/virtualization-4-kvmtool-pci/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2024/07/22/virtualization-4-kvmtool-pci/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>Kvmtool可以认为是一个极简版的qemu (所处软件层、功能都和qemu一样)，只有几千行代码，便于学习虚拟化的原理。本文先简单回顾物理环境下PCI/PCIe基础，然后看kvmtool中是如何模拟PCI/PCIe的。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2024/07/22/virtualization-4-kvmtool-pci/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+
+  
+  <nav class="pagination">
+    <a class="extend prev" rel="prev" href="/"><i class="fa fa-angle-left" aria-label="Previous page"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/8/">8</a><a class="extend next" rel="next" href="/page/3/"><i class="fa fa-angle-right" aria-label="Next page"></i></a>
+  </nav>
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">74</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">22</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">111</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>
