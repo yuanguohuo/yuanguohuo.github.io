@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.0.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="Git 简易基础，供自己查看。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Git基础">
+<meta property="og:url" content="http://yoursite.com/2020/11/02/git-basics/index.html">
+<meta property="og:site_name" content="Yuanguo&#39;s Blog">
+<meta property="og:description" content="Git 简易基础，供自己查看。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2020-11-02T20:30:40.000Z">
+<meta property="article:modified_time" content="2026-10-30T15:45:10.871Z">
+<meta property="article:author" content="Yuanguo Huo">
+<meta property="article:tag" content="git">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2020/11/02/git-basics/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>Git基础 | Yuanguo's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Yuanguo's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>主页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/11/02/git-basics/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/me.gif">
+      <meta itemprop="name" content="Yuanguo Huo">
+      <meta itemprop="description" content="A little better than yesterday">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Yuanguo's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Git基础
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="Created: 2020-11-02 20:30:40" itemprop="dateCreated datePublished" datetime="2020-11-02T20:30:40+00:00">2020-11-02</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="Modified: 2026-10-30 15:45:10" itemprop="dateModified" datetime="2026-10-30T15:45:10+00:00">2026-10-30</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">所属分类</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/git/" itemprop="url" rel="index"><span itemprop="name">git</span></a>
+                </span>
+            </span>
+
+          
+            <span id="/2020/11/02/git-basics/" class="post-meta-item leancloud_visitors" data-flag-title="Git基础" title="阅读次数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数: </span>
+              <span class="leancloud-visitors-count"></span>
+            </span>
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Valine: </span>
+    
+    <a title="valine" href="/2020/11/02/git-basics/#valine-comments" itemprop="discussionUrl">
+      <span class="post-comments-count valine-comment-count" data-xid="/2020/11/02/git-basics/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>Git 简易基础，供自己查看。</p>
+<a id="more"></a>
+
+<h1 id="基本概念-1"><a href="#基本概念-1" class="headerlink" title="基本概念 (1)"></a>基本概念 (1)</h1><h2 id="仓库结构-1-1"><a href="#仓库结构-1-1" class="headerlink" title="仓库结构 (1.1)"></a>仓库结构 (1.1)</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">project&#x2F;</span><br><span class="line">├── src&#x2F;                    # 工作区</span><br><span class="line">└── .git&#x2F;</span><br><span class="line">    ├── HEAD                # 当前位置：通常存分支名，detached 时存 commit id（详见后文）</span><br><span class="line">    ├── config</span><br><span class="line">    ├── refs&#x2F;</span><br><span class="line">    │   ├── heads&#x2F;</span><br><span class="line">    │   │   └── master      # 本地分支 master 的指针</span><br><span class="line">    │   └── remotes&#x2F;</span><br><span class="line">    │       └── origin&#x2F;</span><br><span class="line">    │           └── master  # 远程跟踪分支 origin&#x2F;master 的指针</span><br><span class="line">    ├── objects&#x2F;            # 所有 commit、tree、blob 对象</span><br><span class="line">    └── index               # 暂存区</span><br></pre></td></tr></table></figure>
+
+<p>本地仓库主要包含 2 部分：</p>
+<ul>
+<li>git版本库（repository）：<code>.git</code> 目录</li>
+<li>工作区（working directory）：<code>.git</code> 目录之外的部分</li>
+</ul>
+<p>涉及的“空间”有四个：</p>
+<ul>
+<li>A. 工作区（在本地）</li>
+<li>B. 本地分支（在本地）</li>
+<li>C. 远程跟踪分支（在本地）</li>
+<li>D. 远程分支（在远程，例如 github 上的分支）</li>
+</ul>
+<blockquote>
+<p>注：这是简化模型，省略了暂存区（index）。下文 merge/rebase/reset 写回工作区时，通常也会同步更新 index。</p>
+</blockquote>
+<h2 id="远程仓库-remote-1-2"><a href="#远程仓库-remote-1-2" class="headerlink" title="远程仓库 remote (1.2)"></a>远程仓库 remote (1.2)</h2><p>远程仓库（remote）定义在 <code>.git/config</code> 的 remote 中，例如：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[remote &quot;origin&quot;]</span><br><span class="line">    url &#x3D; https:&#x2F;&#x2F;github.com&#x2F;the-author&#x2F;project.git</span><br><span class="line">    fetch &#x3D; +refs&#x2F;heads&#x2F;*:refs&#x2F;remotes&#x2F;origin&#x2F;*</span><br></pre></td></tr></table></figure>
+
+<p>其中：</p>
+<ul>
+<li>remote 是 github 上的名为 “project” 的仓库；</li>
+<li>“origin” 是这个远程仓库的名字，可以随意取名，只是习惯上叫 “origin”、”upstream” 等；</li>
+<li>url 是这个 remote 的地址；</li>
+</ul>
+<h2 id="远程跟踪分支-1-3"><a href="#远程跟踪分支-1-3" class="headerlink" title="远程跟踪分支 (1.3)"></a>远程跟踪分支 (1.3)</h2><p>远程跟踪分支<strong>在本地</strong>，用于跟踪远程仓库（例如名为 “origin” 的远程仓库）的分支。<strong>远程跟踪分支</strong>（本地的跟踪者）与<strong>远程分支</strong>（远程的被跟踪者）的对应关系定义在 remote 的 refspec 中：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">fetch &#x3D; +refs&#x2F;heads&#x2F;*:refs&#x2F;remotes&#x2F;origin&#x2F;*</span><br></pre></td></tr></table></figure>
+
+<p>这里有一个<strong>同名关系</strong>（星号通配符的作用）：</p>
+<table>
+<thead>
+<tr>
+<th>github上远程仓库的分支</th>
+<th>本地的远程跟踪分支</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>master</td>
+<td>origin/master</td>
+</tr>
+<tr>
+<td>dev</td>
+<td>origin/dev</td>
+</tr>
+<tr>
+<td>feature</td>
+<td>origin/feature</td>
+</tr>
+<tr>
+<td>…</td>
+<td>origin/…</td>
+</tr>
+</tbody></table>
+<p>注意 refspec 两边不在同一个库里。它的格式是 <code>+&lt;src&gt;:&lt;dst&gt;</code>：</p>
+<ul>
+<li><code>&lt;src&gt;</code>（这里是 <code>refs/heads/*</code>）在<strong>远程仓库</strong>的命名空间里解析；fetch 时 git 先问远程仓库“你有哪些 ref”（zhuhai：这是什么意思？），再用这个模式去匹配远程报来的列表；</li>
+<li><code>&lt;dst&gt;</code>（这里是 <code>refs/remotes/origin/*</code>）在<strong>本地库</strong>的命名空间里；</li>
+<li>开头的 <code>+</code> 表示强制更新，允许远程跟踪分支被 non-fast-forward 地覆盖，例如：上游——即 github 上的远程仓库——被 force push 过，fetch 还能成功，覆盖本地的远程跟踪分支（改写其历史）；</li>
+</ul>
+<p>一个容易产生迷糊的地方在于：你可以在本地 repository（<code>.git</code> 目录）中看到左半边 <code>refs/heads/</code>（即本地分支部分），所以，可能觉得 refspec 是本地分支与远程跟踪分支的对应关系（见第1.4节）。实际上，这是错误的，因为 <code>refs/heads/</code> 这个路径在两个库（本地仓库和 github 上的远程仓库）里都存在，长得一模一样，而 refspec 指的是远程仓库。也就是说，<code>&lt;src&gt;</code> 和 <code>dst</code> 是<strong>相对各自库</strong>的命名空间：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">github 上的 project 仓库                 本地仓库</span><br><span class="line"></span><br><span class="line">project&#x2F;                                 project&#x2F;                           </span><br><span class="line">├── src&#x2F;                                 ├── src&#x2F;                           </span><br><span class="line">└── .git&#x2F;                                └── .git&#x2F;                          </span><br><span class="line">    ├── HEAD                                 ├── HEAD                       </span><br><span class="line">    ├── config                               ├── config                     </span><br><span class="line">    ├── refs&#x2F;                                ├── refs&#x2F;                      </span><br><span class="line">    │   └── heads&#x2F;  &lt;---- src                │   ├── heads&#x2F;                 </span><br><span class="line">    │       ├── master                       │   │   └── master             </span><br><span class="line">    │       ├── dev                          │   └── remotes&#x2F;               </span><br><span class="line">    │       └── feature                      │       └── origin&#x2F;  &lt;---- dst </span><br><span class="line">    ├── objects&#x2F;                             │           ├── master         </span><br><span class="line">    └── index                                │           ├── dev            </span><br><span class="line">                                             │           └── feature        </span><br><span class="line">                                             ├── objects&#x2F;                   </span><br><span class="line">                                             └── index                      </span><br></pre></td></tr></table></figure>
+
+<p>远程仓库里并没有 <code>refs/remotes/</code>（因为<strong>它不需要跟踪你</strong>）；只有你的仓库才有（因为<strong>你要跟踪远程仓库</strong>）。所以 refspec 两端不仅方向不同，命名空间也不重合。</p>
+<p>可以这样实测（远程有 master、zzz；本地有 master、localonly）：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Case1: 左边写只在远程存在的 zzz —— 成功</span></span><br><span class="line">git fetch origin refs/heads/zzz:refs/remotes/origin/tmp</span><br><span class="line"><span class="comment">#  * [new branch]      zzz        -&gt; origin/tmp</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># Case2: 左边写只在本地存在的 localonly —— 失败</span></span><br><span class="line">git fetch origin refs/heads/localonly:refs/remotes/origin/tmp2</span><br><span class="line"><span class="comment">#  fatal: couldn&#x27;t find remote ref refs/heads/localonly</span></span><br></pre></td></tr></table></figure>
+
+<p>Case2 的报错原文把这个名字称为 <strong>remote ref</strong>。<code>man git-fetch</code> 的措辞也是 “The remote ref that matches <code>&lt;src&gt;</code> is fetched”。</p>
+<p>与 fetch 对应的是 push（注意，<strong>push 不是和 pull 对应，而是和 fetch 对应</strong>），fetch 与 push 的 refspec 是镜像的：</p>
+<p>同样的 <code>&lt;src&gt;:&lt;dst&gt;</code> 语法，两端归属由命令方向决定：</p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th><code>&lt;src&gt;</code> 在哪个库</th>
+<th><code>&lt;dst&gt;</code> 在哪个库</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>git fetch origin &lt;src&gt;:&lt;dst&gt;</code></td>
+<td>远程</td>
+<td>本地</td>
+</tr>
+<tr>
+<td><code>git push origin &lt;src&gt;:&lt;dst&gt;</code></td>
+<td>本地</td>
+<td>远程</td>
+</tr>
+</tbody></table>
+<p>规律是：**<code>&lt;src&gt;</code> 永远是数据的来源方，<code>&lt;dst&gt;</code> 永远是接收方<strong>。即 <code>refs/heads/</code> **本身没有“本地/远程”的含义，是命令方向决定了它属于谁</strong>。</p>
+<h2 id="本地分支的上游——另一套映射-1-4"><a href="#本地分支的上游——另一套映射-1-4" class="headerlink" title="本地分支的上游——另一套映射 (1.4)"></a>本地分支的上游——另一套映射 (1.4)</h2><p>第1.3节是说<strong>远程分支</strong>与<strong>远程跟踪分支</strong>之间的对应。还有另一套对应：<strong>本地分支</strong>与<strong>远程分支</strong>，后者称为前者的<strong>上游</strong>。它<strong>不是</strong>由上面的 fetch refspec 定义的，而是写在 <code>.git/config</code> 的 branch 段里：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[branch &quot;master&quot;]</span><br><span class="line">    remote &#x3D; origin</span><br><span class="line">    merge &#x3D; refs&#x2F;heads&#x2F;master</span><br></pre></td></tr></table></figure>
+
+<p>注意这两行指认的是<strong>远程仓库的一个分支</strong>：</p>
+<ul>
+<li>remote: 远程仓库名（这里是 “origin”）</li>
+<li>merge: 远程仓库的分支（这里是 master），<code>refs/heads/master</code> 在远程仓库的命名空间里解析；</li>
+</ul>
+<p>在 <code>git clone</code> 时，会自动为默认分支写上这段。</p>
+<p>还有一些其它方式设置上游：</p>
+<ul>
+<li><p>创建分支时设置上游：</p>
+<ul>
+<li>命令：<code>git switch -c bugfix origin/bugfix</code></li>
+<li>解释：<code>origin/bugfix</code> 是新分支的起点；起点是<strong>远程跟踪分支</strong>时会自动设置上游（branch.autoSetupMerge 默认开启；<code>--no-track</code> 选项可以禁止这一行为）；</li>
+<li>注意：新分支起点 <code>&#123;remote&#125;/&#123;branch&#125;</code> 是一个<strong>远程跟踪分支</strong>名（而不是远程分支名），git 设置的上游是<strong>远程分支</strong>，它会使用“远程跟踪分支与远程分支”的对应关系，做一次换算。</li>
+</ul>
+</li>
+<li><p>为当前分支设置上游：</p>
+<ul>
+<li>命令：<code>git branch -u origin/bugfix</code></li>
+<li>解释：<code>origin/bugfix</code> 是 <code>-u</code> 的参数，全称是 <code>--set-upstream-to=origin/bugfix</code>；</li>
+<li>注意：<strong>上游参数</strong>形式是 <code>&#123;remote&#125;/&#123;branch&#125;</code>，它是一个<strong>远程跟踪分支</strong>名（而不是远程分支名），git 会使用“远程跟踪分支与远程分支”的对应关系，做一次换算。</li>
+</ul>
+</li>
+<li><p>推送时设置上游：</p>
+<ul>
+<li>命令：<code>git push -u &lt;remote&gt; &lt;src&gt;[:&lt;dst&gt;]</code></li>
+<li>解释：这里 <code>-u</code> 是选项，没有参数，全称是 <code>--set-upstream</code>，表示把 <code>&lt;src&gt;</code> 的上游设置成远程仓库 <code>&lt;remote&gt;</code> 的 <code>&lt;dst&gt;</code> 分支；</li>
+<li>注意1：与上面两个命令不同，这里不需要换算——<code>&lt;remote&gt;</code> 和 <code>&lt;dst&gt;</code> 已经分别给出了远程仓库名和<strong>远程分支</strong>名；</li>
+<li>注意2：<code>-u</code> 只在 <code>&lt;src&gt;</code> 是<strong>本地分支</strong>或 attached HEAD 时起作用；若用 tag、commit id 或 detached HEAD 做 <code>&lt;src&gt;</code>，<code>-u</code> 被静默忽略（另外，commit id 和 detached HEAD 做 <code>&lt;src&gt;</code> 时不能省略 <code>&lt;dst&gt;</code>，必须写成 <code>refs/heads/...</code> 全名，否则 push 本身失败，加不加 <code>-u</code> 都一样）；</li>
+<li>注意3：若 <code>&lt;dst&gt;</code> 缺省，则为与 <code>&lt;src&gt;</code> 同名的远程分支（若 <code>&lt;src&gt;</code> 是本地分支或 attached HEAD）。</li>
+</ul>
+</li>
+</ul>
+<h2 id="commit-id-1-5"><a href="#commit-id-1-5" class="headerlink" title="commit id (1.5)"></a>commit id (1.5)</h2><p>每个 commit 都有一个唯一的 id，例如：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0</span><br></pre></td></tr></table></figure>
+
+<p>它本质上是一个 <strong>SHA-1 哈希值</strong>，由 git 根据 commit 的内容计算得出，所以也叫 commit hash.</p>
+<p>是对哪些信息的哈希呢？</p>
+<ul>
+<li><strong>tree</strong>：本次提交对应的目录树快照；</li>
+<li><strong>parents</strong>：父 commit 的 id；</li>
+<li><strong>author</strong>：作者、时间；</li>
+<li><strong>committer</strong>：提交者、时间；</li>
+<li><strong>commit message</strong>：提交信息。</li>
+</ul>
+<p>只要其中任何一项发生变化，生成的 commit id 就会不同。这也是为什么 rebase 会改变 commit id：rebase 会创建新的 commit 对象，parent 关系变了，hash 自然不同。</p>
+<p>完整 id 有 40 个十六进制字符，日常使用时 git 允许使用<strong>前缀缩写</strong>，只要不产生歧义即可。例如：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">git show a1b2c3d</span><br><span class="line">git <span class="built_in">log</span> --oneline          <span class="comment"># 默认显示 7 位缩写</span></span><br></pre></td></tr></table></figure>
+
+<p><code>git log --oneline</code> 通常显示 7 位，大型仓库可能需要更多位才能唯一标识。可以用 <code>git rev-parse --short HEAD</code> 查看当前仓库的默认缩写长度。</p>
+<p>为什么 commit id 很重要？</p>
+<ul>
+<li><strong>唯一标识</strong>：每个 commit id 全局唯一，可以精确指向某个提交。</li>
+<li><strong>不可篡改</strong>：commit id 由内容哈希决定，修改任意内容都会产生新的 id，旧 id 对应的对象仍然保持不变。</li>
+<li><strong>引用基础</strong>：分支、tag、HEAD 本质上都是指向某个 commit id 的指针。</li>
+<li><strong>DAG 的边</strong>：commit 通过 parent 字段存储父 commit 的 id，从而构成有向无环图。</li>
+</ul>
+<p>查看 commit id：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 查看当前 HEAD 的完整 id</span></span><br><span class="line">git rev-parse HEAD</span><br><span class="line"></span><br><span class="line"><span class="comment"># 查看某个分支的完整 id</span></span><br><span class="line">git rev-parse master</span><br><span class="line"></span><br><span class="line"><span class="comment"># 查看简短 id</span></span><br><span class="line">git rev-parse --short HEAD</span><br><span class="line"></span><br><span class="line"><span class="comment"># 在 log 中查看</span></span><br><span class="line">git <span class="built_in">log</span> --oneline</span><br></pre></td></tr></table></figure>
+
+<p>与”不可变”的关系：因为 commit id 由内容决定，所以<strong>commit 对象一旦创建就无法被修改</strong>。如果修改了提交信息、作者或文件内容，git 会创建一个全新的 commit 对象，拥有新的 id。这就是 git 说”commit 不可变”的底层原因——不是不能改变历史，而是改变历史的方式是<strong>创建新对象</strong>，而不是修改旧对象（见第1.6节）。</p>
+<h2 id="parent-关系-1-6"><a href="#parent-关系-1-6" class="headerlink" title="parent 关系 (1.6)"></a>parent 关系 (1.6)</h2><p>除了 root commit 之外，每个 commit 都有 parent；</p>
+<ul>
+<li>普通的 commit 有一个 parent；</li>
+<li>merge commit 有多个 parent：在当前分支上执行 merge $\text{branch}_1 \quad \text{branch}_2 \quad \cdots \quad \text{branch}_n$ 时，产生的 merge commit 通常有 $n+1$ 个 parent——包括当前分支自己的 merge 前的最新 commit。</li>
+</ul>
+<p>可以通过命令查看 parent：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git cat-file -p &#123;commit-id&#125;</span><br></pre></td></tr></table></figure>
+
+<p>通过 parent 关系，所有的 commit 构成一张有向无环图（DAG）。一经提交，一个 commit 就作为一个顶点，连到图中了。<strong>已经存在的 commit 对象无法改变，但图的结构可以通过改变</strong>，例如 rebase：</p>
+<ul>
+<li>把需要移动的 commit 拷贝到新位置；</li>
+<li>移动分支指针，旧 commit 不再被任何分支引用；</li>
+<li>若旧 commit 不再被任何分支、tag、reflog 或 HEAD 引用，它可能被 <code>git gc</code> 物理地删除；</li>
+</ul>
+<p>虽然 <strong>git 强调 commit 不可变</strong>，但对最终用户而言，<strong>创建新 commit 并 gc 旧 commit 等价于更改图的结构——把一个顶点移动到别的位置，而且它的 hash（即commit id）也变了</strong>。</p>
+<p>除了 rebase 之外，还有 amend、filter-branch 等少量改写历史的操作。不考虑它们的话，commits 通过 parent 关系构成的 DAG 是固定的；新的提交只会在原有图上添加节点和边，不会修改已有的 commit 对象（不修改已有部分）。</p>
+<p>这张图才是 Git 的根基。学习分支、HEAD 等概念时，要始终记得：分支可以指向图中的任意 commit；HEAD 可以是 attached，即引用某个分支，也可以是 detached，即直接存储一个 commit id。但无论指针如何移动，已有的 commit 对象本身不会改变；从某个 commit 沿 parent 回溯得到的历史（<code>git log</code>）也不会改变——除非执行 rebase、amend、filter-branch 等改写历史的命令。</p>
+<h2 id="分支-1-7"><a href="#分支-1-7" class="headerlink" title="分支 (1.7)"></a>分支 (1.7)</h2><p>分支到底是什么？</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cat  .git&#x2F;refs&#x2F;heads&#x2F;dev</span><br><span class="line">bb597f76b0c7e84541c0a180578cec519ad4a0da  # [f] 的 commit id</span><br></pre></td></tr></table></figure>
+
+<p><strong>本质上，分支就是 refs/heads/ 下的一个引用（ref）</strong>：通常存放为 .git/refs/heads/ 里的一个文件，但也可能被打包进 .git/packed-refs，此时上述文件不存在（用 <code>git rev-parse dev</code> 查看最可靠）。它不会自动记录“整个分支链”，也不会记住 <code>[a] -&gt; [f]</code> 这条线；它只记住：当前分支<strong>顶端</strong>是哪一个 commit（commit id）。所以，<strong>分支就是一个标签（分支名）加一个指向某个 commit 的指针</strong>。</p>
+<p>假如，dev 和 master 分支经过开发——合并——再开发，演进到如下状态：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">                                       HEAD </span><br><span class="line">                                        |   </span><br><span class="line">                                        V   </span><br><span class="line">                                      master</span><br><span class="line">                                        |   </span><br><span class="line">                                        |</span><br><span class="line">              ----[e]----[g]            |</span><br><span class="line">             &#x2F;            |             |</span><br><span class="line">            &#x2F;             |             V</span><br><span class="line">[a]--[b]--[c]             -------[M]---[i]</span><br><span class="line">            \            &#x2F;</span><br><span class="line">             \          &#x2F;     </span><br><span class="line">              [d]----[f]----[h]</span><br><span class="line">                             ^       </span><br><span class="line">                             |       </span><br><span class="line">                            dev      </span><br></pre></td></tr></table></figure>
+
+<p>此时：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">.git&#x2F;refs&#x2F;heads&#x2F;master -&gt; [i] 的 commit id</span><br><span class="line">.git&#x2F;refs&#x2F;heads&#x2F;dev    -&gt; [h] 的 commit id</span><br><span class="line">HEAD                   -&gt; master</span><br></pre></td></tr></table></figure>
+
+<p>通常，分支指向它演进路上的最新的 commit，但也可以通过 reset 回到过去。</p>
+<p>两个分支可以同时指向一个 commit，这很常见，例如：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">git switch feature</span><br><span class="line">git branch some-feature</span><br></pre></td></tr></table></figure>
+
+<p>此时 feature 和 some-feature 就指向同一个 commit；之后只要其中一个分支有新提交，指针就会分开。</p>
+<p>Git 里分支的底层实现就是一个指向 commit 的指针，而不是一个文件夹、一条链表或一棵树。既然分支只是一个commit id，根本不是“树枝”一样的东西，它为什么叫 branch（分支）？</p>
+<p>因为，从使用者的视角，分支是一条独立的开发线，可以并行改代码、再合并。可以这样比喻：</p>
+<ul>
+<li>把 commits 想成时间线上的存档点：a, b, c, d, e, f, …</li>
+<li>分支就是贴在这个时间线上的“标签”，如上图：<ul>
+<li>刚创建 dev 时，[c] 上同时贴着 “master” 和 “dev”；</li>
+<li>之后 dev 提交到 [d]，”dev” 标签移到 [d]；</li>
+<li>master 提交到 [e]，”master” 标签移到 [e]；</li>
+<li>dev 继续提交到 [f]、[h]，”dev” 标签先移到 [f] 最终移到 [h]；</li>
+<li>master 提交到 [g]，”master” 标签移到 [g]；</li>
+<li>master 合并后经过 [M]，最终指向 [i]，”master” 标签经 [M]，最终移到 [i]；</li>
+</ul>
+</li>
+<li>这样，就形成了 dev 分支和 master 分支；</li>
+<li>注意1：<ul>
+<li>master 不是 [a], [b], [c], [e], [g], [M], [i] 这一整串；dev 也不是 [c], [d], [f], [h] 这一整串；它们各自只是一个 commit id；</li>
+<li>分支标签同一时刻只贴在一个 commit 上；提交后标签会移动，所以之前贴过的 commit 不再被该分支“指向”，但仍属于它的历史；</li>
+<li>没贴过某个标签的 commit 也能成为对应分支的历史：[d], [f] 从未贴过 “master” 标签，但属于 master 的历史（因为 [M] 有两个<strong>父 commit</strong>，一个来自 master 方向，另一个来自 dev 方向）；</li>
+<li>分支也<strong>不对应</strong>第1.6节中说的 DAG 中的某条路径；</li>
+</ul>
+</li>
+</ul>
+<p>实际上，分支就是 DAG 上的一个指针：完全可以通过 reset 让分支指向任何 commit 上，并从那里开始演进。并且，reset 到某个地方之后，看到的历史就是从那个地方按 parent 关系往前回溯。</p>
+<p>例如上图状态下，当前分支是 dev，执行 <code>git reset --hard [e]的commit-d</code> 之后：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">                  HEAD                                   </span><br><span class="line">                   |                                     </span><br><span class="line">                   V                                     </span><br><span class="line">                  dev                 master</span><br><span class="line">                   |                    |   </span><br><span class="line">                   V                    |</span><br><span class="line">              ----[e]----[g]            |</span><br><span class="line">             &#x2F;            |             |</span><br><span class="line">            &#x2F;             |             V</span><br><span class="line">[a]--[b]--[c]             -------[M]---[i]</span><br><span class="line">            \            &#x2F;</span><br><span class="line">             \          &#x2F;     </span><br><span class="line">              [d]----[f]----[h]</span><br></pre></td></tr></table></figure>
+
+<p>此时，[d], [f], [h] 不再属于 dev 分支的历史，<code>git log</code> 只会看到 [a], [b], [c], [e]。</p>
+<h2 id="HEAD-1-8"><a href="#HEAD-1-8" class="headerlink" title="HEAD (1.8)"></a>HEAD (1.8)</h2><h1 id="常见基本操作-2"><a href="#常见基本操作-2" class="headerlink" title="常见基本操作 (2)"></a>常见基本操作 (2)</h1><h2 id="fetch-2-1"><a href="#fetch-2-1" class="headerlink" title="fetch (2.1)"></a>fetch (2.1)</h2><p>git fetch {remote-name} {remote-branch}，例如 git fetch origin master</p>
+<ul>
+<li>从名为 “origin” 的那个 remote 库（github 上的 “project” 库）的 master 分支下载最新提交；</li>
+<li>更新本地对应的<strong>远程跟踪分支</strong>（对应关系见前文，本例中就是 origin/master）；</li>
+<li><strong>不会合并到当前本地分支</strong>；</li>
+<li><strong>也不会修改工作区</strong>；</li>
+<li>即：D -&gt; C;（见第1.1节的四个空间）</li>
+</ul>
+<h2 id="merge-2-2"><a href="#merge-2-2" class="headerlink" title="merge (2.2)"></a>merge (2.2)</h2><p>git merge 远程跟踪分支，例如 git merge origin/master</p>
+<ul>
+<li>来源（远程跟踪分支 origin/master）+ 当前分支（HEAD 指向的本地分支，如 feature）= NewMergeCommit；</li>
+<li>更新当前分支（feature）到 NewMergeCommit；</li>
+<li><strong>并且</strong> 把 NewMergeCommit 的内容写回工作区；</li>
+<li>即 C + B -&gt; B; B -&gt; A;（见第1.1节的四个空间）</li>
+</ul>
+<blockquote>
+<p>注：若满足 fast-forward 条件（当前分支是来源的祖先），默认不产生 NewMergeCommit，只把当前分支指针移到来源的 commit（见后文 fast-forward），并且内容写回工作区；</p>
+</blockquote>
+<p>git merge 本地分支，例如 git merge master</p>
+<ul>
+<li>同上，只是“来源”不是远程跟踪分支，而是本地分支（master）；</li>
+<li>若当前分支（HEAD 指向的本地分支）是 feature，则：本地分支（master）+ 本地分支（feature）= NewMergeCommit；</li>
+<li>更新当前分支（feature）到 NewMergeCommit；</li>
+<li><strong>并且</strong> 把 NewMergeCommit 的内容写回工作区；</li>
+<li>即 B1（来源） + B2（当前分支）-&gt; B2; B2 -&gt; A;（见第1.1节的四个空间）</li>
+</ul>
+<h2 id="rebase-2-3"><a href="#rebase-2-3" class="headerlink" title="rebase (2.3)"></a>rebase (2.3)</h2><p>git rebase 远程跟踪分支，例如 git rebase origin/master</p>
+<ul>
+<li>把当前分支（HEAD 指向的本地分支，如 feature）上的新commits 放到来源（远程跟踪分支 origin/master）的新 commits 的<strong>后面</strong>；</li>
+<li>不产生 NewMergeCommit；</li>
+<li><strong>并且</strong> 把内容写回工作区；</li>
+<li>也是 C + B -&gt; B; B -&gt; A; 只是没有 NewMergeCommit;</li>
+</ul>
+<p>git rebase 本地分支，例如 git rebase master</p>
+<ul>
+<li>同上，只是把来源换成本地分支；</li>
+<li>也是 B1（来源） + B2（当前分支）-&gt; B2; B2 -&gt; A; 只是没有 NewMergeCommit；</li>
+</ul>
+<h2 id="pull-2-4"><a href="#pull-2-4" class="headerlink" title="pull (2.4)"></a>pull (2.4)</h2><p>git pull 远程名 远程分支，例如 git pull origin master</p>
+<ul>
+<li>默认（未配置 pull.rebase、pull.ff 等）等价于 git fetch origin master + git merge origin/master；</li>
+<li>实际行为受配置影响：<ul>
+<li>pull.rebase=true 时相当于 <code>git pull --rebase</code>；</li>
+<li>pull.ff=only 时只允许 fast-forward，分叉则失败；</li>
+</ul>
+</li>
+<li>新版本 git 在两边分叉且未配置上述选项时，会报错：要求明确指定 merge 还是 rebase；</li>
+</ul>
+<p>git pull –rebase 远程名 远程分支，例如 git pull –rebase origin master</p>
+<ul>
+<li>等价于 git fetch origin master + git rebase origin/master</li>
+</ul>
+<h2 id="对比-merge-与-rebase-2-5"><a href="#对比-merge-与-rebase-2-5" class="headerlink" title="对比 merge 与 rebase (2.5)"></a>对比 merge 与 rebase (2.5)</h2><ul>
+<li><p>merge “来源”到“当前分支”</p>
+<ul>
+<li>保留两方的提交顺序，合并产生 NewMergeCommit；</li>
+<li>双方的 commit hash (commit id) 都不变；</li>
+<li>当前分支指向 NewMergeCommit；</li>
+<li>分叉后合并，历史有分支形状；</li>
+<li>适用：合并功能分支到主分支（保留完整的分支历史，方便追溯）、多人协作的共享分支（不改写历史，避免冲突）</li>
+<li>可以对已经推送到远程的分支做；</li>
+</ul>
+</li>
+<li><p>把“当前分支” rebase 到“来源”之上</p>
+<ul>
+<li>“来源”的 commits 在前，当前分支的 commits 在后；保留各自的相对提交顺序（把当前分支上的 commits 整体“搬到”来源分支的顶端）；不产生 NewMergeCommit；</li>
+<li>“来源”的 commit hash (commit id) 不变；当前分支独有、被搬动（重放）的那些 commits 会得到新的 hash；</li>
+<li>分叉点之前的共同 commits 不变；若当前分支本来就基于来源的顶端，则什么都不变；</li>
+<li>当前分支指向最后的commit（当前分支的最新commit、被排在最后）；</li>
+<li>历史被重写，变成一条直线；</li>
+<li>适用：本地开发时同步远程最新代码（保持线性历史，干净清爽）、个人分支还没 push（整理提交记录，让历史更清晰）</li>
+<li><strong>不要对已经推送到远程的分支做！因为会改写历史，别人拉的时候会冲突！</strong></li>
+</ul>
+</li>
+<li><p>总之：rebase 是“整理自己的历史”，merge 是“整合别人的历史”；自己的、还没 push 的 commits，随便 rebase；别人的、已经 push 的 commits，用 merge。</p>
+</li>
+</ul>
+<h2 id="对比-fast-forward-与-non-fast-forward-2-6"><a href="#对比-fast-forward-与-non-fast-forward-2-6" class="headerlink" title="对比 fast-forward 与 non-fast-forward (2.6)"></a>对比 fast-forward 与 non-fast-forward (2.6)</h2><ul>
+<li>fast-forward:</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">          HEAD                                    HEAD         </span><br><span class="line">           |                                       |           </span><br><span class="line">           V                                       V           </span><br><span class="line">         master            (只是master指针移动)  master</span><br><span class="line">           |                                       |  </span><br><span class="line">           V                                       |  </span><br><span class="line">[+]--[+]--[+]            &#x3D;&#x3D;&gt;   [+]--[+]--[+]       |  </span><br><span class="line">            \                              \       |  </span><br><span class="line">             \                              \      V   </span><br><span class="line">              [+]--[+]                       [+]--[+] </span><br><span class="line">                    ^                              ^  </span><br><span class="line">                    |                              |  </span><br><span class="line">                   dev                            dev </span><br></pre></td></tr></table></figure>
+
+
+<ul>
+<li>non-fast-forward (–no-ff 选项)：<ul>
+<li>不满足 fast-forward 条件（当前分支有来源没有的新提交，即两边分叉）或者满足但 merge 时添加 <code>--no-ff</code> 选项；</li>
+<li>注意：能否 fast-forward 只看提交历史的祖先关系，与是否冲突无关；分叉后合并才可能出现冲突；</li>
+<li>会产生一个 MergeCommit；</li>
+<li>好处是，保留分支信息；</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">                         HEAD                                          HEAD </span><br><span class="line">                          |                                             |   </span><br><span class="line">                          V                                             V   </span><br><span class="line">                        master                                        master</span><br><span class="line">                          |                                             |   </span><br><span class="line">                          V                                             |</span><br><span class="line">              ----[e]----[g]                        ----[e]----[g]      |</span><br><span class="line">             &#x2F;                                     &#x2F;            |       |</span><br><span class="line">            &#x2F;                                     &#x2F;             |       V</span><br><span class="line">[a]--[b]--[c]                   &#x3D;&#x3D;&#x3D;&gt;  [a]--[b]--[c]             -------[M]</span><br><span class="line">            \                                     \            &#x2F;   (MergeCommit)</span><br><span class="line">             \                                     \          &#x2F;     </span><br><span class="line">              [d]----[f]                            [d]----[f]      </span><br><span class="line">                      ^                                     ^       </span><br><span class="line">                      |                                     |       </span><br><span class="line">                     dev                                   dev      </span><br></pre></td></tr></table></figure>
+
+
+<hr>
+<hr>
+<p>HEAD 是什么？</p>
+<p><strong>HEAD 就是 .git/HEAD 这个文件</strong>，它记录“我当前在哪里”。它有两种形态：</p>
+<ul>
+<li><strong>正常状态（attached）</strong>：里面存的是一个<strong>分支名</strong>，即所谓的符号引用（symbolic ref）：</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cat .git&#x2F;HEAD</span><br><span class="line">ref: refs&#x2F;heads&#x2F;master</span><br></pre></td></tr></table></figure>
+
+<p>  这是一次间接：HEAD -&gt; 分支名 -&gt; commit id。</p>
+<ul>
+<li><strong>detached HEAD（游离状态）</strong>：里面直接存一个 commit id，不经过任何分支：</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cat .git&#x2F;HEAD</span><br><span class="line">d50b5fb40bc328e920210403c940c548c8a83c8f</span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>HEAD 的两个作用</p>
+<ol>
+<li><strong>提交时的父 commit</strong>：新 commit 的 parent 就是 HEAD 当前所指的 commit；</li>
+<li><strong>决定提交后移动谁</strong>：正常状态下，提交会让 HEAD 所指的那个<strong>分支</strong>指向新 commit（HEAD 本身的内容不变，仍是 <code>ref: refs/heads/xxx</code>）；detached 状态下，移动的是 HEAD 自己。</li>
+</ol>
+<p>同理，<code>git reset</code> 正常状态下移动的是当前分支，detached 状态下移动的是 HEAD（见前文 reset 小节）。</p>
+<hr>
+<p>查看 HEAD</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">cat .git/HEAD              <span class="comment"># 看原始内容，能直接区分两种形态</span></span><br><span class="line">git symbolic-ref HEAD      <span class="comment"># 打印 refs/heads/master；detached 时报错 &quot;ref HEAD is not a symbolic ref&quot;</span></span><br><span class="line">git branch --show-current  <span class="comment"># 打印 master；detached 时输出为空</span></span><br><span class="line">git rev-parse HEAD         <span class="comment"># 两种形态都打印最终的 commit id（会自动解引用）</span></span><br><span class="line">git status -sb             <span class="comment"># 正常时显示 ## master...；detached 时显示 ## HEAD (no branch)</span></span><br></pre></td></tr></table></figure>
+
+<p>注意 <code>git rev-parse HEAD</code> 总能拿到 commit id，所以<strong>不能</strong>用它判断是否 detached；要判断就用上面前三条。</p>
+<hr>
+<p>基于 HEAD 的 commit 坐标写法</p>
+<table>
+<thead>
+<tr>
+<th>写法</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>HEAD</code></td>
+<td>当前 commit</td>
+</tr>
+<tr>
+<td><code>HEAD^</code>、<code>HEAD^1</code></td>
+<td>第一个父 commit</td>
+</tr>
+<tr>
+<td><code>HEAD^2</code></td>
+<td>第二个父 commit（<strong>只有 MergeCommit 才有</strong>，指向被合并进来的那一方）</td>
+</tr>
+<tr>
+<td><code>HEAD~1</code></td>
+<td>等同 <code>HEAD^</code>，往上一代</td>
+</tr>
+<tr>
+<td><code>HEAD~2</code></td>
+<td>往上两代，即 <code>HEAD^^</code>（<strong>始终沿第一父走</strong>，不会拐到被合并的分支上）</td>
+</tr>
+<tr>
+<td><code>HEAD@&#123;2&#125;</code></td>
+<td>reflog 里 HEAD 两次变动之前的位置（<code>git reflog</code> 可查看）</td>
+</tr>
+<tr>
+<td><code>ORIG_HEAD</code></td>
+<td>上一次 reset/merge 等危险操作之前 HEAD 的位置，用于反悔</td>
+</tr>
+</tbody></table>
+<p>以第2.6节 non-fast-forward 那张图为例，master 指向 MergeCommit [M] 时：<code>HEAD^1</code> 是 [g]（master 方向），<code>HEAD^2</code> 是 [f]（dev 方向），<code>HEAD~2</code> 是 [e]（继续沿第一父）。</p>
+<hr>
+<p>detached HEAD：怎么进入、有什么风险</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">git switch --detach &lt;commit&gt;   <span class="comment"># 显式进入游离状态（推荐写法）</span></span><br><span class="line">git checkout &lt;commit&gt;          <span class="comment"># 老写法，效果相同</span></span><br><span class="line">git switch -                   <span class="comment"># 回到上一个分支（HEAD 恢复为 ref: refs/heads/xxx）</span></span><br><span class="line">git switch master              <span class="comment"># 或直接切到某个分支</span></span><br></pre></td></tr></table></figure>
+
+<p>查看历史提交的内容、二分查找（<code>git bisect</code>）时会处于这个状态，本身没有问题。风险在于<strong>此时的提交没有任何分支指向它</strong>：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">* (HEAD detached from d50b5fb) 3089de8 orphan-commit   # 新 commit 只被 HEAD 指着</span><br><span class="line">  dev                          a475d8f d1</span><br><span class="line">  master                       2e584d2 merge</span><br></pre></td></tr></table></figure>
+
+<p>一旦切走，HEAD 改指别处，这个 commit 就不再被任何引用指向，<code>git log</code> 看不到，久置会被 gc 清理（短期内还能用 <code>git reflog</code> 找回）。所以在 detached 状态下做了提交又想保留，切走之前先给它一个分支：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git switch -c new-branch       <span class="comment"># 把当前 HEAD 所指的 commit 固定到一个分支上</span></span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>git reset –hard/–soft/–mixed CommitID</p>
+<p>三种模式都会把<strong>当前分支</strong>（reset 前 HEAD 所指的那个分支）移到 CommitID；HEAD 本身不变，仍是 <code>ref: refs/heads/&lt;当前分支&gt;</code>。区别在于是否重置 index 和工作区。被移走的 commits 还可以通过 ORIG_HEAD 或 git reflog 找回。</p>
+<p>注意：CommitID 只是“移到哪里”的目标，与它属于哪个分支的历史无关；reset 不会切换分支。例如当前在 dev 分支，对 master 历史上的某个 commit 执行 reset：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"># reset 前</span><br><span class="line">HEAD   -&gt; ref: refs&#x2F;heads&#x2F;dev    # .git&#x2F;HEAD 的内容</span><br><span class="line">dev    -&gt; [d1]</span><br><span class="line">master -&gt; [m2]</span><br><span class="line"></span><br><span class="line">git reset --hard [m2]</span><br><span class="line"></span><br><span class="line"># reset 后</span><br><span class="line">HEAD   -&gt; ref: refs&#x2F;heads&#x2F;dev    # 没变，仍指向 dev，不会切到 master</span><br><span class="line">dev    -&gt; [m2]                   # 被移动的是 dev</span><br><span class="line">master -&gt; [m2]                   # 不受影响</span><br></pre></td></tr></table></figure>
+
+<p>此时 <code>git log --decorate</code> 会显示 <code>[m2] (HEAD -&gt; dev, master)</code>：dev 和 master 同时指向 [m2]，但当前分支仍是 dev，之后的提交只会移动 dev。</p>
+<p>若处于 detached HEAD（HEAD 直接存着一个 commit id，而不是 <code>ref: refs/heads/...</code>），则 reset 移动的是 HEAD 自己，不涉及任何分支。</p>
+<ul>
+<li>hard:  回到 CommitID，工作区也会被重置，<strong>已跟踪文件中未提交的修改（包括已 add 的）都会丢失！</strong><ul>
+<li>当前分支移到目标 commit</li>
+<li>index（暂存区）重置为目标的快照，已 add 的内容被清除</li>
+<li>工作区重置为目标的快照，工作区修改被覆盖</li>
+<li>未跟踪（untracked）文件不受影响</li>
+</ul>
+</li>
+<li>soft:  回到 CommitID  + 从 CommitID 到当前 index 的 diff（staged）<ul>
+<li>不改 index，也不改工作区，所以不丢失任何修改</li>
+<li>从 CommitID 到当前状态的 committed 修改：变成 staged 状态</li>
+<li>从 CommitID 到当前状态的 staged 修改：仍为 staged 状态</li>
+<li>从 CommitID 到当前状态的 unstaged 修改：仍为 unstaged 状态</li>
+<li>注意：若同一文件既有被撤销的提交修改，又有之后的 staged 修改，二者合并为一份 staged 修改（中间版本只保留在原 commit 里）</li>
+</ul>
+</li>
+<li>mixed（默认模式）:  回到 CommitID  + 从 CommitID 到工作区的 diff（unstaged）<ul>
+<li>工作区不变；index 重置为目标的快照</li>
+<li>从 CommitID 到当前状态的 committed 修改：变成 unstaged 状态（工作区中有这些内容）</li>
+<li>从 CommitID 到当前状态的 staged 修改：变成 unstaged 状态（前提是工作区中也有这些内容，否则会丢失见下面注意点）</li>
+<li>从 CommitID 到当前状态的 unstaged 修改：仍为 unstaged 状态</li>
+<li>注意：<strong>不保证不丢失</strong>：只存在于暂存区、与工作区不同的内容会丢失（例如 add 之后又在工作区把它改掉或删掉）</li>
+</ul>
+</li>
+</ul>
+<hr>
+<p>reset 的本质：给引用赋值</p>
+<p>reset 做的事只有两步：</p>
+<ol>
+<li>把当前分支这个<strong>引用</strong>的值改成 CommitID（detached HEAD 时改的是 HEAD 自己）；</li>
+<li>按模式决定是否把 index、工作区刷成该 commit 的快照（见上面三种模式）。</li>
+</ol>
+<p>“赋值”意味着它对 CommitID 没有任何历史要求：</p>
+<ul>
+<li>CommitID 可以是任意形式的 commit 坐标：<code>HEAD~2</code>、<code>cc591ad</code>、<code>master</code>、<code>origin/master</code>、<code>other</code> 都一样，git 只解析出一个 commit id；</li>
+<li><strong>不要求与当前分支有共同祖先</strong>。即使两条历史毫无交集（如 <code>git switch --orphan</code> 造出来的分支），reset 也会成功；</li>
+<li>对比：merge 需要找 merge-base 做三方合并（无关历史还要 <code>--allow-unrelated-histories</code>），rebase 需要找分叉点来决定重放哪些 commits —— 它们都依赖历史关系，reset 不依赖。</li>
+</ul>
+<hr>
+<p>reset 不是切换分支</p>
+<p><code>git reset --hard other</code> 执行后，当前分支<strong>仍然是</strong> dev，只是 dev 指向了 other 所指的那个 commit：</p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>改的是什么</th>
+<th>之后当前分支</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>git switch other</code></td>
+<td>HEAD（<code>ref: refs/heads/dev</code> -&gt; <code>ref: refs/heads/other</code>）</td>
+<td>other</td>
+</tr>
+<tr>
+<td><code>git reset --hard other</code></td>
+<td>dev 这个引用的值（指向 other 的 commit）</td>
+<td>仍是 dev</td>
+</tr>
+</tbody></table>
+<p>即 switch 动 HEAD、不动分支指针；reset 动分支指针、不动 HEAD。</p>
+<p>reset 之后，<code>git log dev</code> 看到的是 other 那条历史（因为历史是从分支指针往父提交回溯出来的），dev 原来的 commits 从 dev <strong>不再可达</strong>。两个分支此刻指向同一 commit，但之后提交只会移动 dev。</p>
+<p>所以“把当前分支 reset 到另一个分支上”是可行的，但它的含义是“让当前分支改指过去、丢弃自己原来的线”，不是“切过去”。这类操作要当心：</p>
+<ul>
+<li>原有 commits 只能靠 <code>ORIG_HEAD</code> / <code>git reflog</code> 找回，<code>git log</code> 已经看不到，久置会被 gc 清理；</li>
+<li>这是<strong>改写历史</strong>，分支若已 push，再推需要 <code>--force</code>，会影响已拉取该分支的人；</li>
+<li>用 <code>--soft</code>/<code>--mixed</code> 时工作区不变，会产生一个“删掉对方文件、新增自己文件”的巨大 diff；</li>
+<li>日常想换开发基线，用 <code>git switch</code> 或 <code>git rebase --onto</code>；reset 的常规用途是在同一条线上前后挪动。</li>
+</ul>
+<hr>
+<p>git switch [-c] BranchName</p>
+<ul>
+<li>切换到分支 BranchName；</li>
+<li>选项 <code>-c</code> 表示 create（新建新分支并切换到它）；所以，切换到已存在分支不加<code>-c</code>；</li>
+<li><strong>取代 git checkout（不要再用 git checkout BranchName）！</strong></li>
+</ul>
+<hr>
+<h1 id="提交-DAOS-PR-用到的-git-命令-3"><a href="#提交-DAOS-PR-用到的-git-命令-3" class="headerlink" title="提交 DAOS PR 用到的 git 命令 (3)"></a>提交 DAOS PR 用到的 git 命令 (3)</h1><p>以一次真实投稿为例：Jira 编号 <code>DAOS-19869</code>，功能分支 <code>DAOS-19869-manual-discard</code>，官方仓库 <code>daos-stack/daos</code>，个人 Fork <code>yuanguohuo/daos</code>。<br>命令本身是通用的，换项目只需替换编号、分支名和仓库地址。</p>
+<hr>
+<p>两个远端的分工</p>
+<p>开源项目基本都是「Fork + PR」模型，本地仓库要登记两个远端：</p>
+<table>
+<thead>
+<tr>
+<th>远端</th>
+<th>地址</th>
+<th>权限</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>origin</code></td>
+<td><code>github.com/yuanguohuo/daos</code>（个人 Fork）</td>
+<td>可读可写</td>
+<td>push 功能分支</td>
+</tr>
+<tr>
+<td><code>upstream</code></td>
+<td><code>github.com/daos-stack/daos</code>（官方）</td>
+<td>只读</td>
+<td>fetch 官方最新代码</td>
+</tr>
+</tbody></table>
+<p>数据流向是一个环：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">官方仓库 ──fetch──&gt; 本地仓库 ──push──&gt; 个人 Fork ──PR──&gt; 官方仓库</span><br><span class="line">(upstream)                           (origin)</span><br></pre></td></tr></table></figure>
+
+<p>本地不直接往官方 push（也没有权限），代码进官方的唯一途径是 PR。<br><code>origin</code> 和 <code>upstream</code> 只是约定俗成的名字，没有任何特殊语义，就是 <code>.git/config</code> 里的两段配置（见第 1 节）。</p>
+<hr>
+<p>一、建仓与确定起点</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">mkdir -p <span class="string">&quot;<span class="variable">$HOME</span>/dev&quot;</span></span><br><span class="line">git <span class="built_in">clone</span> --branch master https://github.com/yuanguohuo/daos.git <span class="string">&quot;<span class="variable">$HOME</span>/dev/daos&quot;</span></span><br><span class="line"><span class="built_in">cd</span> <span class="string">&quot;<span class="variable">$HOME</span>/dev/daos&quot;</span></span><br><span class="line">git remote add upstream https://github.com/daos-stack/daos.git</span><br><span class="line">git fetch upstream master</span><br><span class="line">git switch --no-track -c DAOS-19869-manual-discard upstream/master</span><br></pre></td></tr></table></figure>
+
+<p>逐条解读：</p>
+<ul>
+<li><code>clone --branch master &lt;Fork 地址&gt;</code>：Fork → 新建的本地仓库。clone 会自动把来源远端命名为 <code>origin</code>，并写入第 1 节那条 fetch refspec，于是 <code>refs/remotes/origin/*</code> 一并建好。<code>--branch master</code> 只决定 clone 完 checkout 哪个分支。投稿需要完整历史，不要用 <code>--depth</code>。</li>
+<li><code>remote add upstream &lt;官方地址&gt;</code>：仅在 <code>.git/config</code> 里加一段地址配置，<strong>不下载任何代码</strong>。</li>
+<li><code>fetch upstream master</code>：官方库的 master → 本地对象库，并更新远程跟踪分支 <code>upstream/master</code>。它<strong>不动任何本地分支</strong>，也不会更新你 Fork 上的 master。所谓“Fork 落后于官方”对投稿没有影响，因为基线取自 <code>upstream/master</code> 而不是 Fork。</li>
+<li><code>switch --no-track -c &lt;分支名&gt; upstream/master</code>：以刚取到的官方基线新建功能分支并切换工作区。<code>--no-track</code> 是关键：不加它，git 会顺手把这个分支的上游配成 <code>upstream/master</code>（即第 1 节的 <code>branch.*.remote</code> / <code>branch.*.merge</code>），之后无参数的 <code>git push</code> / <code>git pull</code> 目标就错了——应该对自己的 Fork，而不是官方。</li>
+</ul>
+<p>分支名用 <code>DAOS-&lt;Jira 编号&gt;-&lt;主题&gt;</code>，这是 DAOS 的约定；别的项目看它自己的贡献指南。</p>
+<p>起点确认用四条只读命令，各回答一个问题：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">git branch --show-current     <span class="comment"># 我在哪个分支？</span></span><br><span class="line">git status -sb                <span class="comment"># 工作区干净吗？与上游差几个提交？</span></span><br><span class="line">git remote -v                 <span class="comment"># origin / upstream 指向对不对？</span></span><br><span class="line">git <span class="built_in">log</span> -1 --oneline          <span class="comment"># 基线 commit 是哪个？</span></span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>二、提交前：看清三个空间</p>
+<p>改完代码，先确认「哪些改动会进入这次提交」。三条命令分别看三个不同的 diff（对照第1.1节的四个空间）：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">git status --short      <span class="comment"># 总览</span></span><br><span class="line">git diff                <span class="comment"># 工作区 vs index（未暂存的）</span></span><br><span class="line">git diff --cached       <span class="comment"># index vs HEAD（已暂存的，也就是 commit 的内容）</span></span><br></pre></td></tr></table></figure>
+
+<p><code>git status --short</code> 每行开头是两列 <code>XY</code>：<strong>X 是 index 相对 HEAD，Y 是工作区相对 index</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>输出</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code> M f</code></td>
+<td>改了但没暂存</td>
+</tr>
+<tr>
+<td><code>M  f</code></td>
+<td>已暂存，之后没再改</td>
+</tr>
+<tr>
+<td><code>MM f</code></td>
+<td>暂存后又改了一次（两份不同内容）</td>
+</tr>
+<tr>
+<td><code>A  f</code></td>
+<td>新文件已暂存</td>
+</tr>
+<tr>
+<td><code>?? f</code></td>
+<td>未跟踪文件，<strong>普通 <code>git diff</code> 看不到它</strong></td>
+</tr>
+</tbody></table>
+<p>暂存：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">git add -u              <span class="comment"># 只把已跟踪文件的修改/删除加入 index</span></span><br><span class="line">git add src/新文件.c     <span class="comment"># 新文件必须显式指定，add -u 不管它</span></span><br></pre></td></tr></table></figure>
+
+<p>不要用 <code>git add .</code>：会把测试日志、覆盖率报告、补丁文件、个人配置一起塞进提交。</p>
+<p>一个常见误解：<code>git add</code> 之后 <code>git diff</code> 变空，不代表改动丢了——它只是跑到 index 里去了，用 <code>git diff --cached</code> 看。</p>
+<p>确定 PR 改动范围要用<strong>分叉点</strong>，而不是 <code>HEAD^</code>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">PR_BASE=<span class="string">&quot;<span class="subst">$(git merge-base HEAD upstream/master)</span>&quot;</span></span><br><span class="line">git diff --name-status <span class="string">&quot;<span class="variable">$PR_BASE</span>&quot;</span>    <span class="comment"># 这个 PR 动了哪些文件</span></span><br><span class="line">git diff --check <span class="string">&quot;<span class="variable">$PR_BASE</span>&quot;</span>          <span class="comment"># 只检查行尾空白、空白错误</span></span><br></pre></td></tr></table></figure>
+
+<p><code>git merge-base A B</code> 给出两条线的最近共同祖先。<code>HEAD^..HEAD</code> 只在「PR 恰好一个提交」时才等价，多提交的 PR 用它会漏掉前面的提交。</p>
+<p>另外注意 <code>git diff --check</code> 只查空白问题，代码风格要另外的工具，例如：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git clang-format --diff <span class="string">&quot;<span class="variable">$PR_BASE</span>&quot;</span> -- src/pool/srv_pool.c   <span class="comment"># 只打印建议，不改源码</span></span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>三、创建提交</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">GIT_AUTHOR_NAME=<span class="string">&#x27;Your Name&#x27;</span> \</span><br><span class="line">GIT_AUTHOR_EMAIL=<span class="string">&#x27;you@example.com&#x27;</span> \</span><br><span class="line">GIT_COMMITTER_NAME=<span class="string">&#x27;Your Name&#x27;</span> \</span><br><span class="line">GIT_COMMITTER_EMAIL=<span class="string">&#x27;you@example.com&#x27;</span> \</span><br><span class="line">git commit -s \</span><br><span class="line">  -m <span class="string">&quot;DAOS-19869 pool: add manual discard before reintegration&quot;</span> \</span><br><span class="line">  -m <span class="string">&quot;Automatic discard during reintegration can trigger NVMe garbage</span></span><br><span class="line"><span class="string">collection that competes with user I/O, causing severe performance</span></span><br><span class="line"><span class="string">degradation or temporary service unavailability.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">Add dmg pool discard for asynchronous cleanup and a configurable</span></span><br><span class="line"><span class="string">quiesce period, and dmg pool query-discard for per-rank progress.&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>解读：</p>
+<ul>
+<li>四个环境变量写在命令前面，<strong>只对这一条命令生效</strong>，不改全局也不改仓库配置。适用场景：本机默认身份是公司邮箱，而社区投稿要用个人公开身份。</li>
+<li><code>GIT_AUTHOR_*</code> 是<strong>原作者</strong>（代码是谁写的），<code>GIT_COMMITTER_*</code> 是<strong>本次创建提交的人</strong>。平时两者相同；<code>rebase</code>、<code>amend</code>、别人代为提交时会不同。两个都要核对。</li>
+<li>多个 <code>-m</code> 按顺序拼成提交信息：第一个是标题，其余是正文段落，中间自动空一行。DAOS 要求标题含 Jira 编号和 component、不超过 62 字符，正文按约 70 列换行。</li>
+<li><code>-s</code> 自动添加 <code>Signed-off-by:</code> 一行，表示 DCO 声明（我有权提交这段代码）。它<strong>不是 GPG 签名</strong>（那是 <code>-S</code>），也不会让 github 显示 Verified。DAOS 的 DCO 检查就看这一行。</li>
+<li>邮箱会随提交永久公开。可以用 github 提供的 noreply 地址，但不能自己编一个。</li>
+<li>本机如果装了 hook（拼写检查、版权行、凭据泄露扫描），让它正常跑。<strong>不要用 <code>--no-verify</code> 绕过</strong>，拦住了就去处理原因。</li>
+</ul>
+<p>提交后确认：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">log</span> -1 --format=fuller    <span class="comment"># 同时显示 Author 和 Commit（committer），核对身份</span></span><br><span class="line">git show --<span class="built_in">stat</span> HEAD          <span class="comment"># 这个提交到底动了哪些文件、多少行</span></span><br><span class="line">git status --short            <span class="comment"># 应该是空的</span></span><br></pre></td></tr></table></figure>
+
+<p><code>git log -1</code> 默认<strong>只显示 Author</strong>，看不到 committer；<code>--format=fuller</code> 才会把两者都列出来。用环境变量改身份时，必须用它核对，否则很容易出现 Author 改了、Committer 还是公司邮箱的情况。</p>
+<hr>
+<p>四、推送到 Fork</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">git remote -v                 <span class="comment"># 再确认一次 origin 是自己的 Fork，别推到官方</span></span><br><span class="line">git push -u origin DAOS-19869-manual-discard</span><br></pre></td></tr></table></figure>
+
+<p>解读：</p>
+<ul>
+<li>这条等价于 <code>git push origin refs/heads/DAOS-19869-manual-discard:refs/heads/DAOS-19869-manual-discard</code>。按第 1 节的镜像规则，push 时 <code>&lt;src&gt;</code> 在本地、<code>&lt;dst&gt;</code> 在远程——所以左边才是你的本地分支。远端没有这个分支时会新建，回显 <code>[new branch]</code>。</li>
+<li><code>-u</code>（<code>--set-upstream</code>）在 <code>.git/config</code> 写入这个分支的上游配置，指向 <code>origin/DAOS-19869-manual-discard</code>。之后 <code>git push</code> / <code>git pull</code> 可以不带参数，<code>git status -sb</code> 也能报 ahead/behind。第一次推送加 <code>-u</code>，之后不用再加。</li>
+<li>push 只上传<strong>已提交的历史</strong>：没提交的测试日志、覆盖率报告不会上去；但已经提交进历史的敏感信息会上去，而且删不干净。</li>
+<li>HTTPS push 提示 <code>Password</code> 时，要的是令牌（token）而不是 github 登录密码。令牌不要写进仓库 URL、代码或文档。</li>
+<li>push 不会自动创建 PR。</li>
+</ul>
+<p>验证推送结果，两个层次别混：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">git status -sb                                             <span class="comment"># 本地的&quot;认知&quot;</span></span><br><span class="line">git rev-parse HEAD                                         <span class="comment"># 本地真实值</span></span><br><span class="line">git ls-remote origin refs/heads/DAOS-19869-manual-discard   <span class="comment"># 远端真实值</span></span><br></pre></td></tr></table></figure>
+
+<p><code>git status -sb</code> 的 ahead/behind 是把本地分支和<strong>本地的</strong> <code>origin/&lt;分支&gt;</code> 比，而那只是上次 fetch/push 时的快照——远端被别人改了，它也不知道。要确认远端真实指向，只能用 <code>git ls-remote</code>：它直接问远端，并且<strong>不写本地任何引用</strong>。本次核对到 Fork 上的 SHA 与本地 HEAD 同为 <code>e313e8a10…</code>，才确认不用再推一次。</p>
+<p>创建 PR 时选四个字段：base repository = <code>daos-stack/daos</code>、base = <code>master</code>、head repository = <code>yuanguohuo/daos</code>、compare = 功能分支。对应的比较页面：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">https:&#x2F;&#x2F;github.com&#x2F;daos-stack&#x2F;daos&#x2F;compare&#x2F;master...yuanguohuo:DAOS-19869-manual-discard?expand&#x3D;1</span><br></pre></td></tr></table></figure>
+
+<hr>
+<p>五、PR 之后</p>
+<p>跟进官方更新：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">git fetch upstream master                             <span class="comment"># 只更新 upstream/master，功能分支一行不动</span></span><br><span class="line">git merge-base --is-ancestor upstream/master HEAD     <span class="comment"># 退出码 0：我的分支已含上游最新；1：上游又前进了</span></span><br></pre></td></tr></table></figure>
+
+<p>第二条实测过：功能分支从 master 分出来时退出码是 0，master 又有新提交后变成 1。注意它只回答「是否包含」，不改任何东西。</p>
+<p>真要吸收上游更新，再做 <code>merge</code> 或 <code>rebase</code>（项目有偏好就按项目的来），然后重新验证——不要为每次上游变动自动 rebase；PR 没冲突、维护者没要求时，先推进 CI 和 review 更重要。</p>
+<p>按 review 意见改代码时：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">git commit --amend          <span class="comment"># 修补上一个提交，SHA 会变</span></span><br><span class="line">git push --force-with-lease origin DAOS-19869-manual-discard</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><code>--amend</code> 不是「修改」原提交，而是用新内容<strong>造一个新提交</strong>替换它，所以 SHA 必然变（旧的还能在 reflog 里找到）。</li>
+<li>远端已有旧提交，新历史不是它的后代，普通 push 会被拒（non-fast-forward，见第2.6节的 fast-forward 条件）。</li>
+<li>用 <code>--force-with-lease</code> 而不是 <code>--force</code>：前者会先检查「远端现在的值是否还是我上次见到的值」，若别人动过就拒绝推送，避免覆盖别人的提交。</li>
+<li>收到 non-fast-forward 报错时先搞清原因，不要条件反射地 force。</li>
+</ul>
+<hr>
+<p>命令速查</p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>一句话解读</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>git remote add upstream &lt;url&gt;</code></td>
+<td>只登记地址，不下载代码</td>
+</tr>
+<tr>
+<td><code>git fetch upstream master</code></td>
+<td>官方 → 本地对象库 + <code>upstream/master</code>，不动本地分支</td>
+</tr>
+<tr>
+<td><code>git switch --no-track -c &lt;分支&gt; upstream/master</code></td>
+<td>以官方基线建分支，且不把上游设成官方</td>
+</tr>
+<tr>
+<td><code>git status --short</code></td>
+<td>两列 <code>XY</code>：index 相对 HEAD、工作区相对 index</td>
+</tr>
+<tr>
+<td><code>git diff</code> / <code>git diff --cached</code></td>
+<td>工作区 vs index / index vs HEAD</td>
+</tr>
+<tr>
+<td><code>git add -u</code></td>
+<td>只收已跟踪文件的改动，新文件要显式 add</td>
+</tr>
+<tr>
+<td><code>git merge-base HEAD upstream/master</code></td>
+<td>求分叉点，确定 PR 的真实改动范围</td>
+</tr>
+<tr>
+<td><code>git commit -s</code></td>
+<td>加 <code>Signed-off-by</code>（DCO），不是 GPG 签名</td>
+</tr>
+<tr>
+<td><code>git log -1 --format=fuller</code></td>
+<td>唯一能同时看到 Author 和 Committer 的常用写法</td>
+</tr>
+<tr>
+<td><code>git push -u origin &lt;分支&gt;</code></td>
+<td>本地分支 → Fork 同名分支，并写上游配置</td>
+</tr>
+<tr>
+<td><code>git ls-remote origin &lt;ref&gt;</code></td>
+<td>直接问远端的真实指向，不写本地引用</td>
+</tr>
+<tr>
+<td><code>git push --force-with-lease</code></td>
+<td>改写历史后安全地重推</td>
+</tr>
+</tbody></table>
+<hr>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>写的不错，有赏！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/wechatpay.jpg" alt="Yuanguo Huo 微信支付">
+        <p>微信支付</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/alipay.jpg" alt="Yuanguo Huo 支付宝">
+        <p>支付宝</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/git/" rel="tag"># git</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/10/08/nand-ssd-trim-discard/" rel="prev" title="NAND SSD TRIM and GC">
+      <i class="fa fa-chevron-left"></i> NAND SSD TRIM and GC
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/07/18/linux-tracing-tracepoint/" rel="next" title="Linux Tracepoint">
+      Linux Tracepoint <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="valine-comments"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          本站概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5-1"><span class="nav-number">1.</span> <span class="nav-text">基本概念 (1)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%93%E5%BA%93%E7%BB%93%E6%9E%84-1-1"><span class="nav-number">1.1.</span> <span class="nav-text">仓库结构 (1.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%9C%E7%A8%8B%E4%BB%93%E5%BA%93-remote-1-2"><span class="nav-number">1.2.</span> <span class="nav-text">远程仓库 remote (1.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%9C%E7%A8%8B%E8%B7%9F%E8%B8%AA%E5%88%86%E6%94%AF-1-3"><span class="nav-number">1.3.</span> <span class="nav-text">远程跟踪分支 (1.3)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%AC%E5%9C%B0%E5%88%86%E6%94%AF%E7%9A%84%E4%B8%8A%E6%B8%B8%E2%80%94%E2%80%94%E5%8F%A6%E4%B8%80%E5%A5%97%E6%98%A0%E5%B0%84-1-4"><span class="nav-number">1.4.</span> <span class="nav-text">本地分支的上游——另一套映射 (1.4)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#commit-id-1-5"><span class="nav-number">1.5.</span> <span class="nav-text">commit id (1.5)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#parent-%E5%85%B3%E7%B3%BB-1-6"><span class="nav-number">1.6.</span> <span class="nav-text">parent 关系 (1.6)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%86%E6%94%AF-1-7"><span class="nav-number">1.7.</span> <span class="nav-text">分支 (1.7)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#HEAD-1-8"><span class="nav-number">1.8.</span> <span class="nav-text">HEAD (1.8)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%B8%B8%E8%A7%81%E5%9F%BA%E6%9C%AC%E6%93%8D%E4%BD%9C-2"><span class="nav-number">2.</span> <span class="nav-text">常见基本操作 (2)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#fetch-2-1"><span class="nav-number">2.1.</span> <span class="nav-text">fetch (2.1)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#merge-2-2"><span class="nav-number">2.2.</span> <span class="nav-text">merge (2.2)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#rebase-2-3"><span class="nav-number">2.3.</span> <span class="nav-text">rebase (2.3)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#pull-2-4"><span class="nav-number">2.4.</span> <span class="nav-text">pull (2.4)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AF%B9%E6%AF%94-merge-%E4%B8%8E-rebase-2-5"><span class="nav-number">2.5.</span> <span class="nav-text">对比 merge 与 rebase (2.5)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AF%B9%E6%AF%94-fast-forward-%E4%B8%8E-non-fast-forward-2-6"><span class="nav-number">2.6.</span> <span class="nav-text">对比 fast-forward 与 non-fast-forward (2.6)</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%8F%90%E4%BA%A4-DAOS-PR-%E7%94%A8%E5%88%B0%E7%9A%84-git-%E5%91%BD%E4%BB%A4-3"><span class="nav-number">3.</span> <span class="nav-text">提交 DAOS PR 用到的 git 命令 (3)</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Yuanguo Huo"
+      src="/images/me.gif">
+  <p class="site-author-name" itemprop="name">Yuanguo Huo</p>
+  <div class="site-description" itemprop="description">A little better than yesterday</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">76</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">23</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">113</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yuanguohuo" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yuanguohuo" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yuanguo.h001@gmail.com" title="E-Mail → mailto:yuanguo.h001@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Yuanguo Huo</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+        
+
+
+
+
+
+
+<script>
+  (function() {
+    function leancloudSelector(url) {
+      url = encodeURI(url);
+      return document.getElementById(url).querySelector('.leancloud-visitors-count');
+    }
+
+    function addCount(Counter) {
+      var visitors = document.querySelector('.leancloud_visitors');
+      var url = decodeURI(visitors.id);
+      var title = visitors.dataset.flagTitle;
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          if (results.length > 0) {
+            var counter = results[0];
+            leancloudSelector(url).innerText = counter.time + 1;
+            Counter('put', '/classes/Counter/' + counter.objectId, { time: { '__op': 'Increment', 'amount': 1 } })
+              .catch(error => {
+                console.error('Failed to save visitor count', error);
+              });
+          } else {
+              leancloudSelector(url).innerText = 'Counter not initialized! More info at console err msg.';
+              console.error('ATTENTION! LeanCloud counter has security bug, see how to solve it here: https://github.com/theme-next/hexo-leancloud-counter-security. \n However, you can still use LeanCloud without security, by setting `security` option to `false`.');
+            
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    function showTime(Counter) {
+      var visitors = document.querySelectorAll('.leancloud_visitors');
+      var entries = [...visitors].map(element => {
+        return decodeURI(element.id);
+      });
+
+      Counter('get', '/classes/Counter?where=' + encodeURIComponent(JSON.stringify({ url: { '$in': entries } })))
+        .then(response => response.json())
+        .then(({ results }) => {
+          for (let url of entries) {
+            let target = results.find(item => item.url === url);
+            leancloudSelector(url).innerText = target ? target.time : 0;
+          }
+        })
+        .catch(error => {
+          console.error('LeanCloud Counter Error', error);
+        });
+    }
+
+    let { app_id, app_key, server_url } = {"enable":true,"app_id":"sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz","app_key":"j2NAkBzz8pzcwkRlYdi87QEY","server_url":null,"security":true};
+    function fetchData(api_server) {
+      var Counter = (method, url, data) => {
+        return fetch(`${api_server}/1.1${url}`, {
+          method,
+          headers: {
+            'X-LC-Id'     : app_id,
+            'X-LC-Key'    : app_key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+      if (CONFIG.page.isPost) {
+        if (CONFIG.hostname !== location.hostname) return;
+        addCount(Counter);
+      } else if (document.querySelectorAll('.post-title-link').length >= 1) {
+        showTime(Counter);
+      }
+    }
+
+    let api_server = app_id.slice(-9) !== '-MdYXbMMI' ? server_url : `https://${app_id.slice(0, 8).toLowerCase()}.api.lncldglobal.com`;
+
+    if (api_server) {
+      fetchData(api_server);
+    } else {
+      fetch('https://app-router.leancloud.cn/2/route?appId=' + app_id)
+        .then(response => response.json())
+        .then(({ api_server }) => {
+          fetchData('https://' + api_server);
+        });
+    }
+  })();
+</script>
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+
+<script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'sKs2IrqwziD8hQqWqhcBdmxB-gzGzoHsz',
+      appKey     : 'j2NAkBzz8pzcwkRlYdi87QEY',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : '' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script>
+
+</body>
+</html>
